@@ -5,6 +5,7 @@ interface InputProps {
   placeholder?: string;
   max?: string;
   className?: string 
+  min?: string;
 }
 
 export default function Input({

@@ -1,3 +1,4 @@
+# attendance/models.py
 from django.db import models
 
 import mongoengine as me
@@ -10,14 +11,21 @@ IST = pytz.timezone("Asia/Kolkata")
 class AttendanceRecord(me.Document):
     employee_id = me.StringField(required=True)
     employee_name = me.StringField(required=True)
-    date = me.StringField() 
+    date = me.StringField()
     check_in_time = me.DateTimeField()
     check_out_time = me.DateTimeField(null=True)
-    check_in_image = me.StringField()  # Path to check-in photo
+    check_in_image = me.StringField()
     duration_minutes = me.IntField(default=0)
-    status = me.StringField()  # "present", "late", "half_day", "absent"
+    status = me.StringField()
+    # "present" | "late" | "half_day" | "absent" | "leave"
+    # | "leave_pending" | "leave_approved" | "leave_rejected"
     is_verified = me.BooleanField(default=False)
     reason = me.StringField(default="")
     half_day_until = me.StringField(default="")
+    minutes_late = me.IntField(default=0)  # ← NEW: how many mins late
+    leave_type = me.StringField(default="")  # ← NEW: casual/sick/emergency
 
-    meta = {"collection": "attendance", "indexes": ["employee_id", "date"]}
+    meta = {
+        "collection": "attendance",
+        "indexes": ["employee_id", "date", "status"],
+    }
