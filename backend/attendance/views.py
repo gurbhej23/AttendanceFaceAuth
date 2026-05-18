@@ -12,7 +12,7 @@ from rest_framework.response import Response
 
 IST = pytz.timezone("Asia/Kolkata")
 TEMP_DIR = "media/temp"
-ATTENDANCE_START_HOUR = 10
+ATTENDANCE_START_HOUR = 9
 ATTENDANCE_START_MINUTE = 0
 
 os.makedirs(TEMP_DIR, exist_ok=True)
@@ -459,8 +459,7 @@ def admin_attendance_sheet(request):
                 check_in = "--"
                 check_out = "--"
                 duration = "--"
-                reason = "--"
-                half_day_until = "--"
+                reason = "--" 
             else:
                 sheet_status = record.status or "not_marked"
                 if sheet_status in ["present", "late"]:
