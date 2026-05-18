@@ -530,7 +530,7 @@ export default function Dashboard() {
           >
             <p className={`${cardStyle.text} text-sm`}>Today's Status</p>
             <div className="flex items-center justify-between mt-3">
-              <h2 className="text-2xl sm:text-3xl font-bold text-white capitalize">
+              <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white capitalize">
                 {todayStatus || "Not Marked"}
               </h2>
               <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl">
