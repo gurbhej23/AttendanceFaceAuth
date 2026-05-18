@@ -13,8 +13,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 from pathlib import Path
 import mongoengine as me
 from dotenv import load_dotenv
-import os
-import dj_database_url
+import os 
 
 load_dotenv()
 
@@ -36,8 +35,7 @@ SECRET_KEY = "django-insecure-9hkbfp9ssh4%(k5ae=s88se+^q81_-=e#vee!c1#uk(qh#gfhy
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
-DATABASES = {"default": dj_database_url.parse(os.environ.get("DATABASE_URL"))}
+ALLOWED_HOSTS = ["*"] 
 
 # Application definition
 
