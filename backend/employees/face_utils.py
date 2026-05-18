@@ -1,0 +1,172 @@
+import base64
+import os
+import time
+import traceback
+from io import BytesIO
+
+import cv2
+import numpy as np
+from PIL import Image
+
+MEDIA_DIR = "media/faces"
+os.makedirs(MEDIA_DIR, exist_ok=True)
+
+_deepface = None
+_facenet_loaded = False
+
+
+def get_deepface():
+    global _deepface
+    if _deepface is None:
+        from deepface import DeepFace
+
+        _deepface = DeepFace
+    return _deepface
+
+
+def ensure_facenet_loaded():
+    global _facenet_loaded
+    if _facenet_loaded:
+        return
+
+    print("Loading FaceNet model...")
+    get_deepface().build_model("Facenet")
+    _facenet_loaded = True
+    print("FaceNet model loaded")
+
+
+def extract_and_save_embedding(base64_image: str, employee_id: str) -> tuple:
+    """
+    Extract a FaceNet embedding from a base64 image and save the image to disk.
+    Returns: (embedding_list, error_message, image_path)
+    """
+    try:
+        print(f"\n{'=' * 60}")
+        print(f"Processing image for {employee_id}")
+        print(f"{'=' * 60}")
+
+        if not base64_image:
+            print("No image provided")
+            return None, "No image provided", None
+
+        if "," in base64_image:
+            base64_image = base64_image.split(",", 1)[1]
+
+        try:
+            image_data = base64.b64decode(base64_image)
+            print(f"Base64 decoded: {len(image_data)} bytes")
+        except Exception as exc:
+            print(f"Base64 decode failed: {exc}")
+            return None, f"Invalid image format: {exc}", None
+
+        try:
+            image = Image.open(BytesIO(image_data)).convert("RGB")
+            image_np = np.array(image)
+            print(f"Image loaded: {image_np.shape}")
+        except Exception as exc:
+            print(f"Image load failed: {exc}")
+            return None, f"Invalid image file: {exc}", None
+
+        if image_np.shape[0] < 200 or image_np.shape[1] < 200:
+            print(f"Image too small: {image_np.shape}")
+            return None, "Image too small - face must be larger in frame", None
+
+        image_bgr = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
+        print("Color converted to BGR")
+
+        image_path = None
+        try:
+            filename = f"{employee_id}_{int(time.time())}.jpg"
+            image_path = os.path.join(MEDIA_DIR, filename)
+            success = cv2.imwrite(image_path, image_bgr)
+            if success:
+                print(f"Image saved: {image_path}")
+            else:
+                print("Image save returned False, continuing anyway")
+        except Exception as exc:
+            print(f"Image save failed: {exc}")
+
+        print("Extracting face embedding...")
+        try:
+            print(f"   Input shape: {image_bgr.shape}")
+            print("   enforce_detection: False (lenient mode)")
+            ensure_facenet_loaded()
+
+            result = get_deepface().represent(
+                img_path=image_bgr,
+                model_name="Facenet",
+                enforce_detection=False,
+            )
+
+            if not result:
+                print("DeepFace returned empty result")
+                return None, "Could not extract face features", image_path
+
+            embedding = result[0]["embedding"]
+            print(f"Embedding extracted: {len(embedding)} dimensions")
+            print(f"   First 5 values: {embedding[:5]}")
+
+            print(f"\n{'=' * 60}")
+            print("SUCCESS")
+            print(f"{'=' * 60}\n")
+
+            return embedding, None, image_path
+
+        except Exception as exc:
+            print(f"DeepFace error: {type(exc).__name__}: {exc}")
+            traceback.print_exc()
+            return None, f"Face extraction failed: {exc}", image_path
+
+    except Exception as exc:
+        print(f"\n{'=' * 60}")
+        print(f"CRITICAL ERROR: {type(exc).__name__}")
+        print(str(exc))
+        traceback.print_exc()
+        print(f"{'=' * 60}\n")
+        return None, f"Image processing failed: {exc}", None
+
+
+def verify_face_match(
+    uploaded_embedding: list, stored_embedding: list, threshold: float = 0.45
+) -> bool:
+    """
+    Compare two face embeddings using Euclidean distance.
+    """
+    try:
+        print(f"\n{'=' * 60}")
+        print("Comparing face embeddings")
+        print(f"{'=' * 60}")
+
+        if not uploaded_embedding or not stored_embedding:
+            print("Missing embeddings")
+            return False
+
+        current = np.array(uploaded_embedding, dtype=np.float32)
+        stored = np.array(stored_embedding, dtype=np.float32)
+
+        print(f"Current embedding shape: {current.shape}")
+        print(f"Stored embedding shape: {stored.shape}")
+
+        current_norm = np.linalg.norm(current)
+        stored_norm = np.linalg.norm(stored)
+
+        if current_norm == 0 or stored_norm == 0:
+            print("Invalid embedding (zero norm)")
+            return False
+
+        current = current / current_norm
+        stored = stored / stored_norm
+
+        distance = np.linalg.norm(current - stored)
+
+        print(f"Face distance: {distance:.4f}")
+        print(f"   Threshold: {threshold}")
+        print(f"   Match: {'YES' if distance < threshold else 'NO'}")
+        print(f"{'=' * 60}\n")
+
+        return distance < threshold
+
+    except Exception as exc:
+        print(f"Error in verify_face_match: {exc}")
+        traceback.print_exc()
+        return False
