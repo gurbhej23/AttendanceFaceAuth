@@ -5,7 +5,6 @@ import API from "../services/api";
 import Button from "../components/Button";
 import Input from "../components/Input";
 import Table from "../components/Table";
-import Sidebar from "./Sidebar";
 
 interface AttendanceRecord {
   employee_id: string;
@@ -468,7 +467,6 @@ export default function Dashboard() {
                 </h2>
               </div>
             </div>
-            
 
             <div className="w-full xl:w-auto">
               <div className="flex xl:hidden justify-end">
