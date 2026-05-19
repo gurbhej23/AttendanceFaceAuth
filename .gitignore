@@ -1,0 +1,7 @@
+# Ignore local environment files
+backend/.env
+*.env
+
+# Python cache files
+__pycache__/
+*.py[cod]
