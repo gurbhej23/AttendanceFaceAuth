@@ -640,7 +640,7 @@ export default function Register() {
             </div>
 
             {/* Switch method */}
-            {false && formData.phone && (
+            {formData.phone && (
               <div className="text-center">
                 <button
                   onClick={() => {

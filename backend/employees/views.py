@@ -291,7 +291,9 @@ def login_employee(request):
                 "role": employee.role,
                 "department": employee.department,
                 "designation": employee.designation,
-                "profile_img": media_url(employee.profile_img or employee.photo_path or ""),
+                "profile_img": media_url(
+                    employee.profile_img or employee.photo_path or ""
+                ),
                 "cv_file": media_url(employee.cv_file or ""),
             }
         )
@@ -362,7 +364,9 @@ def admin_login(request):
                 "role": employee.role,
                 "department": employee.department,
                 "designation": employee.designation,
-                "profile_img": media_url(employee.profile_img or employee.photo_path or ""),
+                "profile_img": media_url(
+                    employee.profile_img or employee.photo_path or ""
+                ),
                 "cv_file": media_url(employee.cv_file or ""),
             }
         )
@@ -545,9 +549,9 @@ def send_registration_otp(request):
             from_email=settings.EMAIL_HOST_USER,
             recipient_list=[email],
             fail_silently=False,
-        )
-
+        ) 
         print(f"📧 Registration OTP for {email}: {otp}")
+        print("Using SMTP:", settings.EMAIL_HOST)
 
         return Response(
             {
@@ -555,6 +559,7 @@ def send_registration_otp(request):
                 "message": "OTP sent to your email for registration verification",
             }
         )
+        
 
     except Exception as e:
         print(f"❌ Send registration OTP error: {str(e)}")
