@@ -8,6 +8,7 @@ export default function AdminLogin() {
   const [formData, setFormData] = useState({ employee_id: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showPass, setShowPass] = useState(false);
 
   const handleLogin = async () => {
     if (!formData.employee_id || !formData.password) {
@@ -113,7 +114,7 @@ export default function AdminLogin() {
           <div>
             <label className="text-white text-sm mb-2 block">Password</label>
             <input
-              type="password"
+              type={showPass ? "text" : "password"}
               placeholder="Enter your password"
               value={formData.password}
               onChange={(e) =>
@@ -122,6 +123,13 @@ export default function AdminLogin() {
               onKeyDown={handleKeyPress}
               className="w-full p-4 rounded-2xl bg-slate-900/70 border border-slate-700 text-white placeholder-slate-500 outline-none focus:border-blue-500 transition"
             />
+
+            <Button
+              text={showPass ? "🙈" : "👁️"}
+              type="button"
+              onClick={() => setShowPass(!showPass)}
+              className="absolute right-3 bottom-20 -translate-y-1/2 text-slate-400 hover:text-white transition cursor-pointer"
+            />
           </div>
 
           {/* Login Button */}
@@ -129,7 +137,7 @@ export default function AdminLogin() {
             text={loading ? "Verifying..." : "Login"}
             onClick={handleLogin}
             disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 transition p-4 rounded-2xl text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed mt-3"
+            className="w-full bg-blue-600 hover:bg-blue-700 transition p-4 rounded-2xl text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed mt-3 cursor-pointer"
           />
         </div>
       </div>
