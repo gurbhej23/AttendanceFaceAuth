@@ -67,7 +67,7 @@ export default function Login() {
 
         setTimeout(() => {
           navigate("/verify-face", { replace: true });
-        }, 1500);
+        }, 1000);
       }
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } };

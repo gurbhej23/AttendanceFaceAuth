@@ -300,19 +300,19 @@ export default function Register() {
     try {
       const response = await API.post("/employees/register/", {
         name: formData.name,
-	        email: formData.email,
-	        image: capturedImage,
-	        cv_file: cvFile,
-	        cv_file_name: cvFileName,
-	      });
-	      if (response.data.success) {
-	        setOverlay({
-	          title: "Registration successful",
-	          message: `Your Employee ID and password have been sent to ${formData.email}.`,
-	          tone: "success",
-	          loading: true,
-	        });
-	        setTimeout(() => navigate("/"), 1800);
+        email: formData.email,
+        image: capturedImage,
+        cv_file: cvFile,
+        cv_file_name: cvFileName,
+      });
+      if (response.data.success) {
+        setOverlay({
+          title: "Registration successful",
+          message: `Your Employee ID and password have been sent to ${formData.email}.`,
+          tone: "success",
+          loading: true,
+        });
+        setTimeout(() => navigate("/"), 2000);
       } else {
         setError(response.data.error || "Registration failed");
       }
@@ -418,7 +418,9 @@ export default function Register() {
                 className="w-full rounded-2xl border border-slate-700 bg-slate-900/70 p-4 text-sm text-slate-300 file:mr-4 file:rounded-xl file:border-0 file:bg-blue-600 file:px-4 file:py-2 file:font-semibold file:text-white hover:file:bg-blue-700"
               />
               {cvFileName && (
-                <p className="mt-2 truncate text-xs text-blue-300">{cvFileName}</p>
+                <p className="mt-2 truncate text-xs text-blue-300">
+                  {cvFileName}
+                </p>
               )}
             </div>
 
@@ -465,7 +467,9 @@ export default function Register() {
                       );
                       return;
                     }
-                    setError("SMS verification is not available yet. Please use Email OTP.");
+                    setError(
+                      "SMS verification is not available yet. Please use Email OTP.",
+                    );
                   }}
                   className={`p-3 rounded-2xl border text-sm font-medium transition-all ${
                     verifyMethod === "phone"

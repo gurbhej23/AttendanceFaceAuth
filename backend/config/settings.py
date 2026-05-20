@@ -156,8 +156,7 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
-STATIC_ROOT = BASE_DIR / "staticfiles"
-CORS_ALLOW_ALL_ORIGINS = True
+STATIC_ROOT = BASE_DIR / "staticfiles" 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 FAST2SMS_API_KEY = os.getenv("FAST2SMS_API_KEY")
