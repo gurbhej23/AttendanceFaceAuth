@@ -407,7 +407,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] px-3 py-4 sm:px-5 lg:px-6">
       {/* LATE ALERT BANNER */}
       {lateAlert.show && (
-        <div className="fixed top-20 left-0 right-0 z-50 bg-yellow-500/95 text-slate-900 px-6 py-3 flex items-center justify-between shadow-xl">
+        <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-500/95 text-slate-900 px-6 py-3 flex items-center justify-between shadow-xl">
           <div className="flex items-center gap-3">
             <span className="text-2xl">⚠️</span>
             <div>
