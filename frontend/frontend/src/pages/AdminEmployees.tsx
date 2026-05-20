@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../services/api";
+import Input from "../components/Input";
 
 const DEPARTMENTS = ["IT", "HR", "Finance", "Operations", "Sales", "Marketing"];
 const JOB_ROLES = [
@@ -155,7 +156,7 @@ export default function AdminEmployees() {
 
         <section className="rounded-3xl border border-slate-800 bg-slate-900">
           <div className="grid gap-3 border-b border-slate-800 p-5 lg:grid-cols-[1fr_160px_160px]">
-            <input
+            <Input
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -301,7 +302,7 @@ export default function AdminEmployees() {
               ].map(([field, label]) => (
                 <label key={field} className="text-sm text-slate-400">
                   {label}
-                  <input
+                  <Input
                     value={String(editing[field as keyof Employee] || "")}
                     onChange={(e) =>
                       setEditing({ ...editing, [field]: e.target.value })
@@ -427,7 +428,7 @@ export default function AdminEmployees() {
                       href={getMediaUrl(viewing.cv_file)}
                       target="_blank"
                       rel="noreferrer"
-                      className="rounded-2xl border border-blue-500/30 bg-blue-500/10 p-3 text-center font-semibold text-blue-300"
+                      className="rounded-2xl border border-blue-500/30 bg-blue-500/10 p-5 text-center font-semibold text-blue-300"
                     >
                       View CV
                     </a>
@@ -438,8 +439,8 @@ export default function AdminEmployees() {
             <div className="mt-6 flex justify-end">
               <button
                 onClick={() => setViewing(null)}
-                className="rounded-2xl bg-blue-600 px-5 py-3 font-bold hover:bg-blue-700"
-              >
+                className="rounded-2xl bg-blue-600 px-5 py-3 font-bold hover:bg-blue-700 cursor-pointer"
+              > 
                 Close
               </button>
             </div>

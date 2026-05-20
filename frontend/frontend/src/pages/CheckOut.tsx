@@ -4,6 +4,11 @@ import { useNavigate } from "react-router-dom";
 import API from "../services/api";
 import MessageOverlay from "../components/MessageOverlay";
 
+const getApiError = (err: unknown, fallback: string): string => {
+  const e = err as { response?: { data?: { error?: string } } };
+  return e?.response?.data?.error || fallback;
+};
+
 export default function CheckOut() {
   const webcamRef = useRef<Webcam>(null);
   const navigate = useNavigate();
@@ -62,8 +67,8 @@ export default function CheckOut() {
         setMessage(response.data.error);
         setOverlay(null);
       }
-    } catch (error: any) {
-      setMessage(error.response?.data?.error || "Check-out failed");
+    } catch (error: unknown) {
+      setMessage(getApiError(error, "Check-out failed"));
       setOverlay(null);
     } finally {
       setLoading(false);

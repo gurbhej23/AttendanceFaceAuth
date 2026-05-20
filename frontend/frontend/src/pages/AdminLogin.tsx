@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../services/api";
 import Button from "../components/Button";
+import Input from "../components/Input";
 
 export default function AdminLogin() {
   const navigate = useNavigate();
@@ -98,7 +99,7 @@ export default function AdminLogin() {
           {/* Employee ID */}
           <div>
             <label className="text-white text-sm mb-2 block">Employee ID</label>
-            <input
+            <Input
               type="text"
               placeholder="Enter your employee ID"
               value={formData.employee_id}
@@ -113,7 +114,7 @@ export default function AdminLogin() {
           {/* Password */}
           <div>
             <label className="text-white text-sm mb-2 block">Password</label>
-            <input
+            <Input
               type={showPass ? "text" : "password"}
               placeholder="Enter your password"
               value={formData.password}

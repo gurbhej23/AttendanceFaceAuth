@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Webcam from "react-webcam";
 import API from "../services/api";
+import Button from "../components/Button";
+import Input from "../components/Input";
 
 const DEPARTMENTS = ["IT", "HR", "Finance", "Operations", "Sales", "Marketing"];
 const JOB_ROLES = [
@@ -221,12 +223,11 @@ export default function Profile() {
             <p className="text-sm text-blue-300">Employee profile</p>
             <h1 className="text-3xl font-bold">Account & Face Settings</h1>
           </div>
-          <button
+          <Button
+            text="Back to dashboard"
             onClick={() => navigate("/dashboard")}
-            className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800"
-          >
-            Back to dashboard
-          </button>
+            className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800 cursor-pointer"
+          />
         </div>
 
         <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
@@ -246,7 +247,7 @@ export default function Profile() {
             </div>
             <label className="mx-auto mb-5 block w-fit cursor-pointer rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-2 text-sm font-semibold text-blue-300 hover:bg-blue-500/20">
               Change profile photo
-              <input
+              <Input
                 type="file"
                 accept="image/*"
                 className="hidden"
@@ -291,7 +292,7 @@ export default function Profile() {
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="text-sm text-slate-400">
                   Full name
-                  <input
+                  <Input
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 p-3 text-white outline-none focus:border-blue-500"
@@ -299,7 +300,7 @@ export default function Profile() {
                 </label>
                 <label className="text-sm text-slate-400">
                   Phone
-                  <input
+                  <Input
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 p-3 text-white outline-none focus:border-blue-500"
@@ -334,13 +335,12 @@ export default function Profile() {
                   </select>
                 </label>
               </div>
-              <button
+              <Button
+                text={saving ? "Saving..." : "Save profile"}
                 onClick={saveProfile}
                 disabled={saving}
-                className="mt-5 rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white hover:bg-blue-700 disabled:opacity-50"
-              >
-                {saving ? "Saving..." : "Save profile"}
-              </button>
+                className="mt-5 rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
+              />
             </section>
 
             <section className="rounded-3xl border border-slate-800 bg-slate-900 p-6">
@@ -351,7 +351,7 @@ export default function Profile() {
               <div className="grid gap-4 md:grid-cols-3">
                 <label className="text-sm text-slate-400">
                   Current password
-                  <input
+                  <Input
                     type="password"
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
@@ -360,7 +360,7 @@ export default function Profile() {
                 </label>
                 <label className="text-sm text-slate-400">
                   New password
-                  <input
+                  <Input
                     type="password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
@@ -369,7 +369,7 @@ export default function Profile() {
                 </label>
                 <label className="text-sm text-slate-400">
                   Confirm new password
-                  <input
+                  <Input
                     type="password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
@@ -377,13 +377,12 @@ export default function Profile() {
                   />
                 </label>
               </div>
-              <button
+              <Button
+                text={saving ? "Saving..." : "Update password"}
                 onClick={saveProfile}
                 disabled={saving}
-                className="mt-5 rounded-2xl bg-indigo-600 px-5 py-3 font-bold text-white hover:bg-indigo-700 disabled:opacity-50"
-              >
-                {saving ? "Saving..." : "Update password"}
-              </button>
+                className="mt-5 rounded-2xl bg-indigo-600 px-5 py-3 font-bold text-white hover:bg-indigo-700 disabled:opacity-50 cursor-pointer"
+              />
             </section>
 
             <section className="rounded-3xl border border-slate-800 bg-slate-900 p-6">
@@ -394,15 +393,18 @@ export default function Profile() {
                     Use this when face verification is failing repeatedly.
                   </p>
                 </div>
-                <button
+                <Button
+                  text={
+                    showFaceEnrollment
+                      ? "Close re-enrollment"
+                      : "Start re-enrollment"
+                  }
                   onClick={() => {
                     setShowFaceEnrollment((value) => !value);
                     setCapturedImage(null);
                   }}
-                  className="rounded-2xl bg-cyan-600 px-5 py-3 font-bold hover:bg-cyan-700"
-                >
-                  {showFaceEnrollment ? "Close re-enrollment" : "Start re-enrollment"}
-                </button>
+                  className="rounded-2xl bg-cyan-600 px-5 py-3 font-bold hover:bg-cyan-700 cursor-pointer"
+                />
               </div>
 
               {showFaceEnrollment && (
@@ -432,27 +434,26 @@ export default function Profile() {
                     )}
                   </div>
                   <div className="flex flex-col justify-center gap-3">
-                    <button
+                    <Button
+                      text="Capture new face"
                       onClick={captureFace}
                       disabled={!cameraReady || faceSaving}
-                      className="rounded-2xl bg-blue-600 px-5 py-3 font-bold hover:bg-blue-700 disabled:opacity-50"
-                    >
-                      Capture new face
-                    </button>
-                    <button
+                      className="rounded-2xl bg-blue-600 px-5 py-3 font-bold hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
+                    />
+
+                    <Button
+                      text={faceSaving ? "Updating..." : "Save face profile"}
                       onClick={saveFace}
                       disabled={!capturedImage || faceSaving}
-                      className="rounded-2xl bg-green-600 px-5 py-3 font-bold hover:bg-green-700 disabled:opacity-50"
-                    >
-                      {faceSaving ? "Updating..." : "Save face profile"}
-                    </button>
+                      className="rounded-2xl bg-green-600 px-5 py-3 font-bold hover:bg-green-700 disabled:opacity-50 cursor-pointer"
+                    />
+
                     {capturedImage && (
-                      <button
+                      <Button
+                        text="Retake photo"
                         onClick={() => setCapturedImage(null)}
-                        className="rounded-2xl border border-slate-700 px-5 py-3 font-semibold text-slate-300 hover:bg-slate-800"
-                      >
-                        Retake photo
-                      </button>
+                        className="rounded-2xl border border-slate-700 px-5 py-3 font-semibold text-slate-300 hover:bg-slate-800 cursor-pointer"
+                      />
                     )}
                   </div>
                 </div>

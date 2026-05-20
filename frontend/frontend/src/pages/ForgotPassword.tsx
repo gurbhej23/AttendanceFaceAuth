@@ -3,6 +3,11 @@ import { Link, useNavigate } from "react-router-dom";
 import API from "../services/api";
 import MessageOverlay from "../components/MessageOverlay";
 
+const getApiError = (err: unknown, fallback: string): string => {
+  const e = err as { response?: { data?: { error?: string } } };
+  return e?.response?.data?.error || fallback;
+};
+
 export default function ForgotPassword() {
   const navigate = useNavigate();
 
@@ -36,13 +41,14 @@ export default function ForgotPassword() {
       if (response.data.success) {
         setOverlay({
           title: "OTP sent",
-          message: "Check your email and enter the code to reset your password.",
+          message:
+            "Check your email and enter the code to reset your password.",
           tone: "success",
         });
         setStep(2);
       }
-    } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to send OTP");
+    } catch (err: unknown) {
+      setError(getApiError(err, "Failed to send OTP"));
     } finally {
       setLoading(false);
     }
@@ -74,8 +80,8 @@ export default function ForgotPassword() {
         });
         setTimeout(() => navigate("/"), 1500);
       }
-    } catch (err: any) {
-      setError(err.response?.data?.error || "Reset failed");
+    } catch (err: unknown) {
+      setError(getApiError(err, "Reset failed"));
     } finally {
       setLoading(false);
     }

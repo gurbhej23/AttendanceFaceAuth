@@ -10,6 +10,7 @@ import AdminLogin from "./pages/AdminLogin";
 import ForgotPassword from "./pages/ForgotPassword";
 import Profile from "./pages/Profile";
 import AdminEmployees from "./pages/AdminEmployees";
+import AdminCreateEmployee from "./pages/AdminCreateEmployee";
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/profile" element={<Profile />} />
       <Route path="/admin-employees" element={<AdminEmployees />} />
+      <Route path="/admin-create-employee" element={<AdminCreateEmployee/>}/>
     </Routes>
   );
 }

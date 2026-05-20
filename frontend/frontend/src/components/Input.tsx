@@ -1,11 +1,13 @@
 interface InputProps {
   type?: string;
-  value: string;
+  value?: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   placeholder?: string;
   max?: string;
   className?: string 
   min?: string;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  accept?: string
 }
 
 export default function Input({
@@ -15,7 +17,9 @@ export default function Input({
   placeholder,
   max,
   min,
-  className
+  className,
+  onKeyDown,
+  accept
 }: InputProps) {
   return (
     <input
@@ -26,6 +30,8 @@ export default function Input({
       className = {className}
       onChange={onChange}
       placeholder={placeholder} 
+      onKeyDown={onKeyDown}
+      accept={accept}
     />
   );
 }

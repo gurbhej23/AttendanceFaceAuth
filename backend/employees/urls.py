@@ -1,12 +1,11 @@
+# employees/urls.py
 from django.urls import path
 from .views import (
-    register_employee,
+    create_employee,
     login_employee,
     admin_login,
     send_otp,
     reset_password,
-    send_registration_otp,
-    verify_registration_otp,
     get_profile,
     update_profile,
     update_profile_photo,
@@ -17,21 +16,20 @@ from .views import (
 )
 
 urlpatterns = [
-    path("register/", register_employee, name="register"),
+    # ── Auth ──────────────────────────────────────────────────────────────────
     path("login/", login_employee, name="login"),
     path("admin-login/", admin_login, name="admin-login"),
+    # ── Admin creates employee (replaces self-register + OTP) ─────────────────
+    path("create-employee/", create_employee, name="create-employee"),
+    # ── Password reset (OTP still used here) ──────────────────────────────────
     path("send-otp/", send_otp, name="send-otp"),
     path("reset-password/", reset_password, name="reset-password"),
-    path("send-registration-otp/", send_registration_otp, name="send_registration_otp"),
-    path(
-        "verify-registration-otp/",
-        verify_registration_otp,
-        name="verify-registration-otp",
-    ),
+    # ── Profile ───────────────────────────────────────────────────────────────
     path("profile/", get_profile, name="profile"),
     path("update-profile/", update_profile, name="update-profile"),
     path("update-profile-photo/", update_profile_photo, name="update-profile-photo"),
     path("update-face/", update_face, name="update-face"),
+    # ── Admin employee management ─────────────────────────────────────────────
     path("admin-employees/", admin_employees, name="admin-employees"),
     path("admin-update-employee/", admin_update_employee, name="admin-update-employee"),
     path(

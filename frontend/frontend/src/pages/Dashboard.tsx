@@ -418,12 +418,11 @@ export default function Dashboard() {
               </p>
             </div>
           </div>
-          <button
+          <Button
+            text="✕ "
             onClick={() => setLateAlert({ show: false, minutesLate: 0 })}
             className="text-slate-900 font-bold text-xl hover:opacity-70 cursor-pointer"
-          >
-            ✕
-          </button>
+          />
         </div>
       )}
 
@@ -461,44 +460,42 @@ export default function Dashboard() {
         </div>
 
         <nav className="space-y-2">
-          <button
+          <Button
+            text="Check Out"
             onClick={() => navigate("/check-out")}
-            className="w-full rounded-2xl bg-blue-600 px-4 py-4 text-center text-sm font-bold text-white hover:bg-blue-700"
-          >
-            Check Out
-          </button>
-          <button
+            className="w-full rounded-2xl bg-blue-600 px-4 py-4 text-center text-sm font-bold text-white hover:bg-blue-700 cursor-pointer"
+          />
+
+          <Button
+            text="Half Day"
             onClick={() => setShowHalfDayModal(true)}
-            className="w-full rounded-2xl bg-orange-600 px-4 py-4 text-center text-sm font-bold text-white hover:bg-orange-700"
-          >
-            Half Day
-          </button>
-          <button
+            className="w-full rounded-2xl bg-orange-600 px-4 py-4 text-center text-sm font-bold text-white hover:bg-orange-700 cursor-pointer"
+          />
+
+          <Button
+            text="Summary"
             onClick={() => setShowSummaryModal(true)}
-            className="w-full rounded-2xl bg-indigo-600 px-4 py-4 text-center text-sm font-bold text-white hover:bg-indigo-700"
-          >
-            Summary
-          </button>
-          <button
+            className="w-full rounded-2xl bg-indigo-600 px-4 py-4 text-center text-sm font-bold text-white hover:bg-indigo-700 cursor-pointer"
+          />
+
+          <Button
+            text="My Leaves"
             onClick={() => setShowLeavesModal(true)}
-            className="w-full rounded-2xl bg-purple-600 px-4 py-4 text-center text-sm font-bold text-white hover:bg-purple-700"
-          >
-            My Leaves
-          </button>
-          <button
+            className="w-full rounded-2xl bg-purple-600 px-4 py-4 text-center text-sm font-bold text-white hover:bg-purple-700 cursor-pointer"
+          />
+
+          <Button
+            text="Profile"
             onClick={() => navigate("/profile")}
-            className="w-full rounded-2xl bg-slate-700 px-4 py-4 text-center text-sm font-bold text-white hover:bg-slate-600"
-          >
-            Profile
-          </button>
+            className="w-full rounded-2xl bg-slate-700 px-4 py-4 text-center text-sm font-bold text-white hover:bg-slate-600 cursor-pointer"
+          />
         </nav>
 
-        <button
+        <Button
+        text="Logout"
           onClick={handleLogout}
-          className="mt-auto w-full rounded-2xl bg-red-600 px-4 py-4 text-center text-sm font-bold text-white hover:bg-red-700"
-        >
-          Logout
-        </button>
+          className="mt-auto w-full rounded-2xl bg-red-600 px-4 py-4 text-center text-sm font-bold text-white hover:bg-red-700 cursor-pointer"
+        />  
       </aside>
 
       <div
