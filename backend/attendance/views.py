@@ -1,8 +1,10 @@
+import csv
 import os
 from rest_framework import status
 from employees.models import Employee
 from attendance.models import AttendanceRecord
 from datetime import datetime, timedelta
+from django.http import HttpResponse
 
 import pytz
 from rest_framework.decorators import api_view
@@ -17,7 +19,7 @@ LATE_GRACE_MINUTES = 15  # grace period before marking late
 
 os.makedirs(TEMP_DIR, exist_ok=True)
 
-THRESHOLD = 0.35
+FACE_MATCH_THRESHOLD = 0.62
 
 
 def media_url(path):
@@ -104,7 +106,9 @@ def verify_face(request):
         if error:
             return Response({"success": False, "error": error}, status=400)
 
-        is_match = verify_face_match(uploaded_embedding, employee.face_embedding)
+        is_match = verify_face_match(
+            uploaded_embedding, employee.face_embedding, FACE_MATCH_THRESHOLD
+        )
         if not is_match:
             return Response(
                 {"success": False, "error": "Face does not match. Access denied."},
@@ -158,7 +162,9 @@ def check_in_face(request):
         if error:
             return Response({"success": False, "error": error}, status=400)
 
-        is_match = verify_face_match(uploaded_embedding, employee.face_embedding)
+        is_match = verify_face_match(
+            uploaded_embedding, employee.face_embedding, FACE_MATCH_THRESHOLD
+        )
         if not is_match:
             return Response(
                 {"success": False, "error": "❌ Face does not match. Access denied."},
@@ -252,7 +258,9 @@ def check_out_face(request):
         if error:
             return Response({"success": False, "error": error}, status=400)
 
-        is_match = verify_face_match(uploaded_embedding, employee.face_embedding)
+        is_match = verify_face_match(
+            uploaded_embedding, employee.face_embedding, FACE_MATCH_THRESHOLD
+        )
         if not is_match:
             return Response(
                 {"success": False, "error": "❌ Face does not match. Access denied."},
@@ -537,6 +545,69 @@ def admin_attendance_sheet(request):
                 "records": rows,
             }
         )
+
+    except Exception as e:
+        import traceback
+
+        traceback.print_exc()
+        return Response({"success": False, "error": str(e)}, status=500)
+
+
+@api_view(["GET"])
+def export_attendance_csv(request):
+    try:
+        date = request.query_params.get("date", today_ist())
+        department_filter = request.query_params.get("department", "")
+
+        query = Employee.objects(is_active=True, role__ne="admin")
+        if department_filter and department_filter != "all":
+            query = query.filter(department=department_filter)
+
+        attendance_records = AttendanceRecord.objects(date=date)
+        records_by_id = {r.employee_id: r for r in attendance_records}
+
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = (
+            f'attachment; filename="attendance-{date}.csv"'
+        )
+        writer = csv.writer(response)
+        writer.writerow(
+            [
+                "Employee ID",
+                "Name",
+                "Email",
+                "Department",
+                "Designation",
+                "Date",
+                "Status",
+                "Check In",
+                "Check Out",
+                "Duration",
+                "Minutes Late",
+                "Reason",
+            ]
+        )
+
+        for employee in query.order_by("employee_id"):
+            record = records_by_id.get(employee.employee_id)
+            writer.writerow(
+                [
+                    employee.employee_id,
+                    employee.name,
+                    employee.email,
+                    employee.department,
+                    employee.designation,
+                    date,
+                    record.status if record else "not_marked",
+                    format_time(record.check_in_time) if record else "--",
+                    format_time(record.check_out_time) if record else "--",
+                    format_duration(record.duration_minutes) if record else "--",
+                    getattr(record, "minutes_late", 0) if record else 0,
+                    record.reason if record and record.reason else "--",
+                ]
+            )
+
+        return response
 
     except Exception as e:
         import traceback

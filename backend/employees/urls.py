@@ -7,6 +7,12 @@ from .views import (
     reset_password,
     send_registration_otp,
     verify_registration_otp,
+    get_profile,
+    update_profile,
+    update_face,
+    admin_employees,
+    admin_update_employee,
+    admin_reset_employee_password,
 )
 
 urlpatterns = [
@@ -20,5 +26,15 @@ urlpatterns = [
         "verify-registration-otp/",
         verify_registration_otp,
         name="verify-registration-otp",
+    ),
+    path("profile/", get_profile, name="profile"),
+    path("update-profile/", update_profile, name="update-profile"),
+    path("update-face/", update_face, name="update-face"),
+    path("admin-employees/", admin_employees, name="admin-employees"),
+    path("admin-update-employee/", admin_update_employee, name="admin-update-employee"),
+    path(
+        "admin-reset-password/",
+        admin_reset_employee_password,
+        name="admin-reset-password",
     ),
 ]

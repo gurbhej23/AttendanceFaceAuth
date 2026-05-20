@@ -102,12 +102,18 @@ def employee_payload(employee: Employee) -> dict:
         "employee_id": employee.employee_id,
         "name": employee.name,
         "email": employee.email,
+        "phone": getattr(employee, "phone", "") or "",
         "role": employee.role,
         "department": employee.department,
         "designation": employee.designation,
+        "is_active": employee.is_active,
         "profile_img": media_url(employee.profile_img or employee.photo_path or ""),
         "cv_file": media_url(employee.cv_file or ""),
     }
+
+
+def find_employee(employee_id: str):
+    return Employee.objects(employee_id=employee_id).first()
 
 
 # ─── Register Employee ─────────────────────────────────────────────────────────
@@ -118,6 +124,7 @@ def register_employee(request):
     try:
         name = request.data.get("name", "").strip()
         email = request.data.get("email", "").strip().lower()
+        phone = request.data.get("phone", "").strip()
         image = request.data.get("image", "").strip()
         cv_file = request.data.get("cv_file", "").strip()
         cv_file_name = request.data.get("cv_file_name", "").strip()
@@ -188,6 +195,7 @@ def register_employee(request):
         employee = Employee(
             name=name,
             email=email,
+            phone=phone,
             employee_id=employee_id,
             password=hashed,
             profile_img=photo_path or "",
@@ -288,6 +296,7 @@ def login_employee(request):
                 "employee_id": employee.employee_id,
                 "name": employee.name,
                 "email": employee.email,
+                "phone": getattr(employee, "phone", "") or "",
                 "role": employee.role,
                 "department": employee.department,
                 "designation": employee.designation,
@@ -359,6 +368,7 @@ def admin_login(request):
                 "employee_id": employee.employee_id,
                 "name": employee.name,
                 "email": employee.email,
+                "phone": getattr(employee, "phone", "") or "",
                 "role": employee.role,
                 "department": employee.department,
                 "designation": employee.designation,
@@ -607,3 +617,213 @@ def verify_registration_otp(request):
             {"success": False, "error": str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+@api_view(["GET"])
+def get_profile(request):
+    employee_id = request.query_params.get("employee_id", "").strip()
+    if not employee_id:
+        return Response(
+            {"success": False, "error": "employee_id is required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    employee = find_employee(employee_id)
+    if not employee:
+        return Response(
+            {"success": False, "error": "Employee not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    return Response({"success": True, "employee": employee_payload(employee)})
+
+
+@api_view(["POST"])
+def update_profile(request):
+    employee_id = request.data.get("employee_id", "").strip()
+    if not employee_id:
+        return Response(
+            {"success": False, "error": "employee_id is required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    employee = find_employee(employee_id)
+    if not employee:
+        return Response(
+            {"success": False, "error": "Employee not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    name = request.data.get("name", "").strip()
+    phone = request.data.get("phone", "").strip()
+    current_password = request.data.get("current_password", "").strip()
+    new_password = request.data.get("new_password", "").strip()
+
+    if name:
+        employee.name = name
+    employee.phone = phone
+
+    if new_password:
+        if len(new_password) < 6:
+            return Response(
+                {"success": False, "error": "Password must be at least 6 characters"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not current_password or not check_password(current_password, employee.password):
+            return Response(
+                {"success": False, "error": "Current password is incorrect"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        employee.password = make_password(new_password)
+
+    employee.save()
+    return Response(
+        {
+            "success": True,
+            "message": "Profile updated successfully",
+            "employee": employee_payload(employee),
+        }
+    )
+
+
+@api_view(["POST"])
+def update_face(request):
+    employee_id = request.data.get("employee_id", "").strip()
+    image = request.data.get("image", "").strip()
+    if not employee_id or not image:
+        return Response(
+            {"success": False, "error": "employee_id and image are required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    employee = Employee.objects(employee_id=employee_id, is_active=True).first()
+    if not employee:
+        return Response(
+            {"success": False, "error": "Employee not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    embedding, error, photo_path = extract_and_save_embedding(image, employee_id)
+    if error or not embedding:
+        return Response(
+            {"success": False, "error": error or "Could not extract face features"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    employee.face_embedding = embedding
+    employee.photo_path = photo_path or employee.photo_path
+    employee.profile_img = photo_path or employee.profile_img
+    employee.save()
+
+    return Response(
+        {
+            "success": True,
+            "message": "Face profile updated successfully",
+            "employee": employee_payload(employee),
+        }
+    )
+
+
+@api_view(["GET"])
+def admin_employees(request):
+    search = request.query_params.get("search", "").strip().lower()
+    role = request.query_params.get("role", "").strip()
+    status_filter = request.query_params.get("status", "active").strip()
+
+    employees = Employee.objects.order_by("employee_id")
+    if role and role != "all":
+        employees = employees.filter(role=role)
+    if status_filter == "active":
+        employees = employees.filter(is_active=True)
+    elif status_filter == "inactive":
+        employees = employees.filter(is_active=False)
+
+    data = []
+    for employee in employees:
+        payload = employee_payload(employee)
+        haystack = " ".join(
+            [
+                payload["employee_id"],
+                payload["name"],
+                payload["email"],
+                payload.get("phone", ""),
+                payload.get("department", ""),
+                payload.get("designation", ""),
+                payload.get("role", ""),
+            ]
+        ).lower()
+        if search and search not in haystack:
+            continue
+        data.append(payload)
+
+    return Response({"success": True, "employees": data, "total": len(data)})
+
+
+@api_view(["POST"])
+def admin_update_employee(request):
+    employee_id = request.data.get("employee_id", "").strip()
+    employee = find_employee(employee_id)
+    if not employee:
+        return Response(
+            {"success": False, "error": "Employee not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    for field in ["name", "phone", "department", "designation", "role"]:
+        if field in request.data:
+            value = str(request.data.get(field, "")).strip()
+            if field == "role" and value not in {"employee", "admin", "hr"}:
+                continue
+            setattr(employee, field, value)
+
+    if "is_active" in request.data:
+        employee.is_active = bool(request.data.get("is_active"))
+
+    employee.save()
+    return Response(
+        {
+            "success": True,
+            "message": "Employee updated successfully",
+            "employee": employee_payload(employee),
+        }
+    )
+
+
+@api_view(["POST"])
+def admin_reset_employee_password(request):
+    employee_id = request.data.get("employee_id", "").strip()
+    employee = find_employee(employee_id)
+    if not employee:
+        return Response(
+            {"success": False, "error": "Employee not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    raw_password = generate_password()
+    employee.password = make_password(raw_password)
+    employee.save()
+
+    try:
+        send_mail(
+            subject="Your Attendance System Password Was Reset",
+            message=(
+                f"Hello {employee.name},\n\n"
+                f"Your password was reset by an administrator.\n\n"
+                f"Employee ID: {employee.employee_id}\n"
+                f"New Password: {raw_password}\n\n"
+                f"Please log in and change this password from your profile."
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[employee.email],
+            fail_silently=True,
+        )
+    except Exception as exc:
+        print(f"Password reset email failed: {exc}")
+
+    return Response(
+        {
+            "success": True,
+            "message": "Password reset successfully",
+            "temporary_password": raw_password,
+        }
+    )

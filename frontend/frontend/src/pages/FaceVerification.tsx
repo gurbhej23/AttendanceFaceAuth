@@ -1,5 +1,3 @@
-// src/pages/VerifyFace.tsx
-
 import { useRef, useEffect, useState, useCallback } from "react";
 import Webcam from "react-webcam";
 import { useNavigate } from "react-router-dom";
@@ -9,18 +7,18 @@ import MessageOverlay from "../components/MessageOverlay";
 type BorderStatus = "idle" | "scanning" | "success" | "error";
 
 export default function VerifyFace() {
-  const navigate     = useNavigate();
-  const webcamRef    = useRef<Webcam>(null);
-  const canvasRef    = useRef<HTMLCanvasElement>(null);
+  const navigate = useNavigate();
+  const webcamRef = useRef<Webcam>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>(0);
-  const verifyingRef = useRef(false); // prevent double-trigger
+  const verifyingRef = useRef(false);
 
-  const [cameraReady,  setCameraReady]  = useState(false);
-  const [capturedImage,setCapturedImage]= useState<string | null>(null);
-  const [loading,      setLoading]      = useState(false);
-  const [message,      setMessage]      = useState("Initializing camera...");
+  const [cameraReady, setCameraReady] = useState(false);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("Position your face in the oval");
   const [borderStatus, setBorderStatus] = useState<BorderStatus>("idle");
-  const [retryCount,   setRetryCount]   = useState(0);
+  const [retryCount, setRetryCount] = useState(0);
   const [overlay, setOverlay] = useState<{
     title: string;
     message?: string;
@@ -28,7 +26,6 @@ export default function VerifyFace() {
     loading?: boolean;
   } | null>(null);
 
-  // ── Guard: redirect if no employee_id ─────────────────────────────────────
   useEffect(() => {
     const id = localStorage.getItem("employee_id");
     if (!id || id === "undefined") {
@@ -37,60 +34,75 @@ export default function VerifyFace() {
     }
   }, [navigate]);
 
-  // ── Image quality check ───────────────────────────────────────────────────
-  const checkImageQuality = (src: string): Promise<{ passed: boolean; reason: string }> =>
-    new Promise((resolve) => {
+  const checkImageQuality = (
+    imageSrc: string,
+  ): Promise<{ passed: boolean; reason: string }> => {
+    return new Promise((resolve) => {
       const img = new Image();
       img.onload = () => {
-        const W = 160, H = 120;
-        const cv  = document.createElement("canvas");
-        cv.width  = W; cv.height = H;
-        const ctx = cv.getContext("2d")!;
+        const W = 160;
+        const H = 120;
+        const canvas = document.createElement("canvas");
+        canvas.width = W;
+        canvas.height = H;
+        const ctx = canvas.getContext("2d")!;
         ctx.drawImage(img, 0, 0, W, H);
         const { data } = ctx.getImageData(0, 0, W, H);
 
-        // Brightness
         let lum = 0;
-        for (let i = 0; i < data.length; i += 4)
+        for (let i = 0; i < data.length; i += 4) {
           lum += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        }
         const avg = lum / (data.length / 4);
-        if (avg < 28)  return resolve({ passed: false, reason: "Too dark — find better lighting" });
-        if (avg > 220) return resolve({ passed: false, reason: "Too bright — reduce glare" });
+        if (avg < 28) {
+          resolve({ passed: false, reason: "Too dark - improve lighting" });
+          return;
+        }
+        if (avg > 220) {
+          resolve({ passed: false, reason: "Too bright - reduce glare" });
+          return;
+        }
 
-        // Blur (Laplacian)
         let blur = 0;
-        for (let y = 1; y < H - 1; y++)
+        for (let y = 1; y < H - 1; y++) {
           for (let x = 1; x < W - 1; x++) {
             const idx = (y * W + x) * 4;
             blur += Math.abs(
               -4 * data[idx] +
-              data[((y - 1) * W + x) * 4] +
-              data[((y + 1) * W + x) * 4] +
-              data[(y * W + (x - 1)) * 4] +
-              data[(y * W + (x + 1)) * 4]
+                data[((y - 1) * W + x) * 4] +
+                data[((y + 1) * W + x) * 4] +
+                data[(y * W + (x - 1)) * 4] +
+                data[(y * W + (x + 1)) * 4],
             );
           }
-        if (blur / (W * H) < 4.5)
-          return resolve({ passed: false, reason: "Too blurry — hold still" });
+        }
+        if (blur / (W * H) < 4.5) {
+          resolve({ passed: false, reason: "Too blurry - hold still" });
+          return;
+        }
 
         resolve({ passed: true, reason: "" });
       };
-      img.src = src;
+      img.onerror = () =>
+        resolve({ passed: false, reason: "Could not read camera image" });
+      img.src = imageSrc;
     });
+  };
 
-  // ── Canvas overlay ─────────────────────────────────────────────────────────
-  const drawOverlay = (bs: BorderStatus, scanOffset: number) => {
+  const drawOverlay = useCallback((status: BorderStatus, scanOffset: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-
-    const W = canvas.width, H = canvas.height;
+    const W = canvas.width;
+    const H = canvas.height;
     ctx.clearRect(0, 0, W, H);
 
-    const ovalX = W / 2, ovalY = H * 0.45, ovalRX = W * 0.38, ovalRY = H * 0.42;
+    const ovalX = W / 2;
+    const ovalY = H * 0.45;
+    const ovalRX = W * 0.38;
+    const ovalRY = H * 0.42;
 
-    // Dark mask with oval cutout
     ctx.save();
     ctx.fillStyle = "rgba(0,0,0,0.55)";
     ctx.fillRect(0, 0, W, H);
@@ -100,135 +112,118 @@ export default function VerifyFace() {
     ctx.fill();
     ctx.restore();
 
-    const color =
-      bs === "success" ? "#22c55e" :
-      bs === "error"   ? "#ef4444" :
-      bs === "scanning"? "#facc15" : "#ffffff";
+    const borderColor =
+      status === "success"
+        ? "#22c55e"
+        : status === "error"
+          ? "#ef4444"
+          : status === "scanning"
+            ? "#facc15"
+            : "#ffffff";
 
-    const glow =
-      bs === "success" ? "rgba(34,197,94,0.4)"  :
-      bs === "error"   ? "rgba(239,68,68,0.4)"  :
-      bs === "scanning"? "rgba(250,204,21,0.3)" : "rgba(255,255,255,0.2)";
-
-    // Oval border
     ctx.save();
-    ctx.shadowColor = glow;
-    ctx.shadowBlur  = 18;
-    ctx.strokeStyle = color;
-    ctx.lineWidth   = 3.5;
+    ctx.shadowBlur = 18;
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = 3.5;
     ctx.beginPath();
     ctx.ellipse(ovalX, ovalY, ovalRX, ovalRY, 0, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
 
-    // Scan line
-    if (bs === "scanning") {
+    if (status === "scanning") {
       const lineY = ovalY - ovalRY + scanOffset * ovalRY * 2;
       const halfW = Math.sqrt(
-        Math.max(0, 1 - Math.pow((lineY - ovalY) / ovalRY, 2)) * ovalRX * ovalRX
+        Math.max(0, 1 - Math.pow((lineY - ovalY) / ovalRY, 2)) *
+          ovalRX *
+          ovalRX,
       );
       ctx.save();
-      const g = ctx.createLinearGradient(ovalX - halfW, lineY, ovalX + halfW, lineY);
-      g.addColorStop(0,   "rgba(250,204,21,0)");
-      g.addColorStop(0.5, "rgba(250,204,21,0.8)");
-      g.addColorStop(1,   "rgba(250,204,21,0)");
-      ctx.strokeStyle = g;
-      ctx.lineWidth   = 2;
+      const grad = ctx.createLinearGradient(
+        ovalX - halfW,
+        lineY,
+        ovalX + halfW,
+        lineY,
+      );
+      grad.addColorStop(0, "rgba(250,204,21,0)");
+      grad.addColorStop(0.5, "rgba(250,204,21,0.9)");
+      grad.addColorStop(1, "rgba(250,204,21,0)");
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(ovalX - halfW, lineY);
       ctx.lineTo(ovalX + halfW, lineY);
       ctx.stroke();
       ctx.restore();
     }
+  }, []);
 
-    // Corner tick marks
-    [0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2].forEach((angle) => {
-      const cx = ovalX + ovalRX * Math.cos(angle);
-      const cy = ovalY + ovalRY * Math.sin(angle);
-      ctx.save();
-      ctx.strokeStyle = color;
-      ctx.lineWidth   = 3;
-      ctx.lineCap     = "round";
-      ctx.beginPath();
-      ctx.moveTo(cx + Math.sin(angle) * 18, cy - Math.cos(angle) * 18);
-      ctx.lineTo(cx - Math.sin(angle) * 18, cy + Math.cos(angle) * 18);
-      ctx.stroke();
-      ctx.restore();
-    });
-  };
-
-  // ── Animation loop ─────────────────────────────────────────────────────────
   useEffect(() => {
-    let offset = 0, dir = 1;
+    let scanOffset = 0;
+    let direction = 1;
     const loop = () => {
       if (borderStatus === "scanning") {
-        offset += 0.008 * dir;
-        if (offset >= 1) dir = -1;
-        if (offset <= 0) dir =  1;
+        scanOffset += 0.008 * direction;
+        if (scanOffset >= 1) direction = -1;
+        if (scanOffset <= 0) direction = 1;
       }
-      drawOverlay(borderStatus, offset);
+      drawOverlay(borderStatus, scanOffset);
       animationRef.current = requestAnimationFrame(loop);
     };
     animationRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animationRef.current);
-  }, [borderStatus]);
+  }, [borderStatus, drawOverlay]);
 
-  // ── Core face verification ─────────────────────────────────────────────────
-  const handleFaceVerification = useCallback(async () => {
-    // Prevent multiple simultaneous calls
-    if (verifyingRef.current) return;
-    verifyingRef.current = true;
-
-    setBorderStatus("scanning");
-    setMessage("Scanning face...");
+  const resetCamera = () => {
     setCapturedImage(null);
-    setOverlay({
-      title: "Scanning face",
-      message: "Please hold still while we compare your face.",
-      tone: "info",
-      loading: true,
-    });
+    setBorderStatus("idle");
+    setMessage("Position your face in the oval");
+    setOverlay(null);
+  };
+
+  const handleFaceVerification = async () => {
+    if (verifyingRef.current) return;
 
     const employee_id = localStorage.getItem("employee_id");
     if (!employee_id || employee_id === "undefined") {
       localStorage.clear();
       navigate("/", { replace: true });
-      verifyingRef.current = false;
       return;
     }
 
-    // ── Quality check with up to 3 attempts ──────────────────────────────────
+    verifyingRef.current = true;
+    setBorderStatus("scanning");
+    setMessage("Checking image quality...");
+    setCapturedImage(null);
+
     let imageSrc: string | null = null;
 
     for (let attempt = 1; attempt <= 3; attempt++) {
-      // Wait a moment so the webcam stream stabilises on first attempt
-      if (attempt === 1) await new Promise((r) => setTimeout(r, 300));
-
-      const snap = webcamRef.current?.getScreenshot({ width: 1280, height: 720 });
+      const snap = webcamRef.current?.getScreenshot({
+        width: 1280,
+        height: 720,
+      });
 
       if (!snap) {
         if (attempt === 3) {
           setBorderStatus("error");
-          setMessage("Failed to capture image — check camera permissions");
+          setMessage("Failed to capture image");
           verifyingRef.current = false;
           return;
         }
-        await new Promise((r) => setTimeout(r, 600));
+        await new Promise((r) => setTimeout(r, 700));
         continue;
       }
 
       const { passed, reason } = await checkImageQuality(snap);
-
       if (!passed) {
         setBorderStatus("error");
         setMessage(reason);
         if (attempt < 3) {
-          await new Promise((r) => setTimeout(r, 900));
+          await new Promise((r) => setTimeout(r, 800));
           setBorderStatus("scanning");
-          setMessage("Scanning face...");
+          setMessage("Position your face in the oval");
           continue;
         }
-        // All 3 quality attempts failed — let user retry manually
         verifyingRef.current = false;
         return;
       }
@@ -242,36 +237,39 @@ export default function VerifyFace() {
       return;
     }
 
-    // Show the captured frame
     setCapturedImage(imageSrc);
     setLoading(true);
     setBorderStatus("scanning");
     setMessage("Verifying face...");
+    setOverlay({
+      title: "Verifying face",
+      message: "Please hold still while we compare your face.",
+      tone: "info",
+      loading: true,
+    });
 
-    // ── Send to backend ───────────────────────────────────────────────────────
     try {
-      console.log("📤 Sending face to backend...");
-
       const response = await API.post("/attendance/verify-face/", {
         employee_id,
         image: imageSrc,
       });
 
-      console.log("✅ Backend response:", response.data);
-
       if (response.data.success) {
         setBorderStatus("success");
-        setMessage(`✅ ${response.data.message || "Face verified!"}`);
+        setMessage(response.data.message || "Face verified");
 
-        // Update stored data if backend returns refreshed info
-        if (response.data.employee_id)
+        if (response.data.employee_id) {
           localStorage.setItem("employee_id", response.data.employee_id);
-        if (response.data.employee_name)
+        }
+        if (response.data.employee_name) {
           localStorage.setItem("employee_name", response.data.employee_name);
-        if (response.data.profile_img)
+        }
+        if (response.data.profile_img) {
           localStorage.setItem("profile_img", response.data.profile_img);
-        if (response.data.cv_file)
+        }
+        if (response.data.cv_file) {
           localStorage.setItem("cv_file", response.data.cv_file);
+        }
 
         setOverlay({
           title: "Face verified",
@@ -279,55 +277,40 @@ export default function VerifyFace() {
           tone: "success",
           loading: true,
         });
-
-        setTimeout(() => navigate("/dashboard", { replace: true }), 2000);
+        setTimeout(() => navigate("/dashboard", { replace: true }), 1600);
       } else {
-        // Backend said face not recognised — show error and allow retry
         setBorderStatus("error");
         setMessage(response.data.error || "Face not recognised. Please try again.");
-        setCapturedImage(null); // Clear so webcam shows again
         setOverlay(null);
       }
     } catch (err: unknown) {
-      console.error("❌ Face verification error:", err);
       const e = err as { response?: { data?: { error?: string } } };
-      const msg = e.response?.data?.error || "Face verification failed. Please try again.";
       setBorderStatus("error");
-      setMessage(msg);
-      setCapturedImage(null);
+      setMessage(e.response?.data?.error || "Face verification failed. Please try again.");
       setOverlay(null);
     } finally {
       setLoading(false);
       verifyingRef.current = false;
     }
-  }, [navigate]);
+  };
 
-  // ── Auto-verify when camera is ready ──────────────────────────────────────
-  useEffect(() => {
-    if (!cameraReady) return;
-
-    setBorderStatus("scanning");
-    setMessage("Scanning face...");
-
-    // Give the webcam 2 s to warm up before auto-capturing
-    const timer = setTimeout(() => {
-      handleFaceVerification();
-    }, 2000);
-
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cameraReady]); // only run once when camera becomes ready
-
-  // ── Ring colour helper ─────────────────────────────────────────────────────
   const ringColor =
-    borderStatus === "success" ? "ring-green-500 shadow-green-500/40"    :
-    borderStatus === "error"   ? "ring-red-500 shadow-red-500/40"        :
-    borderStatus === "scanning"? "ring-yellow-400 shadow-yellow-400/30" : "ring-white/30";
+    borderStatus === "success"
+      ? "ring-green-500 shadow-green-500/40"
+      : borderStatus === "error"
+        ? "ring-red-500 shadow-red-500/40"
+        : borderStatus === "scanning"
+          ? "ring-yellow-400 shadow-yellow-400/30"
+          : "ring-white/30";
 
-  const msgColor =
-    borderStatus === "success" ? "text-green-400" :
-    borderStatus === "error"   ? "text-red-400"   :
-    borderStatus === "scanning"? "text-yellow-300" : "text-white";
+  const messageColor =
+    borderStatus === "success"
+      ? "text-green-400"
+      : borderStatus === "error"
+        ? "text-red-400"
+        : borderStatus === "scanning"
+          ? "text-yellow-300"
+          : "text-white";
 
   return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center p-5">
@@ -339,11 +322,17 @@ export default function VerifyFace() {
           loading={overlay.loading}
         />
       )}
-      <h1 className="text-3xl text-white mb-2 font-semibold">Face Verification</h1>
-      <p className="text-gray-400 mb-6 text-sm">Position your face inside the oval</p>
 
-      {/* Camera / snapshot */}
-      <div className={`relative w-90 h-90 rounded-full overflow-hidden ring-4 shadow-lg transition-all ${ringColor}`}>
+      <h1 className="text-3xl text-white mb-1 font-semibold">
+        Face Verification
+      </h1>
+      <p className="text-gray-400 mb-6 text-sm">
+        Position your face inside the oval
+      </p>
+
+      <div
+        className={`relative w-90 h-90 rounded-full overflow-hidden ring-4 shadow-lg transition-all ${ringColor}`}
+      >
         {!capturedImage ? (
           <Webcam
             ref={webcamRef}
@@ -351,14 +340,10 @@ export default function VerifyFace() {
             mirrored
             screenshotFormat="image/jpeg"
             screenshotQuality={0.95}
-            onUserMedia={() => {
-              console.log("📷 Camera ready");
-              setCameraReady(true);
-            }}
-            onUserMediaError={(err) => {
-              console.error("Camera error:", err);
+            onUserMedia={() => setCameraReady(true)}
+            onUserMediaError={() => {
               setBorderStatus("error");
-              setMessage("Camera access denied — please allow camera and refresh");
+              setMessage("Camera access denied - please allow camera and refresh");
             }}
             videoConstraints={{
               facingMode: "user",
@@ -377,7 +362,7 @@ export default function VerifyFace() {
         ) : (
           <img
             src={capturedImage}
-            alt="Captured frame"
+            alt="Captured face"
             style={{
               position: "absolute",
               width: "150%",
@@ -397,58 +382,51 @@ export default function VerifyFace() {
         />
       </div>
 
-      {/* Status dots */}
-      <div className="flex gap-2 mt-6">
-        {(["idle", "scanning", "success", "error"] as BorderStatus[]).map((s) => (
-          <div
-            key={s}
-            className={`w-2 h-2 rounded-full transition-all duration-300 ${
-              borderStatus === s
-                ? s === "success"  ? "bg-green-500 scale-125"
-                : s === "error"    ? "bg-red-500 scale-125"
-                : s === "scanning" ? "bg-yellow-400 scale-125"
-                :                    "bg-white scale-125"
-                : "bg-white/20"
-            }`}
-          />
-        ))}
-      </div>
-
-      {/* Status message */}
-      <p className={`mt-4 text-center text-lg font-medium transition-colors duration-300 ${msgColor}`}>
+      <p className={`mt-4 text-center text-lg font-medium ${messageColor}`}>
         {message}
       </p>
 
-      {/* Loading spinner text */}
-      {loading && (
-        <p className="text-slate-400 text-sm mt-1 animate-pulse">
-          Comparing with registered face...
-        </p>
-      )}
-
-      {/* Retry button — only shown on error, not while loading */}
-      {borderStatus === "error" && !loading && (
+      {borderStatus === "success" ? (
+        <button
+          disabled
+          className="mt-6 px-8 py-3 bg-green-600 text-white rounded-2xl font-bold opacity-90"
+        >
+          Opening Dashboard...
+        </button>
+      ) : (
         <button
           onClick={() => {
             setRetryCount((c) => c + 1);
-            setCapturedImage(null);
             handleFaceVerification();
           }}
-          className="mt-5 px-8 py-3 border border-white/30 text-white rounded-2xl hover:bg-white/10 transition font-semibold cursor-pointer"
+          disabled={!cameraReady || loading || borderStatus === "scanning"}
+          className="mt-6 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold disabled:opacity-50 transition"
         >
-          🔄 Try Again {retryCount > 0 ? `(${retryCount})` : ""}
+          {loading || borderStatus === "scanning"
+            ? "Checking..."
+            : retryCount > 0
+              ? "Try Again"
+              : "Verify Face"}
         </button>
       )}
 
-      {/* Back to login */}
+      {capturedImage && borderStatus !== "success" && (
+        <button
+          onClick={resetCamera}
+          className="mt-3 text-gray-400 hover:text-white text-sm transition"
+        >
+          Retake photo
+        </button>
+      )}
+
       <button
         onClick={() => {
           localStorage.clear();
           navigate("/", { replace: true });
         }}
-        className="mt-4 text-gray-500 hover:text-white text-sm transition cursor-pointer"
+        className="mt-4 text-gray-400 hover:text-white text-sm transition"
       >
-        ← Back to login
+        Back to login
       </button>
     </div>
   );

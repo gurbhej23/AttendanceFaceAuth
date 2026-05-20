@@ -8,6 +8,7 @@ IST = pytz.timezone("Asia/Kolkata")
 class Employee(me.Document):
     name = me.StringField(required=True)
     email = me.EmailField(required=True, unique=True)
+    phone = me.StringField(default="")
     employee_id = me.StringField(required=True, unique=True)
     password = me.StringField(required=True)  # Use bcrypt in real app
     profile_img = me.StringField(default="")

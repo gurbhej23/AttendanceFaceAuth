@@ -14,6 +14,7 @@ export default function Input({
   onChange,
   placeholder,
   max,
+  min,
   className
 }: InputProps) {
   return (
@@ -21,6 +22,7 @@ export default function Input({
       type={type}
       value={value}
       max={max}
+      min={min}
       className = {className}
       onChange={onChange}
       placeholder={placeholder} 

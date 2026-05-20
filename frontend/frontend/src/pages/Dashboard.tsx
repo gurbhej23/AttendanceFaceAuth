@@ -17,6 +17,7 @@ interface AttendanceRecord {
   reason?: string;
   half_day_until?: string;
   profile_img?: string;
+  cv_file?: string;
 }
 
 interface MonthlySummary {
@@ -501,6 +502,11 @@ export default function Dashboard() {
                   className="bg-linear-to-r from-purple-600 to-purple-500 hover:scale-105 shadow-lg transition-all duration-300 text-white px-4 py-3 rounded-2xl font-semibold cursor-pointer text-sm"
                 />
                 <Button
+                  text="Profile"
+                  onClick={() => navigate("/profile")}
+                  className="bg-linear-to-r from-slate-700 to-slate-600 hover:scale-105 shadow-lg transition-all duration-300 text-white px-4 py-3 rounded-2xl font-semibold cursor-pointer text-sm"
+                />
+                <Button
                   text="Logout"
                   onClick={handleLogout}
                   className="bg-linear-to-r from-red-600 to-red-500 hover:scale-105 shadow-lg transition-all duration-300 text-white px-4 py-3 rounded-2xl font-semibold cursor-pointer text-sm col-span-2 sm:col-span-1"
@@ -644,6 +650,7 @@ export default function Dashboard() {
                   "Status",
                   "Reason",
                   "Date",
+                  "CV"
                 ]}
               >
                 {records.map((record, idx) => (
@@ -712,6 +719,20 @@ export default function Dashboard() {
                     </td>
                     <td className="px-4 py-4 text-slate-500 font-medium">
                       {record.date}
+                    </td>
+                    <td className="px-5 py-4">
+                      {record.cv_file ? (
+                        <a
+                          href={getMediaUrl(record.cv_file)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs font-semibold text-blue-400 hover:text-blue-300"
+                        >
+                          View CV
+                        </a>
+                      ) : (
+                        <span className="text-slate-600 text-xs">--</span>
+                      )}
                     </td>
                   </tr>
                 ))}

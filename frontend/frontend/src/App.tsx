@@ -8,6 +8,8 @@ import CheckOut from "./pages/CheckOut";
 import AdminAttendanceSheet from "./pages/AdminAttendanceSheet";
 import AdminLogin from "./pages/AdminLogin";
 import ForgotPassword from "./pages/ForgotPassword";
+import Profile from "./pages/Profile";
+import AdminEmployees from "./pages/AdminEmployees";
 
 function App() {
   return (
@@ -26,6 +28,8 @@ function App() {
 
       <Route path="/admin-login" element={<AdminLogin />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/profile" element={<Profile />} />
+      <Route path="/admin-employees" element={<AdminEmployees />} />
     </Routes>
   );
 }

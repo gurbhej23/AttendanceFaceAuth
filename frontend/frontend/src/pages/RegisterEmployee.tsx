@@ -301,6 +301,7 @@ export default function Register() {
       const response = await API.post("/employees/register/", {
         name: formData.name,
         email: formData.email,
+        phone: formData.phone,
         image: capturedImage,
         cv_file: cvFile,
         cv_file_name: cvFileName,

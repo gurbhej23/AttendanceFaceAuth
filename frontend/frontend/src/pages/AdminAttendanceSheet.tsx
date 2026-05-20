@@ -308,6 +308,15 @@ export default function AdminAttendanceSheet() {
     window.history.pushState(null, "", "/");
   };
 
+  const exportCsv = () => {
+    const baseUrl = API.defaults.baseURL || "http://localhost:8000/api";
+    window.open(
+      `${baseUrl}/attendance/export-csv/?date=${selectedDate}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
+  };
+
   return (
     <div className="min-h-screen bg-slate-900 p-4 sm:p-6">
       {/* TOAST */}
@@ -346,6 +355,18 @@ export default function AdminAttendanceSheet() {
                 className="p-3 rounded-xl bg-slate-800 text-white border border-slate-700 focus:border-blue-500 outline-none"
               />
             )}
+            {activeTab === "attendance" && (
+              <Button
+                text="Export CSV"
+                onClick={exportCsv}
+                className="bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-xl font-semibold cursor-pointer"
+              />
+            )}
+            <Button
+              text="Employees"
+              onClick={() => navigate("/admin-employees")}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl font-semibold cursor-pointer"
+            />
             <Button
               text="Logout"
               onClick={handleLogout}
@@ -486,7 +507,7 @@ export default function AdminAttendanceSheet() {
                             {record.serial_no}
                           </td>
                           <td className="px-5 py-4">
-                            <div className="mx-auto h-12 w-12 overflow-hidden rounded-2xl border border-white/10 bg-slate-700">
+                            <div className="mx-auto h-12 w-12 overflow-hidden rounded-full border border-white/10 bg-slate-700">
                               {record.profile_img ? (
                                 <img
                                   src={getMediaUrl(record.profile_img)}
