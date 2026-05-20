@@ -2,6 +2,23 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../services/api";
 
+const DEPARTMENTS = ["IT", "HR", "Finance", "Operations", "Sales", "Marketing"];
+const JOB_ROLES = [
+  "Software Engineer",
+  "Frontend Developer",
+  "Backend Developer",
+  "QA Engineer",
+  "HR Executive",
+  "Accountant",
+  "Operations Executive",
+  "Sales Executive",
+  "Full Stack Developer",
+  "DevOps Engineer",
+  "UI/UX Designer",
+  "Intern",
+  "Project Manager",
+];
+
 interface Employee {
   employee_id: string;
   name: string;
@@ -34,7 +51,7 @@ export default function AdminEmployees() {
   const [status, setStatus] = useState<"active" | "inactive" | "all">("active");
   const [role, setRole] = useState("all");
   const [editing, setEditing] = useState<Employee | null>(null);
-  const [tempPassword, setTempPassword] = useState("");
+  const [viewing, setViewing] = useState<Employee | null>(null);
   const [toast, setToast] = useState<{ ok: boolean; msg: string } | null>(null);
 
   const showToast = (msg: string, ok = true) => {
@@ -84,18 +101,6 @@ export default function AdminEmployees() {
     }
   };
 
-  const resetPassword = async (employee: Employee) => {
-    try {
-      const res = await API.post("/employees/admin-reset-password/", {
-        employee_id: employee.employee_id,
-      });
-      setTempPassword(res.data.temporary_password || "");
-      showToast("Password reset successfully");
-    } catch (err) {
-      showToast(getError(err, "Password reset failed"), false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-slate-950 px-4 py-6 text-white">
       {toast && (
@@ -119,7 +124,7 @@ export default function AdminEmployees() {
           <div className="flex flex-wrap gap-3">
             <button
               onClick={() => navigate("/attendance-sheet")}
-              className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold hover:bg-slate-800"
+              className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold hover:bg-slate-800 cursor-pointer"
             >
               Attendance sheet
             </button>
@@ -128,7 +133,7 @@ export default function AdminEmployees() {
                 localStorage.clear();
                 navigate("/", { replace: true });
               }}
-              className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold hover:bg-red-700"
+              className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold hover:bg-red-700 cursor-pointer"
             >
               Logout
             </button>
@@ -154,7 +159,7 @@ export default function AdminEmployees() {
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search name, ID, email, department..."
+              placeholder="Search name, ID, email, department, job role..."
               className="rounded-2xl border border-slate-700 bg-slate-950 p-3 outline-none focus:border-blue-500"
             />
             <select
@@ -171,7 +176,7 @@ export default function AdminEmployees() {
               onChange={(e) => setRole(e.target.value)}
               className="rounded-2xl border border-slate-700 bg-slate-950 p-3 outline-none focus:border-blue-500"
             >
-              <option value="all">All roles</option>
+              <option value="all">All access</option>
               <option value="employee">Employee</option>
               <option value="hr">HR</option>
               <option value="admin">Admin</option>
@@ -188,7 +193,7 @@ export default function AdminEmployees() {
                     <th className="px-5 py-4">Employee</th>
                     <th className="px-5 py-4">Department</th>
                     <th className="px-5 py-4">Phone</th>
-                    <th className="px-5 py-4">Role</th>
+                    <th className="px-5 py-4">Access</th>
                     <th className="px-5 py-4">Status</th>
                     <th className="px-5 py-4 text-right">Actions</th>
                   </tr>
@@ -198,7 +203,11 @@ export default function AdminEmployees() {
                     <tr key={employee.employee_id} className="border-t border-slate-800">
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="h-11 w-11 overflow-hidden rounded-2xl bg-slate-800">
+                          <button
+                            onClick={() => setViewing(employee)}
+                            className="h-11 w-11 overflow-hidden rounded-2xl bg-slate-800"
+                            title="View profile"
+                          >
                             {employee.profile_img ? (
                               <img
                                 src={getMediaUrl(employee.profile_img)}
@@ -210,9 +219,14 @@ export default function AdminEmployees() {
                                 {employee.name.charAt(0)}
                               </div>
                             )}
-                          </div>
+                          </button>
                           <div>
-                            <p className="font-semibold">{employee.name}</p>
+                            <button
+                              onClick={() => setViewing(employee)}
+                              className="font-semibold text-left hover:text-blue-300"
+                            >
+                              {employee.name}
+                            </button>
                             <p className="text-xs text-slate-400">
                               {employee.employee_id} / {employee.email}
                             </p>
@@ -248,15 +262,15 @@ export default function AdminEmployees() {
                         <div className="flex justify-end gap-2">
                           <button
                             onClick={() => setEditing(employee)}
-                            className="rounded-xl bg-slate-800 px-3 py-2 text-xs font-semibold hover:bg-slate-700"
+                            className="rounded-xl bg-slate-800 px-3 py-2 text-xs font-semibold hover:bg-slate-700 cursor-pointer"
                           >
                             Edit
                           </button>
                           <button
-                            onClick={() => resetPassword(employee)}
-                            className="rounded-xl bg-amber-600 px-3 py-2 text-xs font-semibold hover:bg-amber-700"
+                            onClick={() => setViewing(employee)}
+                            className="rounded-xl bg-blue-600 px-3 py-2 text-xs font-semibold hover:bg-blue-700 cursor-pointer"
                           >
-                            Reset password
+                            User profile
                           </button>
                         </div>
                       </td>
@@ -284,8 +298,6 @@ export default function AdminEmployees() {
               {[
                 ["name", "Name"],
                 ["phone", "Phone"],
-                ["department", "Department"],
-                ["designation", "Designation"],
               ].map(([field, label]) => (
                 <label key={field} className="text-sm text-slate-400">
                   {label}
@@ -299,7 +311,39 @@ export default function AdminEmployees() {
                 </label>
               ))}
               <label className="text-sm text-slate-400">
-                Role
+                Department
+                <select
+                  value={editing.department || "IT"}
+                  onChange={(e) =>
+                    setEditing({ ...editing, department: e.target.value })
+                  }
+                  className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 p-3 text-white outline-none focus:border-blue-500"
+                >
+                  {DEPARTMENTS.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-sm text-slate-400">
+                Job Role
+                <select
+                  value={editing.designation || "Software Engineer"}
+                  onChange={(e) =>
+                    setEditing({ ...editing, designation: e.target.value })
+                  }
+                  className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 p-3 text-white outline-none focus:border-blue-500"
+                >
+                  {JOB_ROLES.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-sm text-slate-400">
+                Access
                 <select
                   value={editing.role}
                   onChange={(e) => setEditing({ ...editing, role: e.target.value })}
@@ -342,22 +386,63 @@ export default function AdminEmployees() {
         </div>
       )}
 
-      {tempPassword && (
+      {viewing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur">
-          <div className="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900 p-6 text-center">
-            <h2 className="text-2xl font-bold">Temporary password</h2>
-            <p className="mt-2 text-sm text-slate-400">
-              Share this with the employee if email delivery is unavailable.
-            </p>
-            <div className="my-5 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 font-mono text-xl text-amber-200">
-              {tempPassword}
+          <div className="w-full max-w-2xl rounded-3xl border border-slate-800 bg-slate-900 p-6">
+            <div className="flex flex-col gap-5 sm:flex-row">
+              <div className="mx-auto h-32 w-32 shrink-0 overflow-hidden rounded-3xl border border-slate-700 bg-slate-800 sm:mx-0">
+                {viewing.profile_img ? (
+                  <img
+                    src={getMediaUrl(viewing.profile_img)}
+                    alt={viewing.name}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-blue-600 text-4xl font-bold">
+                    {viewing.name.charAt(0)}
+                  </div>
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm text-blue-300">User profile</p>
+                <h2 className="text-2xl font-bold">{viewing.name}</h2>
+                <p className="mt-1 text-sm text-slate-400">
+                  {viewing.employee_id} / {viewing.email}
+                </p>
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  {[
+                    ["Phone", viewing.phone || "--"],
+                    ["Department", viewing.department || "--"],
+                    ["Job Role", viewing.designation || "--"],
+                    ["Access", viewing.role || "--"],
+                    ["Status", viewing.is_active ? "Active" : "Inactive"],
+                  ].map(([label, value]) => (
+                    <div key={label} className="rounded-2xl bg-slate-950 p-3">
+                      <p className="text-xs text-slate-500">{label}</p>
+                      <p className="mt-1 font-semibold">{value}</p>
+                    </div>
+                  ))}
+                  {viewing.cv_file && (
+                    <a
+                      href={getMediaUrl(viewing.cv_file)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-2xl border border-blue-500/30 bg-blue-500/10 p-3 text-center font-semibold text-blue-300"
+                    >
+                      View CV
+                    </a>
+                  )}
+                </div>
+              </div>
             </div>
-            <button
-              onClick={() => setTempPassword("")}
-              className="rounded-2xl bg-blue-600 px-5 py-3 font-bold hover:bg-blue-700"
-            >
-              Done
-            </button>
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setViewing(null)}
+                className="rounded-2xl bg-blue-600 px-5 py-3 font-bold hover:bg-blue-700"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -22,7 +22,7 @@ class Employee(me.Document):
     role = me.StringField(default="employee")
     reset_otp = me.StringField(default="")
 
-    meta = {"collection": "employees"}
+    meta = {"collection": "employees", "strict": False}
 
 
 class RegistrationOTP(me.Document):

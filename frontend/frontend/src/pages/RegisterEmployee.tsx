@@ -44,6 +44,8 @@ export default function Register() {
     name: "",
     email: "",
     phone: "",
+    department: "IT",
+    designation: "Software Engineer",
   });
 
   // ── Resend cooldown ───────────────────────────────────────────────────────
@@ -302,6 +304,8 @@ export default function Register() {
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
+        department: formData.department,
+        designation: formData.designation,
         image: capturedImage,
         cv_file: cvFile,
         cv_file_name: cvFileName,
@@ -440,6 +444,59 @@ export default function Register() {
                 }
                 className="w-full p-4 rounded-2xl bg-slate-900/70 border border-slate-700 text-white placeholder-slate-500 outline-none focus:border-blue-500 transition"
               />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-slate-300 text-sm mb-2 block">
+                  Department
+                </label>
+                <select
+                  value={formData.department}
+                  onChange={(e) =>
+                    setFormData({ ...formData, department: e.target.value })
+                  }
+                  className="w-full p-4 rounded-2xl bg-slate-900/70 border border-slate-700 text-white outline-none focus:border-blue-500 transition"
+                >
+                  <option value="IT">IT</option>
+                  <option value="HR">HR</option>
+                  <option value="Finance">Finance</option>
+                  <option value="Operations">Operations</option>
+                  <option value="Sales">Sales</option>
+                  <option value="Marketing">Marketing</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-slate-300 text-sm mb-2 block">
+                  Job Role
+                </label>
+                <select
+                  value={formData.designation}
+                  onChange={(e) =>
+                    setFormData({ ...formData, designation: e.target.value })
+                  }
+                  className="w-full p-4 rounded-2xl bg-slate-900/70 border border-slate-700 text-white outline-none focus:border-blue-500 transition"
+                >
+                  <option value="Software Engineer">Software Engineer</option>
+                  <option value="Frontend Developer">Frontend Developer</option>
+                  <option value="Backend Developer">Backend Developer</option>
+                  <option value="QA Engineer">QA Engineer</option>
+                  <option value="HR Executive">HR Executive</option>
+                  <option value="Accountant">Accountant</option>
+                  <option value="Operations Executive">
+                    Operations Executive
+                  </option>
+                  <option value="Sales Executive">Sales Executive</option>
+                  <option value="Full Stack Developer">
+                    Full Stack Developer
+                  </option>
+                  <option value="DevOps Engineer">DevOps Engineer</option>
+                  <option value="UI/UX Designer">UI/UX Designer</option>
+                  <option value="Intern">Intern</option>
+                  <option value="Project Manager">Project Manager</option>
+                </select>
+              </div>
             </div>
 
             {/* VERIFICATION METHOD */}

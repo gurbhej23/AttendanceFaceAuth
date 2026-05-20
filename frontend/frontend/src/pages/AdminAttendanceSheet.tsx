@@ -445,7 +445,7 @@ export default function AdminAttendanceSheet() {
                   value: sheet?.half_day_count ?? 0,
                   color: "border-orange-500/30",
                   text: "text-orange-400",
-                },
+                }, 
               ].map(({ filter, label, value, color, text }) => (
                 <button
                   key={filter}

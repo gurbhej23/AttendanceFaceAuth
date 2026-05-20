@@ -14,10 +14,13 @@ from django.conf import settings
 from django.contrib.auth.hashers import check_password, make_password
 
 from .models import Employee, RegistrationOTP
-from .face_utils import extract_and_save_embedding
+from .face_utils import extract_and_save_embedding, verify_face_match
 
 CV_DIR = settings.MEDIA_ROOT / "cv_files"
 CV_DIR.mkdir(parents=True, exist_ok=True)
+PROFILE_DIR = settings.MEDIA_ROOT / "profile_images"
+PROFILE_DIR.mkdir(parents=True, exist_ok=True)
+FACE_DUPLICATE_THRESHOLD = 0.58
 
 # ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -95,6 +98,26 @@ def save_base64_cv(data_url: str, original_name: str = "") -> str:
     file_path = CV_DIR / filename
     file_path.write_bytes(file_bytes)
     return f"media/cv_files/{filename}"
+
+
+def save_base64_profile_image(data_url: str) -> str:
+    if not data_url:
+        return ""
+
+    raw_data = data_url
+    extension = ".jpg"
+    if "," in data_url:
+        header, raw_data = data_url.split(",", 1)
+        if "png" in header:
+            extension = ".png"
+        elif "webp" in header:
+            extension = ".webp"
+
+    file_bytes = base64.b64decode(raw_data)
+    filename = f"profile_{uuid.uuid4().hex}{extension}"
+    file_path = PROFILE_DIR / filename
+    file_path.write_bytes(file_bytes)
+    return f"media/profile_images/{filename}"
 
 
 def employee_payload(employee: Employee) -> dict:
@@ -182,6 +205,22 @@ def register_employee(request):
             )
 
         print(f"✅ Embedding extracted: {len(embedding)} dimensions")
+
+        for existing_employee in Employee.objects(face_embedding__ne=[]):
+            if not getattr(existing_employee, "face_embedding", None):
+                continue
+            if verify_face_match(
+                embedding,
+                existing_employee.face_embedding,
+                FACE_DUPLICATE_THRESHOLD,
+            ):
+                return Response(
+                    {
+                        "success": False,
+                        "error": "This face is already registered. Please log in with your existing employee account.",
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         # ── Auto-generate Employee ID and Password ────────────────────────────
         employee_id = generate_employee_id()
@@ -656,12 +695,18 @@ def update_profile(request):
 
     name = request.data.get("name", "").strip()
     phone = request.data.get("phone", "").strip()
+    department = request.data.get("department", "").strip()
+    designation = request.data.get("designation", "").strip()
     current_password = request.data.get("current_password", "").strip()
     new_password = request.data.get("new_password", "").strip()
 
     if name:
         employee.name = name
     employee.phone = phone
+    if department:
+        employee.department = department
+    if designation:
+        employee.designation = designation
 
     if new_password:
         if len(new_password) < 6:
@@ -681,6 +726,42 @@ def update_profile(request):
         {
             "success": True,
             "message": "Profile updated successfully",
+            "employee": employee_payload(employee),
+        }
+    )
+
+
+@api_view(["POST"])
+def update_profile_photo(request):
+    employee_id = request.data.get("employee_id", "").strip()
+    image = request.data.get("image", "").strip()
+
+    if not employee_id or not image:
+        return Response(
+            {"success": False, "error": "employee_id and image are required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    employee = Employee.objects(employee_id=employee_id, is_active=True).first()
+    if not employee:
+        return Response(
+            {"success": False, "error": "Employee not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    try:
+        employee.profile_img = save_base64_profile_image(image)
+        employee.save()
+    except Exception as exc:
+        return Response(
+            {"success": False, "error": f"Could not save profile photo: {exc}"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    return Response(
+        {
+            "success": True,
+            "message": "Profile photo updated successfully",
             "employee": employee_payload(employee),
         }
     )

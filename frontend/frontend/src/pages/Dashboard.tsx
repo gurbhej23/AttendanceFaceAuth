@@ -174,7 +174,6 @@ export default function Dashboard() {
   const [selectedDate, setSelectedDate] = useState(getLocalDate());
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  const [showMobileActions, setShowMobileActions] = useState(false);
 
   const [monthlySummary, setMonthlySummary] = useState<MonthlySummary | null>(
     null,
@@ -440,26 +439,75 @@ export default function Dashboard() {
         </div>
       )}
 
+      <aside className="hidden lg:flex fixed left-1 top-5 bottom-5 z-30 w-70 flex-col rounded-4xl border border-white/10 bg-slate-950/80 p-5 shadow-2xl backdrop-blur-xl">
+        <div className="mb-6 flex flex-col items-center gap-3">
+          <div className="h-15 w-15 overflow-hidden rounded-full bg-slate-800">
+            {profileImg ? (
+              <img
+                src={profileImg}
+                alt={employeeName || "Employee"}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-blue-600 font-bold text-white">
+                {employeeName?.charAt(0) || "E"}
+              </div>
+            )}
+          </div>
+          <div className="min-w-0">
+            <p className="truncate font-bold text-white">{employeeName}</p>
+            <p className="text-xs text-slate-400">{employeeId}</p>
+          </div>
+        </div>
+
+        <nav className="space-y-2">
+          <button
+            onClick={() => navigate("/check-out")}
+            className="w-full rounded-2xl bg-blue-600 px-4 py-4 text-center text-sm font-bold text-white hover:bg-blue-700"
+          >
+            Check Out
+          </button>
+          <button
+            onClick={() => setShowHalfDayModal(true)}
+            className="w-full rounded-2xl bg-orange-600 px-4 py-4 text-center text-sm font-bold text-white hover:bg-orange-700"
+          >
+            Half Day
+          </button>
+          <button
+            onClick={() => setShowSummaryModal(true)}
+            className="w-full rounded-2xl bg-indigo-600 px-4 py-4 text-center text-sm font-bold text-white hover:bg-indigo-700"
+          >
+            Summary
+          </button>
+          <button
+            onClick={() => setShowLeavesModal(true)}
+            className="w-full rounded-2xl bg-purple-600 px-4 py-4 text-center text-sm font-bold text-white hover:bg-purple-700"
+          >
+            My Leaves
+          </button>
+          <button
+            onClick={() => navigate("/profile")}
+            className="w-full rounded-2xl bg-slate-700 px-4 py-4 text-center text-sm font-bold text-white hover:bg-slate-600"
+          >
+            Profile
+          </button>
+        </nav>
+
+        <button
+          onClick={handleLogout}
+          className="mt-auto w-full rounded-2xl bg-red-600 px-4 py-4 text-center text-sm font-bold text-white hover:bg-red-700"
+        >
+          Logout
+        </button>
+      </aside>
+
       <div
-        className={`max-w-7xl mx-auto transition-all duration-300 ${anyModalOpen || showWelcomePrompt ? "blur-sm pointer-events-none select-none" : ""}`}
+        className={`max-w-6xl mx-auto transition-all duration-300 lg:ml-72 ${anyModalOpen || showWelcomePrompt ? "blur-sm pointer-events-none select-none" : ""}`}
       >
         {/* HEADER */}
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-4xl p-6 shadow-2xl mb-8">
           <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-5">
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-              <div className="h-20 w-20 mx-auto sm:mx-0 overflow-hidden rounded-full border border-white/10 bg-slate-800 flex flex-col shrink-0">
-                {profileImg ? (
-                  <img
-                    src={profileImg}
-                    alt={employeeName || "Employee"}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-blue-500 to-cyan-400 text-2xl font-bold text-white">
-                    {employeeName?.charAt(0) || "E"}
-                  </div>
-                )}
-              </div>
               <div>
                 <p className="text-slate-400 text-sm">Attendance Dashboard</p>
                 <h1 className="text-2xl font-bold text-white">Welcome back,</h1>
@@ -469,49 +517,37 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="w-full xl:w-auto">
-              <div className="flex xl:hidden justify-end">
-                <button
-                  onClick={() => setShowMobileActions(!showMobileActions)}
-                  className="bg-slate-800 border border-white/10 text-white p-3 rounded-2xl shadow-lg absolute top-2.5"
-                >
-                  {showMobileActions ? "✖" : "☰"}
-                </button>
-              </div>
-              <div
-                className={`grid grid-cols-2 sm:grid-cols-3 gap-3 transition-all duration-300 ${showMobileActions ? "max-h-96 opacity-100" : "max-h-0 opacity-0 overflow-hidden xl:max-h-none xl:opacity-100"} xl:grid xl:grid-cols-3`}
-              >
-                <Button
-                  text="Check Out"
-                  onClick={() => navigate("/check-out")}
-                  className="bg-linear-to-r from-blue-600 to-blue-500 hover:scale-105 shadow-lg transition-all duration-300 text-white px-4 py-3 rounded-2xl font-semibold cursor-pointer text-sm"
-                />
-                <Button
-                  text="Half Day"
-                  onClick={() => setShowHalfDayModal(true)}
-                  className="bg-linear-to-r from-orange-500 to-orange-400 hover:scale-105 shadow-lg transition-all duration-300 text-white px-4 py-3 rounded-2xl font-semibold cursor-pointer text-sm"
-                />
-                <Button
-                  text="📊 Summary"
-                  onClick={() => setShowSummaryModal(true)}
-                  className="bg-linear-to-r from-indigo-600 to-indigo-500 hover:scale-105 shadow-lg transition-all duration-300 text-white px-4 py-3 rounded-2xl font-semibold cursor-pointer text-sm"
-                />
-                <Button
-                  text="🏖️ My Leaves"
-                  onClick={() => setShowLeavesModal(true)}
-                  className="bg-linear-to-r from-purple-600 to-purple-500 hover:scale-105 shadow-lg transition-all duration-300 text-white px-4 py-3 rounded-2xl font-semibold cursor-pointer text-sm"
-                />
-                <Button
-                  text="Profile"
-                  onClick={() => navigate("/profile")}
-                  className="bg-linear-to-r from-slate-700 to-slate-600 hover:scale-105 shadow-lg transition-all duration-300 text-white px-4 py-3 rounded-2xl font-semibold cursor-pointer text-sm"
-                />
-                <Button
-                  text="Logout"
-                  onClick={handleLogout}
-                  className="bg-linear-to-r from-red-600 to-red-500 hover:scale-105 shadow-lg transition-all duration-300 text-white px-4 py-3 rounded-2xl font-semibold cursor-pointer text-sm col-span-2 sm:col-span-1"
-                />
-              </div>
+            <div className="grid grid-cols-2 gap-3 lg:hidden">
+              <Button
+                text="Check Out"
+                onClick={() => navigate("/check-out")}
+                className="bg-blue-600 text-white cursor-pointer"
+              />
+              <Button
+                text="Half Day"
+                onClick={() => setShowHalfDayModal(true)}
+                className="bg-orange-600 text-white cursor-pointer"
+              />
+              <Button
+                text="Summary"
+                onClick={() => setShowSummaryModal(true)}
+                className="bg-indigo-600 text-white"
+              />
+              <Button
+                text="My Leaves"
+                onClick={() => setShowLeavesModal(true)}
+                className="bg-purple-600 text-white"
+              />
+              <Button
+                text="Profile"
+                onClick={() => navigate("/profile")}
+                className="bg-slate-700 text-white"
+              />
+              <Button
+                text="Logout"
+                onClick={handleLogout}
+                className="bg-red-600 text-white"
+              />
             </div>
           </div>
         </div>
@@ -650,7 +686,7 @@ export default function Dashboard() {
                   "Status",
                   "Reason",
                   "Date",
-                  "CV"
+                  "CV",
                 ]}
               >
                 {records.map((record, idx) => (
