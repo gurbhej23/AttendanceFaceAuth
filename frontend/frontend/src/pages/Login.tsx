@@ -229,7 +229,7 @@ export default function Login() {
             <p className="text-slate-400 text-sm">Don't have an account?</p>
 
             <Link
-              to="/admin-create-employee"
+              to="/register"
               className="text-blue-400 hover:text-blue-300 font-semibold transition"
             >
               Register Here

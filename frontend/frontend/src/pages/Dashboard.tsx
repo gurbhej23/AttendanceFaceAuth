@@ -492,10 +492,10 @@ export default function Dashboard() {
         </nav>
 
         <Button
-        text="Logout"
+          text="Logout"
           onClick={handleLogout}
           className="mt-auto w-full rounded-2xl bg-red-600 px-4 py-4 text-center text-sm font-bold text-white hover:bg-red-700 cursor-pointer"
-        />  
+        />
       </aside>
 
       <div
@@ -590,53 +590,6 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-
-        {/* MONTHLY MINI STATS */}
-        {monthlySummary && (
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 mb-8">
-            {[
-              {
-                label: "Present",
-                value: monthlySummary.present_count,
-                color: "text-green-300",
-              },
-              {
-                label: "Late",
-                value: monthlySummary.late_count,
-                color: "text-yellow-300",
-              },
-              {
-                label: "Absent",
-                value: monthlySummary.absent_count,
-                color: "text-red-300",
-              },
-              {
-                label: "Half Day",
-                value: monthlySummary.half_day_count,
-                color: "text-orange-300",
-              },
-              {
-                label: "Leave",
-                value: monthlySummary.leave_count,
-                color: "text-purple-300",
-              },
-              {
-                label: "Hours",
-                value: monthlySummary.total_working_hours,
-                color: "text-blue-300",
-              },
-            ].map(({ label, value, color }) => (
-              <div
-                key={label}
-                className="bg-white/5 border border-white/10 rounded-2xl p-3 text-center cursor-pointer hover:bg-white/10 transition"
-                onClick={() => setShowSummaryModal(true)}
-              >
-                <p className="text-slate-400 text-xs mb-1">{label}</p>
-                <p className={`text-lg font-bold ${color}`}>{value}</p>
-              </div>
-            ))}
-          </div>
-        )}
 
         {/* TABLE */}
         <div className="bg-white/5 backdrop-blur-xl rounded-4xl shadow-2xl border border-white/10 overflow-hidden">

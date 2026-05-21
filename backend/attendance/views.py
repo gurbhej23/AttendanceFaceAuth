@@ -13,13 +13,13 @@ from rest_framework.response import Response
 
 IST = pytz.timezone("Asia/Kolkata")
 TEMP_DIR = "media/temp"
-ATTENDANCE_START_HOUR = 10
+ATTENDANCE_START_HOUR = 9
 ATTENDANCE_START_MINUTE = 0
 LATE_GRACE_MINUTES = 15  # grace period before marking late
 
 os.makedirs(TEMP_DIR, exist_ok=True)
 
-FACE_MATCH_THRESHOLD = 0.62
+FACE_MATCH_THRESHOLD = 0.75
 
 
 def media_url(path):
