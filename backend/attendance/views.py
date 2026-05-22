@@ -13,9 +13,9 @@ from rest_framework.response import Response
 
 IST = pytz.timezone("Asia/Kolkata")
 TEMP_DIR = "media/temp"
-ATTENDANCE_START_HOUR = 9
+ATTENDANCE_START_HOUR = 10
 ATTENDANCE_START_MINUTE = 0
-LATE_GRACE_MINUTES = 15  # grace period before marking late
+LATE_GRACE_MINUTES = 15
 
 os.makedirs(TEMP_DIR, exist_ok=True)
 
@@ -52,7 +52,7 @@ def is_before_attendance_start(now=None):
 
 
 def attendance_start_message():
-    return "Attendance starts at 9:00 AM. You cannot mark attendance before that."
+    return "Attendance starts at 10:00 AM. You cannot mark attendance before that."
 
 
 def as_ist(value):
@@ -963,7 +963,7 @@ def mark_present(request):
 def mark_absent(request):
     try:
         employee_id = request.data.get("employee_id", "").strip()
-        reason = request.data.get("reason", "").strip()
+        reason = request.data.get("reason", "").strip() 
 
         employee = Employee.objects(employee_id=employee_id, is_active=True).first()
         if not employee:

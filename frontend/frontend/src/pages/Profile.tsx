@@ -219,10 +219,10 @@ export default function Profile() {
 
       <div className="mx-auto max-w-6xl">
         <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
+          {/* <div>
             <p className="text-sm text-blue-300">Employee profile</p>
             <h1 className="text-3xl font-bold">Account & Face Settings</h1>
-          </div>
+          </div> */}
           <Button
             text="Back to dashboard"
             onClick={() => navigate("/dashboard")}

@@ -127,11 +127,10 @@ def extract_and_save_embedding(base64_image: str, employee_id: str) -> tuple:
 
 
 def verify_face_match(
-    uploaded_embedding: list, stored_embedding: list, threshold: float = 0.45
-) -> bool:
-    """
-    Compare two face embeddings using Euclidean distance.
-    """
+    uploaded_embedding: list, 
+    stored_embedding: list, 
+    threshold: float = 0.45 
+    ) -> bool: 
     try:
         print(f"\n{'=' * 60}")
         print("Comparing face embeddings")
