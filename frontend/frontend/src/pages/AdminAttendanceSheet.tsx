@@ -20,6 +20,9 @@ interface SheetRecord {
   reason: string;
   half_day_until: string;
   minutes_late: number;
+  location_status?: string;
+  location_distance_meters?: number;
+  location_maps_url?: string;
   profile_img?: string;
   cv_file?: string;
 }
@@ -363,6 +366,11 @@ export default function AdminAttendanceSheet() {
               />
             )}
             <Button
+              text="Analytics"
+              onClick={() => navigate("/admin-analytics")}
+              className="bg-cyan-600 hover:bg-cyan-700 text-white px-5 py-3 rounded-xl font-semibold cursor-pointer"
+            />
+            <Button
               text="Employees"
               onClick={() => navigate("/admin-employees")}
               className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl font-semibold cursor-pointer"
@@ -493,6 +501,7 @@ export default function AdminAttendanceSheet() {
                         <th className="px-5 py-4">Check Out</th>
                         <th className="px-5 py-4">Duration</th>
                         <th className="px-5 py-4">Status</th>
+                        <th className="px-5 py-4">Location</th>
                         <th className="px-5 py-4">Reason</th>
                         <th className="px-5 py-4">CV</th>
                       </tr>
@@ -560,6 +569,25 @@ export default function AdminAttendanceSheet() {
                             )}
                           </td>
                           <td className="px-5 py-4">
+                            {record.location_maps_url ? (
+                              <a
+                                href={record.location_maps_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-xs font-semibold text-cyan-300 hover:text-cyan-200"
+                              >
+                                {statusLabel(record.location_status || "captured")}
+                                {record.location_distance_meters
+                                  ? ` · ${Math.round(record.location_distance_meters)}m`
+                                  : ""}
+                              </a>
+                            ) : (
+                              <span className="text-xs text-slate-500">
+                                {statusLabel(record.location_status || "not captured")}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-5 py-4">
                             {record.reason && record.reason !== "--" ? (
                               <button
                                 onClick={() => setViewReason(record.reason)}
@@ -590,7 +618,7 @@ export default function AdminAttendanceSheet() {
                       {filteredRecords.length === 0 && (
                         <tr>
                           <td
-                            colSpan={11}
+                            colSpan={12}
                             className="px-5 py-8 text-center text-slate-400"
                           >
                             No records found

@@ -6,7 +6,7 @@ from io import BytesIO
 
 import cv2
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 
 MEDIA_DIR = "media/faces"
 os.makedirs(MEDIA_DIR, exist_ok=True)
@@ -35,6 +35,43 @@ def ensure_facenet_loaded():
     print("FaceNet model loaded")
 
 
+def extract_embedding_with_fallbacks(image_bgr: np.ndarray):
+    deepface = get_deepface()
+    ensure_facenet_loaded()
+
+    attempts = [
+        {"detector_backend": "opencv", "enforce_detection": True},
+        {"detector_backend": "mtcnn", "enforce_detection": True},
+        {"detector_backend": "retinaface", "enforce_detection": True},
+        {"detector_backend": "skip", "enforce_detection": False},
+    ]
+
+    last_error = None
+    for attempt in attempts:
+        try:
+            print(
+                "   Trying detector:",
+                attempt["detector_backend"],
+                "| enforce_detection:",
+                attempt["enforce_detection"],
+            )
+            result = deepface.represent(
+                img_path=image_bgr,
+                model_name="Facenet",
+                detector_backend=attempt["detector_backend"],
+                enforce_detection=attempt["enforce_detection"],
+                align=True,
+            )
+            if result and result[0].get("embedding"):
+                print(f"   Detector worked: {attempt['detector_backend']}")
+                return result[0]["embedding"], None
+        except Exception as exc:
+            last_error = exc
+            print(f"   Detector failed: {attempt['detector_backend']} -> {exc}")
+
+    return None, last_error
+
+
 def extract_and_save_embedding(base64_image: str, employee_id: str) -> tuple:
     """
     Extract a FaceNet embedding from a base64 image and save the image to disk.
@@ -60,7 +97,9 @@ def extract_and_save_embedding(base64_image: str, employee_id: str) -> tuple:
             return None, f"Invalid image format: {exc}", None
 
         try:
-            image = Image.open(BytesIO(image_data)).convert("RGB")
+            image = ImageOps.exif_transpose(Image.open(BytesIO(image_data))).convert(
+                "RGB"
+            )
             image_np = np.array(image)
             print(f"Image loaded: {image_np.shape}")
         except Exception as exc:
@@ -89,20 +128,18 @@ def extract_and_save_embedding(base64_image: str, employee_id: str) -> tuple:
         print("Extracting face embedding...")
         try:
             print(f"   Input shape: {image_bgr.shape}")
-            print("   enforce_detection: False (lenient mode)")
-            ensure_facenet_loaded()
+            embedding, detector_error = extract_embedding_with_fallbacks(image_bgr)
 
-            result = get_deepface().represent(
-                img_path=image_bgr,
-                model_name="Facenet",
-                enforce_detection=False,
-            )
-
-            if not result:
+            if not embedding:
                 print("DeepFace returned empty result")
-                return None, "Could not extract face features", image_path
+                detail = f": {detector_error}" if detector_error else ""
+                return (
+                    None,
+                    "Could not detect a clear face. Move closer, face the camera, and use better lighting"
+                    + detail,
+                    image_path,
+                )
 
-            embedding = result[0]["embedding"]
             print(f"Embedding extracted: {len(embedding)} dimensions")
             print(f"   First 5 values: {embedding[:5]}")
 

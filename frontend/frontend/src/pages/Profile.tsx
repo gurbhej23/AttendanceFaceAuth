@@ -1,9 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ComponentType } from "react";
 import { useNavigate } from "react-router-dom";
 import Webcam from "react-webcam";
 import API from "../services/api";
 import Button from "../components/Button";
 import Input from "../components/Input";
+import Cropper from "react-image-crop";
+
+const CropperComponent = Cropper as unknown as ComponentType<any>;
 
 const DEPARTMENTS = ["IT", "HR", "Finance", "Operations", "Sales", "Marketing"];
 const JOB_ROLES = [
@@ -57,6 +60,18 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [faceSaving, setFaceSaving] = useState(false);
   const [toast, setToast] = useState<{ ok: boolean; msg: string } | null>(null);
+
+  const [showImageModal, setShowImageModal] = useState(false);
+
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<{
+    width: number;
+    height: number;
+    x: number;
+    y: number;
+  } | null>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const employeeId = localStorage.getItem("employee_id") || "";
 
@@ -128,43 +143,80 @@ export default function Profile() {
     }
   };
 
+  const onCropComplete = useCallback((_: any, croppedPixels: any) => {
+    setCroppedAreaPixels(croppedPixels);
+  }, []);
+
   const uploadProfilePhoto = (file: File) => {
     if (!file.type.startsWith("image/")) {
       showToast("Please choose an image file", false);
       return;
     }
-    if (file.size > 3 * 1024 * 1024) {
-      showToast("Profile photo must be under 3MB", false);
-      return;
-    }
 
     const reader = new FileReader();
-    reader.onload = async () => {
+
+    reader.onload = () => {
+      setSelectedImage(String(reader.result));
+    };
+
+    reader.readAsDataURL(file);
+  };
+
+  const getCroppedImg = async () => {
+    if (!selectedImage || !croppedAreaPixels) return;
+
+    const image = new Image();
+    image.src = selectedImage;
+
+    image.onload = async () => {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+
+      if (!ctx) return;
+
+      canvas.width = croppedAreaPixels.width;
+      canvas.height = croppedAreaPixels.height;
+
+      ctx.drawImage(
+        image,
+        croppedAreaPixels.x,
+        croppedAreaPixels.y,
+        croppedAreaPixels.width,
+        croppedAreaPixels.height,
+        0,
+        0,
+        croppedAreaPixels.width,
+        croppedAreaPixels.height,
+      );
+
+      const croppedBase64 = canvas.toDataURL("image/jpeg");
+
       try {
         setSaving(true);
+
         const res = await API.post("/employees/update-profile-photo/", {
           employee_id: employeeId,
-          image: String(reader.result),
+          image: croppedBase64,
         });
-        const data = res.data.employee as EmployeeProfile;
+
+        const data = res.data.employee;
+
         setProfile(data);
         localStorage.setItem("profile_img", data.profile_img || "");
-        showToast(res.data.message || "Profile photo updated");
+
+        showToast("Profile photo updated");
+
+        setSelectedImage(null);
       } catch (err) {
-        showToast(getError(err, "Profile photo update failed"), false);
+        showToast(getError(err, "Upload failed"), false);
       } finally {
         setSaving(false);
       }
     };
-    reader.onerror = () => showToast("Could not read selected image", false);
-    reader.readAsDataURL(file);
   };
 
   const captureFace = () => {
-    const snap = webcamRef.current?.getScreenshot({
-      width: 1280,
-      height: 720,
-    });
+    const snap = webcamRef.current?.getScreenshot();
     if (!snap) {
       showToast("Could not capture image", false);
       return;
@@ -224,7 +276,7 @@ export default function Profile() {
             <h1 className="text-3xl font-bold">Account & Face Settings</h1>
           </div> */}
           <Button
-            text="Back to dashboard"
+            text="<"
             onClick={() => navigate("/dashboard")}
             className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800 cursor-pointer"
           />
@@ -232,7 +284,10 @@ export default function Profile() {
 
         <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
           <section className="rounded-3xl border border-slate-800 bg-slate-900 p-6">
-            <div className="mx-auto mb-5 h-28 w-28 overflow-hidden rounded-full border border-slate-700 bg-slate-800">
+            <div
+              onClick={() => setShowImageModal(true)}
+              className="mx-auto mb-5 h-28 w-28 overflow-hidden rounded-full border border-slate-700 bg-slate-800 cursor-pointer"
+            >
               {profile?.profile_img ? (
                 <img
                   src={getMediaUrl(profile.profile_img)}
@@ -408,8 +463,8 @@ export default function Profile() {
               </div>
 
               {showFaceEnrollment && (
-                <div className="mt-5 grid gap-5 lg:grid-cols-[320px_1fr]">
-                  <div className="relative h-80 overflow-hidden rounded-full border-4 border-slate-700 bg-black">
+	                <div className="mt-5 grid gap-5 lg:grid-cols-[420px_1fr]">
+	                  <div className="relative aspect-video overflow-hidden rounded-[28px] border-4 border-slate-700 bg-black">
                     {capturedImage ? (
                       <img
                         src={capturedImage}
@@ -462,6 +517,69 @@ export default function Profile() {
           </div>
         </div>
       </div>
+
+      {showImageModal && profile?.profile_img && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-5">
+          <div className="relative">
+            <button
+              onClick={() => setShowImageModal(false)}
+              className="absolute -top-12 right-0 text-white text-3xl"
+            >
+              ✕
+            </button>
+
+            <img
+              src={getMediaUrl(profile.profile_img)}
+              alt="Profile"
+              className="max-h-[90vh] max-w-[90vw] rounded-3xl"
+            />
+          </div>
+        </div>
+      )}
+
+      {selectedImage && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-5">
+          <div className="bg-slate-900 p-5 rounded-3xl w-full max-w-lg">
+            <div className="relative h-96 w-full">
+              <CropperComponent
+                image={selectedImage}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={onCropComplete}
+              />
+            </div>
+
+            <div className="mt-5">
+              <input
+                type="range"
+                min={1}
+                max={3}
+                step={0.1}
+                value={zoom}
+                onChange={(e) => setZoom(Number(e.target.value))}
+                className="w-full"
+              />
+            </div>
+
+            <div className="flex gap-3 mt-5">
+              <Button
+                text="Cancel"
+                onClick={() => setSelectedImage(null)}
+                className="flex-1 bg-slate-700 text-white"
+              />
+
+              <Button
+                text="Crop & Save"
+                onClick={getCroppedImg}
+                className="flex-1 bg-blue-600 text-white"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -14,6 +14,8 @@ from .views import (
     admin_employees,
     admin_update_employee,
     admin_reset_employee_password,
+    chat_contacts,
+    chat_history,
 )
 
 urlpatterns = [
@@ -33,6 +35,8 @@ urlpatterns = [
     path("update-profile-photo/", update_profile_photo, name="update-profile-photo"),
     path("update-face/", update_face, name="update-face"),
     path("admin-employees/", admin_employees, name="admin-employees"),
+    path("chat-contacts/", chat_contacts, name="chat-contacts"),
+    path("chat-history/", chat_history, name="chat-history"),
     path("admin-update-employee/", admin_update_employee, name="admin-update-employee"),
     path(
         "admin-reset-password/",

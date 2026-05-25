@@ -3,6 +3,10 @@ import Webcam from "react-webcam";
 import { useNavigate } from "react-router-dom";
 import API from "../services/api";
 import MessageOverlay from "../components/MessageOverlay";
+import {
+  getCurrentLocation,
+  pickLivenessPrompt,
+} from "../services/attendanceSecurity";
 
 type BorderStatus = "idle" | "scanning" | "success" | "error";
 
@@ -17,6 +21,9 @@ export default function VerifyFace() {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("Position your face in the oval");
+  const [livenessPrompt] = useState(pickLivenessPrompt);
+  const [livenessDone, setLivenessDone] = useState(false);
+  const [livenessCount, setLivenessCount] = useState(3);
   const [borderStatus, setBorderStatus] = useState<BorderStatus>("idle");
   const [retryCount, setRetryCount] = useState(0);
   const [overlay, setOverlay] = useState<{
@@ -33,6 +40,23 @@ export default function VerifyFace() {
       navigate("/", { replace: true });
     }
   }, [navigate]);
+
+  useEffect(() => {
+    if (!cameraReady || livenessDone) return;
+    setMessage(livenessPrompt);
+    const timer = window.setInterval(() => {
+      setLivenessCount((count) => {
+        if (count <= 1) {
+          window.clearInterval(timer);
+          setLivenessDone(true);
+          setMessage("Liveness check complete. You can verify now.");
+          return 0;
+        }
+        return count - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [cameraReady, livenessDone, livenessPrompt]);
 
   const checkImageQuality = (
     imageSrc: string,
@@ -176,12 +200,17 @@ export default function VerifyFace() {
   const resetCamera = () => {
     setCapturedImage(null);
     setBorderStatus("idle");
-    setMessage("Position your face in the oval");
+    setMessage(livenessDone ? "Position your face in the oval" : livenessPrompt);
     setOverlay(null);
   };
 
   const handleFaceVerification = async () => {
     if (verifyingRef.current) return;
+    if (!livenessDone) {
+      setBorderStatus("error");
+      setMessage("Complete the liveness prompt first");
+      return;
+    }
 
     const employee_id = localStorage.getItem("employee_id");
     if (!employee_id || employee_id === "undefined") {
@@ -198,10 +227,7 @@ export default function VerifyFace() {
     let imageSrc: string | null = null;
 
     for (let attempt = 1; attempt <= 3; attempt++) {
-      const snap = webcamRef.current?.getScreenshot({
-        width: 1280,
-        height: 720,
-      });
+      const snap = webcamRef.current?.getScreenshot();
 
       if (!snap) {
         if (attempt === 3) {
@@ -249,9 +275,11 @@ export default function VerifyFace() {
     });
 
     try {
+      const location = await getCurrentLocation();
       const response = await API.post("/attendance/verify-face/", {
         employee_id,
         image: imageSrc,
+        ...location,
       });
 
       if (response.data.success) {
@@ -327,11 +355,13 @@ export default function VerifyFace() {
         Face Verification
       </h1>
       <p className="text-gray-400 mb-6 text-sm">
-        Position your face inside the oval
+        {livenessDone
+          ? "Keep your full face visible with a little space around it"
+          : `${livenessPrompt} (${livenessCount})`}
       </p>
 
       <div
-        className={`relative w-90 h-90 rounded-full overflow-hidden ring-4 shadow-lg transition-all ${ringColor}`}
+        className={`relative w-full h-110 max-w-xl aspect-video rounded-4xl overflow-hidden ring-4 shadow-lg transition-all ${ringColor}`}
       >
         {!capturedImage ? (
           <Webcam
@@ -347,15 +377,13 @@ export default function VerifyFace() {
             }}
             videoConstraints={{
               facingMode: "user",
-              width: { ideal: 1280 },
+              width: { ideal: 800 },
               height: { ideal: 720 },
             }}
             style={{
-              position: "absolute",
-              width: "150%",
-              height: "130%",
-              top: "-30%",
-              left: "0%",
+              position: "absolute", 
+              top: "0",
+              left: "0",
               objectFit: "cover",
             }}
           />
@@ -365,10 +393,10 @@ export default function VerifyFace() {
             alt="Captured face"
             style={{
               position: "absolute",
-              width: "150%",
-              height: "130%",
-              top: "-30%",
-              left: "0%",
+              width: "100%",
+              height: "100%",
+              top: "0",
+              left: "0",
               objectFit: "cover",
             }}
           />
@@ -378,7 +406,7 @@ export default function VerifyFace() {
           ref={canvasRef}
           width={600}
           height={400}
-          className="absolute inset-0 w-full h-full"
+          className="absolute inset-0 w-full h-120"
         />
       </div>
 
@@ -399,11 +427,15 @@ export default function VerifyFace() {
             setRetryCount((c) => c + 1);
             handleFaceVerification();
           }}
-          disabled={!cameraReady || loading || borderStatus === "scanning"}
+          disabled={
+            !cameraReady || !livenessDone || loading || borderStatus === "scanning"
+          }
           className="mt-6 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold disabled:opacity-50 transition"
         >
           {loading || borderStatus === "scanning"
             ? "Checking..."
+            : !livenessDone
+              ? "Complete Liveness..."
             : retryCount > 0
               ? "Try Again"
               : "Verify Face"}

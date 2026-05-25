@@ -1,2 +1,20 @@
-@import "tailwindcss" 
+@import "tailwindcss";
+
+html {
+  scroll-behavior: smooth;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  transition-property: color, background-color, border-color, opacity, transform, box-shadow;
+  transition-duration: 180ms;
+  transition-timing-function: ease;
+}
 

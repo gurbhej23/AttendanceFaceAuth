@@ -1,8 +1,12 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Webcam from "react-webcam";
 import { useNavigate } from "react-router-dom";
 import API from "../services/api";
 import MessageOverlay from "../components/MessageOverlay";
+import {
+  getCurrentLocation,
+  pickLivenessPrompt,
+} from "../services/attendanceSecurity";
 
 const getApiError = (err: unknown, fallback: string): string => {
   const e = err as { response?: { data?: { error?: string } } };
@@ -15,6 +19,10 @@ export default function CheckOut() {
 
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
+  const [livenessPrompt] = useState(pickLivenessPrompt);
+  const [livenessDone, setLivenessDone] = useState(false);
+  const [livenessCount, setLivenessCount] = useState(3);
   const [overlay, setOverlay] = useState<{
     title: string;
     message?: string;
@@ -22,7 +30,29 @@ export default function CheckOut() {
     loading?: boolean;
   } | null>(null);
 
+  useEffect(() => {
+    if (!cameraReady || livenessDone) return;
+    setMessage(livenessPrompt);
+    const timer = window.setInterval(() => {
+      setLivenessCount((count) => {
+        if (count <= 1) {
+          window.clearInterval(timer);
+          setLivenessDone(true);
+          setMessage("Liveness check complete. You can check out now.");
+          return 0;
+        }
+        return count - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [cameraReady, livenessDone, livenessPrompt]);
+
   const handleCheckOut = async () => {
+    if (!livenessDone) {
+      setMessage("Complete the liveness prompt first");
+      return;
+    }
+
     const imageSrc = webcamRef.current?.getScreenshot();
 
     if (!imageSrc) {
@@ -46,9 +76,11 @@ export default function CheckOut() {
         return;
       }
 
+      const location = await getCurrentLocation();
       const response = await API.post("/attendance/check-out/", {
         employee_id,
         image: imageSrc,
+        ...location,
       });
 
       if (response.data.success) {
@@ -101,6 +133,7 @@ export default function CheckOut() {
             mirrored
             screenshotFormat="image/jpeg"
             screenshotQuality={0.95}
+            onUserMedia={() => setCameraReady(true)}
             className="aspect-video w-full object-cover"
           />
         </div>
@@ -113,10 +146,14 @@ export default function CheckOut() {
 
         <button
           onClick={handleCheckOut}
-          disabled={loading}
+          disabled={loading || !livenessDone}
           className="mt-6 w-full cursor-pointer rounded-2xl bg-linear-to-r from-blue-600 to-cyan-500 p-4 font-bold text-white transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-blue-500/30 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {loading ? "Verifying..." : "Verify & Check Out"}
+          {loading
+            ? "Verifying..."
+            : livenessDone
+              ? "Verify & Check Out"
+              : `Complete Liveness (${livenessCount})`}
         </button>
 
         <button

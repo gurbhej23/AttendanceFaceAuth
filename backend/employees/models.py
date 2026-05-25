@@ -32,3 +32,20 @@ class RegistrationOTP(me.Document):
     created_at = me.DateTimeField(default=datetime.now)
 
     meta = {"collection": "registration_otps"}
+
+
+class ChatMessage(me.Document):
+    sender_id = me.StringField(required=True)
+    sender_name = me.StringField(default="")
+    sender_role = me.StringField(default="employee")
+    recipient_id = me.StringField(required=True)
+    recipient_name = me.StringField(default="")
+    message = me.StringField(required=True)
+    is_read = me.BooleanField(default=False)
+    created_at = me.DateTimeField(default=datetime.now)
+
+    meta = {
+        "collection": "chat_messages",
+        "indexes": ["sender_id", "recipient_id", "-created_at"],
+        "ordering": ["created_at"],
+    }

@@ -13,7 +13,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.contrib.auth.hashers import check_password, make_password
 
-from .models import Employee, RegistrationOTP
+from .models import ChatMessage, Employee, RegistrationOTP
 from .face_utils import extract_and_save_embedding, verify_face_match
 
 CV_DIR = settings.MEDIA_ROOT / "cv_files"
@@ -132,6 +132,20 @@ def employee_payload(employee: Employee) -> dict:
         "is_active": employee.is_active,
         "profile_img": media_url(employee.profile_img or employee.photo_path or ""),
         "cv_file": media_url(employee.cv_file or ""),
+    }
+
+
+def chat_payload(message: ChatMessage) -> dict:
+    return {
+        "id": str(message.id),
+        "sender_id": message.sender_id,
+        "sender_name": message.sender_name,
+        "sender_role": message.sender_role,
+        "recipient_id": message.recipient_id,
+        "recipient_name": message.recipient_name,
+        "message": message.message,
+        "is_read": message.is_read,
+        "created_at": message.created_at.isoformat(),
     }
 
 
@@ -844,6 +858,64 @@ def admin_employees(request):
         data.append(payload)
 
     return Response({"success": True, "employees": data, "total": len(data)})
+
+
+@api_view(["GET"])
+def chat_contacts(request):
+    employee_id = request.query_params.get("employee_id", "").strip()
+    employee = find_employee(employee_id)
+    if not employee:
+        return Response(
+            {"success": False, "error": "Employee not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if employee.role in ("admin", "hr"):
+        contacts = Employee.objects(is_active=True, employee_id__ne=employee_id).order_by(
+            "role", "name"
+        )
+    else:
+        contacts = Employee.objects(is_active=True, role__in=["admin", "hr"]).order_by(
+            "role", "name"
+        )
+
+    return Response(
+        {
+            "success": True,
+            "contacts": [employee_payload(contact) for contact in contacts],
+        }
+    )
+
+
+@api_view(["GET"])
+def chat_history(request):
+    employee_id = request.query_params.get("employee_id", "").strip()
+    contact_id = request.query_params.get("contact_id", "").strip()
+    if not employee_id or not contact_id:
+        return Response(
+            {"success": False, "error": "employee_id and contact_id are required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    messages = ChatMessage.objects(
+        __raw__={
+            "$or": [
+                {"sender_id": employee_id, "recipient_id": contact_id},
+                {"sender_id": contact_id, "recipient_id": employee_id},
+            ]
+        }
+    ).order_by("created_at")
+
+    ChatMessage.objects(
+        sender_id=contact_id, recipient_id=employee_id, is_read=False
+    ).update(set__is_read=True)
+
+    return Response(
+        {
+            "success": True,
+            "messages": [chat_payload(message) for message in messages],
+        }
+    )
 
 
 @api_view(["POST"])

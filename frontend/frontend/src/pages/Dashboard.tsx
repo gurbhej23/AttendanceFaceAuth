@@ -5,6 +5,7 @@ import API from "../services/api";
 import Button from "../components/Button";
 import Input from "../components/Input";
 import Table from "../components/Table";
+import { getCurrentLocation } from "../services/attendanceSecurity";
 
 interface AttendanceRecord {
   employee_id: string;
@@ -308,8 +309,10 @@ export default function Dashboard() {
   const markPresent = async () => {
     if (!requireEmployeeId()) return;
     try {
+      const location = await getCurrentLocation();
       const res = await API.post("/attendance/mark-present/", {
         employee_id: employeeId,
+        ...location,
       });
       showSuccess(res.data.message || "✅ Marked as present");
       setShowAttendancePrompt(false);
@@ -438,9 +441,9 @@ export default function Dashboard() {
         </div>
       )}
 
-      <aside className="hidden lg:flex fixed left-1 top-5 bottom-5 z-30 w-70 flex-col rounded-4xl border border-white/10 bg-slate-950/80 p-5 shadow-2xl backdrop-blur-xl">
-        <div className="mb-6 flex flex-col items-center gap-3">
-          <div className="h-15 w-15 overflow-hidden rounded-full bg-slate-800">
+      <aside className="group hidden lg:flex fixed left-3 top-5 bottom-5 z-30 w-20 hover:w-72 flex-col rounded-[28px] border border-white/10 bg-slate-950/85 p-4 shadow-2xl backdrop-blur-xl transition-all duration-300 ease-out overflow-hidden">
+        <div className="mb-6 flex items-center gap-3">
+          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-slate-800">
             {profileImg ? (
               <img
                 src={profileImg}
@@ -453,53 +456,52 @@ export default function Dashboard() {
               </div>
             )}
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 opacity-0 translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
             <p className="truncate font-bold text-white">{employeeName}</p>
             <p className="text-xs text-slate-400">{employeeId}</p>
           </div>
         </div>
 
         <nav className="space-y-2">
-          <Button
-            text="Check Out"
-            onClick={() => navigate("/check-out")}
-            className="w-full rounded-2xl bg-blue-600 px-4 py-4 text-center text-sm font-bold text-white hover:bg-blue-700 cursor-pointer"
-          />
-
-          <Button
-            text="Half Day"
-            onClick={() => setShowHalfDayModal(true)}
-            className="w-full rounded-2xl bg-orange-600 px-4 py-4 text-center text-sm font-bold text-white hover:bg-orange-700 cursor-pointer"
-          />
-
-          <Button
-            text="Summary"
-            onClick={() => setShowSummaryModal(true)}
-            className="w-full rounded-2xl bg-indigo-600 px-4 py-4 text-center text-sm font-bold text-white hover:bg-indigo-700 cursor-pointer"
-          />
-
-          <Button
-            text="My Leaves"
-            onClick={() => setShowLeavesModal(true)}
-            className="w-full rounded-2xl bg-purple-600 px-4 py-4 text-center text-sm font-bold text-white hover:bg-purple-700 cursor-pointer"
-          />
-
-          <Button
-            text="Profile"
-            onClick={() => navigate("/profile")}
-            className="w-full rounded-2xl bg-slate-700 px-4 py-4 text-center text-sm font-bold text-white hover:bg-slate-600 cursor-pointer"
-          />
+          {[
+            { icon: "CO", label: "Check Out", action: () => navigate("/check-out"), tone: "bg-blue-600 hover:bg-blue-700" },
+            { icon: "HD", label: "Half Day", action: () => setShowHalfDayModal(true), tone: "bg-orange-600 hover:bg-orange-700" },
+            { icon: "SM", label: "Summary", action: () => setShowSummaryModal(true), tone: "bg-indigo-600 hover:bg-indigo-700" },
+            { icon: "LV", label: "My Leaves", action: () => setShowLeavesModal(true), tone: "bg-purple-600 hover:bg-purple-700" },
+            { icon: "PR", label: "Profile", action: () => navigate("/profile"), tone: "bg-slate-700 hover:bg-slate-600" },
+          ].map((item) => (
+            <button
+              key={item.label}
+              onClick={item.action}
+              className={`flex h-12 w-full cursor-pointer items-center gap-3 rounded-2xl px-2 text-sm font-bold text-white transition ${item.tone}`}
+              title={item.label}
+            >
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-white/15 text-[11px]">
+                {item.icon}
+              </span>
+              <span className="whitespace-nowrap opacity-0 translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
+                {item.label}
+              </span>
+            </button>
+          ))}
         </nav>
 
-        <Button
-          text="Logout"
+        <button
           onClick={handleLogout}
-          className="mt-auto w-full rounded-2xl bg-red-600 px-4 py-4 text-center text-sm font-bold text-white hover:bg-red-700 cursor-pointer"
-        />
+          className="mt-auto flex h-12 w-full cursor-pointer items-center gap-3 rounded-2xl bg-red-600 px-3 text-sm font-bold text-white transition hover:bg-red-700"
+          title="Logout"
+        >
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-white/15 text-[11px]">
+            LO
+          </span>
+          <span className="whitespace-nowrap opacity-0 translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
+            Logout
+          </span>
+        </button>
       </aside>
 
       <div
-        className={`max-w-6xl mx-auto transition-all duration-300 lg:ml-72 ${anyModalOpen || showWelcomePrompt ? "blur-sm pointer-events-none select-none" : ""}`}
+        className={`max-w-7xl mx-auto transition-all duration-300 lg:ml-24 ${anyModalOpen || showWelcomePrompt ? "blur-sm pointer-events-none select-none" : ""}`}
       >
         {/* HEADER */}
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-4xl p-6 shadow-2xl mb-8">

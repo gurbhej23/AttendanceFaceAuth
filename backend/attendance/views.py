@@ -1,4 +1,5 @@
 import csv
+import math
 import os
 from rest_framework import status
 from employees.models import Employee
@@ -13,13 +14,16 @@ from rest_framework.response import Response
 
 IST = pytz.timezone("Asia/Kolkata")
 TEMP_DIR = "media/temp"
-ATTENDANCE_START_HOUR = 10
+ATTENDANCE_START_HOUR = 9
 ATTENDANCE_START_MINUTE = 0
-LATE_GRACE_MINUTES = 15
+LATE_GRACE_MINUTES = 30
 
 os.makedirs(TEMP_DIR, exist_ok=True)
 
 FACE_MATCH_THRESHOLD = 0.75
+OFFICE_LATITUDE = os.getenv("OFFICE_LATITUDE")
+OFFICE_LONGITUDE = os.getenv("OFFICE_LONGITUDE")
+OFFICE_RADIUS_METERS = float(os.getenv("OFFICE_RADIUS_METERS", "250"))
 
 
 def media_url(path):
@@ -74,6 +78,97 @@ def format_duration(minutes):
     hours = minutes // 60
     mins = minutes % 60
     return f"{hours}h {mins}m"
+
+
+def office_location():
+    if not OFFICE_LATITUDE or not OFFICE_LONGITUDE:
+        return None
+    try:
+        return float(OFFICE_LATITUDE), float(OFFICE_LONGITUDE)
+    except ValueError:
+        return None
+
+
+def distance_meters(lat1, lon1, lat2, lon2):
+    radius = 6371000
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    d_phi = math.radians(lat2 - lat1)
+    d_lam = math.radians(lon2 - lon1)
+    a = (
+        math.sin(d_phi / 2) ** 2
+        + math.cos(phi1) * math.cos(phi2) * math.sin(d_lam / 2) ** 2
+    )
+    return radius * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+def parse_location(data):
+    lat = data.get("latitude")
+    lng = data.get("longitude")
+    if lat in (None, "") or lng in (None, ""):
+        return {
+            "latitude": None,
+            "longitude": None,
+            "status": "not_captured",
+            "distance": 0,
+            "allowed": True,
+            "message": "Location not captured",
+        }
+
+    try:
+        lat = float(lat)
+        lng = float(lng)
+    except (TypeError, ValueError):
+        return {
+            "latitude": None,
+            "longitude": None,
+            "status": "invalid",
+            "distance": 0,
+            "allowed": False,
+            "message": "Invalid location data",
+        }
+
+    office = office_location()
+    if not office:
+        return {
+            "latitude": lat,
+            "longitude": lng,
+            "status": "captured",
+            "distance": 0,
+            "allowed": True,
+            "message": "Location captured",
+        }
+
+    distance = round(distance_meters(lat, lng, office[0], office[1]), 2)
+    allowed = distance <= OFFICE_RADIUS_METERS
+    return {
+        "latitude": lat,
+        "longitude": lng,
+        "status": "inside_office" if allowed else "outside_office",
+        "distance": distance,
+        "allowed": allowed,
+        "message": (
+            "Location verified"
+            if allowed
+            else f"You are {int(distance)}m away from office. Attendance is allowed within {int(OFFICE_RADIUS_METERS)}m."
+        ),
+    }
+
+
+def location_payload(record):
+    lat = getattr(record, "check_in_latitude", None)
+    lng = getattr(record, "check_in_longitude", None)
+    maps_url = ""
+    if lat is not None and lng is not None:
+        maps_url = f"https://www.google.com/maps?q={lat},{lng}"
+    return {
+        "location_status": getattr(record, "location_status", "not_captured"),
+        "location_distance_meters": getattr(record, "location_distance_meters", 0)
+        or 0,
+        "check_in_latitude": lat,
+        "check_in_longitude": lng,
+        "location_maps_url": maps_url,
+    }
 
 
 # ─── Face Verify ──────────────────────────────────────────────────────────────
@@ -171,6 +266,10 @@ def check_in_face(request):
                 status=401,
             )
 
+        location = parse_location(request.data)
+        if not location["allowed"]:
+            return Response({"success": False, "error": location["message"]}, status=403)
+
         now = current_ist()
         today = now.strftime("%Y-%m-%d")
 
@@ -203,6 +302,10 @@ def check_in_face(request):
             date=today,
             check_in_time=now,
             check_in_image=check_in_image_path,
+            check_in_latitude=location["latitude"],
+            check_in_longitude=location["longitude"],
+            location_status=location["status"],
+            location_distance_meters=location["distance"],
             status=attendance_status,
             minutes_late=minutes_late,
             is_verified=True,
@@ -223,6 +326,8 @@ def check_in_face(request):
                 "check_in_time": now.strftime("%H:%M"),
                 "is_late": attendance_status == "late",
                 "minutes_late": minutes_late,
+                "location_status": location["status"],
+                "location_message": location["message"],
             }
         )
 
@@ -287,12 +392,20 @@ def check_out_face(request):
                 }
             )
 
+        location = parse_location(request.data)
+        if not location["allowed"]:
+            return Response({"success": False, "error": location["message"]}, status=403)
+
         check_in = record.check_in_time
         if check_in.tzinfo is None:
             check_in = IST.localize(check_in)
 
         duration = max(0, int((now - check_in).total_seconds() / 60))
         record.check_out_time = now
+        record.check_out_latitude = location["latitude"]
+        record.check_out_longitude = location["longitude"]
+        record.location_status = location["status"]
+        record.location_distance_meters = location["distance"]
         record.duration_minutes = duration
         record.save()
 
@@ -307,6 +420,8 @@ def check_out_face(request):
                 "employee_name": employee.name,
                 "check_out_time": format_time(now),
                 "duration": format_duration(duration),
+                "location_status": location["status"],
+                "location_message": location["message"],
             }
         )
 
@@ -350,6 +465,7 @@ def attendance_report(request):
                         else ""
                     ),
                     "cv_file": media_url(employee.cv_file if employee else ""),
+                    **location_payload(r),
                 }
             )
 
@@ -473,6 +589,13 @@ def admin_attendance_sheet(request):
                 not_marked_count += 1
                 check_in = check_out = duration = reason = half_day = "--"
                 minutes_late = 0
+                location = {
+                    "location_status": "not_marked",
+                    "location_distance_meters": 0,
+                    "check_in_latitude": None,
+                    "check_in_longitude": None,
+                    "location_maps_url": "",
+                }
             else:
                 sheet_status = record.status or "not_marked"
                 if sheet_status == "present":
@@ -495,6 +618,7 @@ def admin_attendance_sheet(request):
                 reason = getattr(record, "reason", None) or "--"
                 half_day = getattr(record, "half_day_until", None) or "--"
                 minutes_late = getattr(record, "minutes_late", 0) or 0
+                location = location_payload(record)
 
             rows.append(
                 {
@@ -516,6 +640,7 @@ def admin_attendance_sheet(request):
                     "reason": reason,
                     "half_day_until": half_day,
                     "minutes_late": minutes_late,
+                    **location,
                 }
             )
 
@@ -585,6 +710,9 @@ def export_attendance_csv(request):
                 "Duration",
                 "Minutes Late",
                 "Reason",
+                "Location Status",
+                "Location Distance Meters",
+                "Location Map",
             ]
         )
 
@@ -604,6 +732,11 @@ def export_attendance_csv(request):
                     format_duration(record.duration_minutes) if record else "--",
                     getattr(record, "minutes_late", 0) if record else 0,
                     record.reason if record and record.reason else "--",
+                    getattr(record, "location_status", "not_captured")
+                    if record
+                    else "not_marked",
+                    getattr(record, "location_distance_meters", 0) if record else 0,
+                    location_payload(record)["location_maps_url"] if record else "--",
                 ]
             )
 
@@ -617,6 +750,157 @@ def export_attendance_csv(request):
 
 
 # ─── Late Comers Report ───────────────────────────────────────────────────────
+
+
+@api_view(["GET"])
+def admin_analytics(request):
+    try:
+        year = int(request.query_params.get("year", current_ist().year))
+        month = int(request.query_params.get("month", current_ist().month))
+        department_filter = request.query_params.get("department", "")
+        prefix = f"{year}-{str(month).zfill(2)}"
+
+        employees = Employee.objects(is_active=True, role__ne="admin")
+        if department_filter and department_filter != "all":
+            employees = employees.filter(department=department_filter)
+        employee_list = list(employees)
+        employee_ids = {employee.employee_id for employee in employee_list}
+        employees_by_id = {employee.employee_id: employee for employee in employee_list}
+
+        records = [
+            record
+            for record in AttendanceRecord.objects(date__startswith=prefix)
+            if record.employee_id in employee_ids
+        ]
+
+        status_counts = {
+            "present": 0,
+            "late": 0,
+            "absent": 0,
+            "half_day": 0,
+            "leave": 0,
+            "not_marked": 0,
+        }
+        daily = {}
+        departments = {}
+        employee_late = {}
+        location_counts = {
+            "inside_office": 0,
+            "outside_office": 0,
+            "captured": 0,
+            "not_captured": 0,
+            "invalid": 0,
+        }
+        total_minutes = 0
+        total_late_minutes = 0
+
+        for employee in employee_list:
+            department = employee.department or "General"
+            departments.setdefault(
+                department,
+                {
+                    "department": department,
+                    "employees": 0,
+                    "present": 0,
+                    "late": 0,
+                    "absent": 0,
+                },
+            )
+            departments[department]["employees"] += 1
+
+        for record in records:
+            status_value = (record.status or "not_marked").lower()
+            if status_value == "late":
+                bucket = "late"
+                status_counts["late"] += 1
+                status_counts["present"] += 1
+            elif status_value in ("half_day", "half day"):
+                bucket = "half_day"
+                status_counts["half_day"] += 1
+            elif status_value in ("leave", "leave_approved"):
+                bucket = "leave"
+                status_counts["leave"] += 1
+            elif status_value in status_counts:
+                bucket = status_value
+                status_counts[bucket] += 1
+            else:
+                bucket = "not_marked"
+                status_counts["not_marked"] += 1
+
+            daily.setdefault(
+                record.date,
+                {
+                    "date": record.date,
+                    "present": 0,
+                    "late": 0,
+                    "absent": 0,
+                    "half_day": 0,
+                    "leave": 0,
+                },
+            )
+            if bucket in daily[record.date]:
+                daily[record.date][bucket] += 1
+
+            employee = employees_by_id.get(record.employee_id)
+            department = (employee.department if employee else "General") or "General"
+            if bucket in ("present", "late"):
+                departments[department]["present"] += 1
+            if bucket == "absent":
+                departments[department]["absent"] += 1
+            if bucket == "late":
+                minutes_late = getattr(record, "minutes_late", 0) or 0
+                departments[department]["late"] += 1
+                total_late_minutes += minutes_late
+                employee_late.setdefault(
+                    record.employee_id,
+                    {
+                        "employee_id": record.employee_id,
+                        "employee_name": record.employee_name,
+                        "late_count": 0,
+                        "minutes_late": 0,
+                    },
+                )
+                employee_late[record.employee_id]["late_count"] += 1
+                employee_late[record.employee_id]["minutes_late"] += minutes_late
+
+            total_minutes += record.duration_minutes or 0
+            location_status = (
+                getattr(record, "location_status", "not_captured") or "not_captured"
+            )
+            location_counts[location_status] = location_counts.get(location_status, 0) + 1
+
+        top_late = sorted(
+            employee_late.values(),
+            key=lambda item: (item["late_count"], item["minutes_late"]),
+            reverse=True,
+        )[:5]
+
+        return Response(
+            {
+                "success": True,
+                "year": year,
+                "month": month,
+                "total_employees": len(employee_ids),
+                "total_records": len(records),
+                "status_counts": status_counts,
+                "location_counts": location_counts,
+                "total_working_hours": f"{total_minutes // 60}h {total_minutes % 60}m",
+                "average_late_minutes": round(
+                    total_late_minutes / max(status_counts["late"], 1), 1
+                ),
+                "daily": sorted(daily.values(), key=lambda item: item["date"]),
+                "departments": sorted(
+                    departments.values(), key=lambda item: item["department"]
+                ),
+                "top_late_employees": top_late,
+            }
+        )
+
+    except Exception as e:
+        import traceback
+
+        traceback.print_exc()
+        return Response({"success": False, "error": str(e)}, status=500)
 
 
 @api_view(["GET"])
@@ -915,6 +1199,10 @@ def mark_present(request):
         if existing:
             return Response({"success": True, "message": "⚠️ Already marked for today"})
 
+        location = parse_location(request.data)
+        if not location["allowed"]:
+            return Response({"success": False, "error": location["message"]}, status=403)
+
         expected_time = now.replace(
             hour=ATTENDANCE_START_HOUR, minute=ATTENDANCE_START_MINUTE
         )
@@ -933,6 +1221,10 @@ def mark_present(request):
             check_in_time=now,
             status=att_status,
             minutes_late=minutes_late,
+            check_in_latitude=location["latitude"],
+            check_in_longitude=location["longitude"],
+            location_status=location["status"],
+            location_distance_meters=location["distance"],
         )
         record.save()
 
@@ -946,6 +1238,8 @@ def mark_present(request):
                 "message": msg,
                 "is_late": att_status == "late",
                 "minutes_late": minutes_late,
+                "location_status": location["status"],
+                "location_message": location["message"],
             }
         )
 

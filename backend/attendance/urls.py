@@ -12,6 +12,7 @@ urlpatterns = [
     path("admin-sheet/", views.admin_attendance_sheet, name="admin-sheet"),
     path("export-csv/", views.export_attendance_csv, name="export-csv"),
     path("monthly-summary/", views.monthly_summary, name="monthly-summary"),
+    path("admin-analytics/", views.admin_analytics, name="admin-analytics"),
     path("late-comers/", views.late_comers_report, name="late-comers"),
     # Mark attendance
     path("mark-present/", views.mark_present, name="mark-present"),

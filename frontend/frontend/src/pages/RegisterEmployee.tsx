@@ -767,7 +767,7 @@ export default function Register() {
       </div>
 
       <div
-        className={`relative w-90 h-90 rounded-full overflow-hidden ring-4 shadow-lg transition-all ${
+        className={`relative w-full max-w-xl aspect-video rounded-[32px] overflow-hidden ring-4 shadow-lg transition-all ${
           borderStatus === "success"
             ? "ring-green-500 shadow-green-500/40"
             : borderStatus === "error"
@@ -792,10 +792,10 @@ export default function Register() {
             }}
             style={{
               position: "absolute",
-              width: "150%",
-              height: "130%",
-              top: "-30%",
-              left: "0%",
+              width: "100%",
+              height: "100%",
+              top: "0",
+              left: "0",
               objectFit: "cover",
             }}
           />
@@ -805,10 +805,10 @@ export default function Register() {
             alt="Captured face"
             style={{
               position: "absolute",
-              width: "150%",
-              height: "130%",
-              top: "-30%",
-              left: "0%",
+              width: "100%",
+              height: "100%",
+              top: "0",
+              left: "0",
               objectFit: "cover",
             }}
           />

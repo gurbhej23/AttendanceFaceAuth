@@ -15,6 +15,12 @@ class AttendanceRecord(me.Document):
     check_in_time = me.DateTimeField()
     check_out_time = me.DateTimeField(null=True)
     check_in_image = me.StringField()
+    check_in_latitude = me.FloatField()
+    check_in_longitude = me.FloatField()
+    check_out_latitude = me.FloatField()
+    check_out_longitude = me.FloatField()
+    location_status = me.StringField(default="not_captured")
+    location_distance_meters = me.FloatField(default=0)
     duration_minutes = me.IntField(default=0)
     status = me.StringField()
     # "present" | "late" | "half_day" | "absent" | "leave"
