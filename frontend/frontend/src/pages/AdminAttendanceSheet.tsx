@@ -4,6 +4,13 @@ import { useNavigate } from "react-router-dom";
 import API from "../services/api";
 import Button from "../components/Button";
 import axios from "axios";
+import {
+  ChartNoAxesCombined,
+  Download,
+  IdCardLanyard,
+  LogOut,
+  MessageSquareText,
+} from "lucide-react";
 
 interface SheetRecord {
   serial_no: number;
@@ -220,7 +227,7 @@ export default function AdminAttendanceSheet() {
 
   useEffect(() => {
     const role = localStorage.getItem("role");
-    if (role !== "admin") navigate("/", { replace: true });
+    if (!["admin", "hr"].includes(role || "")) navigate("/", { replace: true });
   }, [navigate]);
 
   // ── Approve / Reject leave ─────────────────────────────────────────────
@@ -355,31 +362,71 @@ export default function AdminAttendanceSheet() {
                     e.target.value > today ? today : e.target.value,
                   )
                 }
-                className="p-3 rounded-xl bg-slate-800 text-white border border-slate-700 focus:border-blue-500 outline-none"
+                className="rounded-xl border border-slate-700 bg-slate-800 p-3 text-white outline-none focus:border-blue-500"
               />
             )}
+
             {activeTab === "attendance" && (
-              <Button
-                text="Export CSV"
-                onClick={exportCsv}
-                className="bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-xl font-semibold cursor-pointer"
-              />
+              <div className="group relative">
+                <Button
+                  text={<Download />}
+                  onClick={exportCsv}
+                  className="cursor-pointer rounded-xl bg-green-600 px-5 py-3 font-semibold text-white hover:bg-green-700"
+                />
+
+                <div className="pointer-events-none absolute -bottom-10 left-15 mb-2 -translate-x-1/2 rounded-lg bg-green-600 px-3 py-1 text-sm whitespace-nowrap text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100">
+                  Download CSV
+                </div>
+              </div>
             )}
-            <Button
-              text="Analytics"
-              onClick={() => navigate("/admin-analytics")}
-              className="bg-cyan-600 hover:bg-cyan-700 text-white px-5 py-3 rounded-xl font-semibold cursor-pointer"
-            />
-            <Button
-              text="Employees"
-              onClick={() => navigate("/admin-employees")}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-xl font-semibold cursor-pointer"
-            />
-            <Button
-              text="Logout"
-              onClick={handleLogout}
-              className="bg-red-600 hover:bg-red-700 text-white px-5 py-3 rounded-xl font-semibold cursor-pointer"
-            />
+
+            <div className="group relative">
+              <Button
+                text={<MessageSquareText />}
+                onClick={() => navigate("/messages")}
+                className="cursor-pointer rounded-xl bg-cyan-600 px-5 py-3 font-semibold text-white hover:bg-cyan-700"
+              />
+
+              <div className="pointer-events-none absolute -bottom-10 left-15 mb-2 -translate-x-1/2 rounded-lg bg-cyan-600 px-3 py-1 text-sm whitespace-nowrap text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100">
+                Messages
+              </div>
+            </div>
+
+            <div className="group relative">
+              <Button
+                text={<ChartNoAxesCombined />}
+                onClick={() => navigate("/admin-analytics")}
+                className="cursor-pointer rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white hover:bg-indigo-700"
+              />
+
+              <div className="pointer-events-none absolute -bottom-10 left-15 mb-2 -translate-x-1/2 rounded-lg bg-indigo-600 px-3 py-1 text-sm whitespace-nowrap text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100">
+                Analytics
+              </div>
+            </div>
+
+            <div className="group relative">
+              <Button
+                text={<IdCardLanyard />}
+                onClick={() => navigate("/admin-employees")}
+                className="cursor-pointer rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700"
+              />
+
+              <div className="pointer-events-none absolute -bottom-10 left-15 mb-2 -translate-x-1/2 rounded-lg bg-blue-600 px-3 py-1 text-sm whitespace-nowrap text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100">
+                Employees
+              </div>
+            </div>
+
+            <div className="group relative">
+              <Button
+                text={<LogOut />}
+                onClick={handleLogout}
+                className="cursor-pointer rounded-xl bg-red-600 px-5 py-3 font-semibold text-white hover:bg-red-700"
+              />
+
+              <div className="pointer-events-none absolute -bottom-10 left-12 mb-2 -translate-x-1/2 rounded-lg bg-red-600 px-3 py-1 text-sm whitespace-nowrap text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100">
+                Logout
+              </div>
+            </div>
           </div>
         </div>
 
@@ -412,9 +459,6 @@ export default function AdminAttendanceSheet() {
           </button>
         </div>
 
-        {/* ═══════════════════════════════════════════════════════════════
-            ATTENDANCE TAB
-        ════════════════════════════════════════════════════════════════ */}
         {activeTab === "attendance" && (
           <>
             {error && (
@@ -453,7 +497,7 @@ export default function AdminAttendanceSheet() {
                   value: sheet?.half_day_count ?? 0,
                   color: "border-orange-500/30",
                   text: "text-orange-400",
-                }, 
+                },
               ].map(({ filter, label, value, color, text }) => (
                 <button
                   key={filter}
@@ -517,12 +561,12 @@ export default function AdminAttendanceSheet() {
                           </td>
                           <td className="px-5 py-4">
                             <div className="mx-auto h-12 w-12 overflow-hidden rounded-full border border-white/10 bg-slate-700">
-                              {record.profile_img ? (
-                                <img
-                                  src={getMediaUrl(record.profile_img)}
-                                  alt={record.employee_name}
-                                  className="h-full w-full object-cover"
-                                />
+                              {record.profile_img ? ( 
+                                  <img
+                                    src={getMediaUrl(record.profile_img)}
+                                    alt={record.employee_name}
+                                    className="h-full w-full object-cover"
+                                  /> 
                               ) : (
                                 <div className="flex h-full w-full items-center justify-center bg-blue-600 font-bold text-white">
                                   {record.employee_name?.charAt(0)}
@@ -576,14 +620,18 @@ export default function AdminAttendanceSheet() {
                                 rel="noreferrer"
                                 className="text-xs font-semibold text-cyan-300 hover:text-cyan-200"
                               >
-                                {statusLabel(record.location_status || "captured")}
+                                {statusLabel(
+                                  record.location_status || "captured",
+                                )}
                                 {record.location_distance_meters
                                   ? ` · ${Math.round(record.location_distance_meters)}m`
                                   : ""}
                               </a>
                             ) : (
                               <span className="text-xs text-slate-500">
-                                {statusLabel(record.location_status || "not captured")}
+                                {statusLabel(
+                                  record.location_status || "not captured",
+                                )}
                               </span>
                             )}
                           </td>

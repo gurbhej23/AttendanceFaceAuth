@@ -6,6 +6,16 @@ import Button from "../components/Button";
 import Input from "../components/Input";
 import Table from "../components/Table";
 import { getCurrentLocation } from "../services/attendanceSecurity";
+import {
+  CalendarDays,
+  LogOut,
+  MessageSquareText, 
+  ScanLine,
+  TimerOff,
+  TriangleAlert,
+  UserRoundPen,
+  X,
+} from "lucide-react";
 
 interface AttendanceRecord {
   employee_id: string;
@@ -89,15 +99,15 @@ const getStatusCardStyle = (s: string) => {
       return {
         bg: "from-yellow-500/20 to-yellow-500/10",
         border: "border-yellow-500/20",
-        text: "text-yellow-300",
-        icon: "⚠️",
+        text: "text-yellow-400",
+        icon: <TriangleAlert color="#febd1e" />,
       };
     case "absent":
       return {
         bg: "from-red-500/20 to-red-500/10",
         border: "border-red-500/20",
         text: "text-red-300",
-        icon: "❌",
+        icon: <X />,
       };
     case "half_day":
     case "half day":
@@ -442,14 +452,16 @@ export default function Dashboard() {
       )}
 
       <aside className="group hidden lg:flex fixed left-3 top-5 bottom-5 z-30 w-20 hover:w-72 flex-col rounded-[28px] border border-white/10 bg-slate-950/85 p-4 shadow-2xl backdrop-blur-xl transition-all duration-300 ease-out overflow-hidden">
-        <div className="mb-6 flex items-center gap-3">
+        <div className="mb-6 flex items-start gap-3">
           <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-slate-800">
             {profileImg ? (
-              <img
-                src={profileImg}
-                alt={employeeName || "Employee"}
-                className="h-full w-full object-cover"
-              />
+              <button onClick={() => navigate("/profile")}>
+                <img
+                  src={profileImg}
+                  alt={employeeName || "Employee"}
+                  className="h-full w-full object-cover cursor-pointer"
+                />
+              </button>
             ) : (
               <div className="flex h-full w-full items-center justify-center bg-blue-600 font-bold text-white">
                 {employeeName?.charAt(0) || "E"}
@@ -464,19 +476,50 @@ export default function Dashboard() {
 
         <nav className="space-y-2">
           {[
-            { icon: "CO", label: "Check Out", action: () => navigate("/check-out"), tone: "bg-blue-600 hover:bg-blue-700" },
-            { icon: "HD", label: "Half Day", action: () => setShowHalfDayModal(true), tone: "bg-orange-600 hover:bg-orange-700" },
-            { icon: "SM", label: "Summary", action: () => setShowSummaryModal(true), tone: "bg-indigo-600 hover:bg-indigo-700" },
-            { icon: "LV", label: "My Leaves", action: () => setShowLeavesModal(true), tone: "bg-purple-600 hover:bg-purple-700" },
-            { icon: "PR", label: "Profile", action: () => navigate("/profile"), tone: "bg-slate-700 hover:bg-slate-600" },
+            {
+              icon: <ScanLine />,
+              label: "Check Out",
+              action: () => navigate("/check-out"),
+              tone: "bg-blue-600 hover:bg-blue-700",
+            },
+            {
+              icon: <MessageSquareText />,
+              label: "Messages",
+              action: () => navigate("/messages"),
+              tone: "bg-cyan-600 hover:bg-cyan-700",
+            },
+            {
+              icon: <TimerOff />,
+              label: "Half Day",
+              action: () => setShowHalfDayModal(true),
+              tone: "bg-orange-600 hover:bg-orange-700",
+            },
+            {
+              icon: "SM",
+              label: "Summary",
+              action: () => setShowSummaryModal(true),
+              tone: "bg-indigo-600 hover:bg-indigo-700",
+            },
+            {
+              icon: <CalendarDays />,
+              label: "Leaves",
+              action: () => setShowLeavesModal(true),
+              tone: "bg-purple-600 hover:bg-purple-700",
+            },
+            {
+              icon: <UserRoundPen />,
+              label: "Profile",
+              action: () => navigate("/profile"),
+              tone: "bg-slate-700 hover:bg-slate-600",
+            },
           ].map((item) => (
             <button
               key={item.label}
               onClick={item.action}
-              className={`flex h-12 w-full cursor-pointer items-center gap-3 rounded-2xl px-2 text-sm font-bold text-white transition ${item.tone}`}
+              className={`flex h-12 w-full cursor-pointer items-center gap-3 rounded-2xl px-2 text-sm text-white transition ${item.tone}`}
               title={item.label}
             >
-              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-white/15 text-[11px]">
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-xl">
                 {item.icon}
               </span>
               <span className="whitespace-nowrap opacity-0 translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
@@ -488,11 +531,11 @@ export default function Dashboard() {
 
         <button
           onClick={handleLogout}
-          className="mt-auto flex h-12 w-full cursor-pointer items-center gap-3 rounded-2xl bg-red-600 px-3 text-sm font-bold text-white transition hover:bg-red-700"
+          className="mt-auto flex h-12 w-full cursor-pointer items-center gap-3 rounded-2xl bg-red-600 px-2 text-sm font-bold text-white transition hover:bg-red-700"
           title="Logout"
         >
           <span className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-white/15 text-[11px]">
-            LO
+            <LogOut />
           </span>
           <span className="whitespace-nowrap opacity-0 translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
             Logout
@@ -520,22 +563,27 @@ export default function Dashboard() {
               <Button
                 text="Check Out"
                 onClick={() => navigate("/check-out")}
-                className="bg-blue-600 text-white cursor-pointer"
+                className="bg-blue-600 text-white cursor-pointer p-3"
+              />
+              <Button
+                text={"Messages"}
+                onClick={() => navigate("/messages")}
+                className="bg-cyan-600 text-white cursor-pointer p-3"
               />
               <Button
                 text="Half Day"
                 onClick={() => setShowHalfDayModal(true)}
-                className="bg-orange-600 text-white cursor-pointer"
+                className="bg-orange-600 text-white cursor-pointer p-3"
               />
               <Button
                 text="Summary"
                 onClick={() => setShowSummaryModal(true)}
-                className="bg-indigo-600 text-white"
+                className="bg-indigo-600 text-white "
               />
               <Button
                 text="My Leaves"
                 onClick={() => setShowLeavesModal(true)}
-                className="bg-purple-600 text-white"
+                className="bg-purple-600 text-white p-3"
               />
               <Button
                 text="Profile"
@@ -545,7 +593,7 @@ export default function Dashboard() {
               <Button
                 text="Logout"
                 onClick={handleLogout}
-                className="bg-red-600 text-white"
+                className="bg-red-600 text-white p-3"
               />
             </div>
           </div>
@@ -649,11 +697,13 @@ export default function Dashboard() {
                     <td className="px-4 py-4">
                       <div className="mx-auto h-10 w-10 overflow-hidden rounded-full border border-white/10 bg-slate-800">
                         {record.profile_img ? (
-                          <img
-                            src={getMediaUrl(record.profile_img)}
-                            alt={record.employee_name}
-                            className="h-full w-full object-cover"
-                          />
+                          <button onClick={() => navigate("/profile")}>
+                            <img
+                              src={getMediaUrl(record.profile_img)}
+                              alt={record.employee_name}
+                              className="h-full w-full object-cover cursor-pointer"
+                            />
+                          </button>
                         ) : (
                           <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-blue-500 to-cyan-400 text-white font-bold text-sm">
                             {record.employee_name?.charAt(0)}

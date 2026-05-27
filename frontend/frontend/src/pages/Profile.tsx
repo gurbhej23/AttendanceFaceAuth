@@ -1,12 +1,23 @@
-import { useCallback, useEffect, useRef, useState, type ComponentType } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type SyntheticEvent,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import Webcam from "react-webcam";
 import API from "../services/api";
 import Button from "../components/Button";
 import Input from "../components/Input";
-import Cropper from "react-image-crop";
-
-const CropperComponent = Cropper as unknown as ComponentType<any>;
+import ReactCrop, {
+  centerCrop,
+  makeAspectCrop,
+  type Crop,
+  type PixelCrop,
+} from "react-image-crop";
+import "react-image-crop/dist/ReactCrop.css";
+import { ArrowBigLeft, X } from "lucide-react"
 
 const DEPARTMENTS = ["IT", "HR", "Finance", "Operations", "Sales", "Marketing"];
 const JOB_ROLES = [
@@ -45,6 +56,7 @@ const getError = (err: unknown, fallback: string) => {
 export default function Profile() {
   const navigate = useNavigate();
   const webcamRef = useRef<Webcam>(null);
+  const cropImageRef = useRef<HTMLImageElement>(null);
   const [profile, setProfile] = useState<EmployeeProfile | null>(null);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -63,14 +75,8 @@ export default function Profile() {
 
   const [showImageModal, setShowImageModal] = useState(false);
 
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<{
-    width: number;
-    height: number;
-    x: number;
-    y: number;
-  } | null>(null);
+  const [crop, setCrop] = useState<Crop>();
+  const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const employeeId = localStorage.getItem("employee_id") || "";
@@ -143,10 +149,6 @@ export default function Profile() {
     }
   };
 
-  const onCropComplete = useCallback((_: any, croppedPixels: any) => {
-    setCroppedAreaPixels(croppedPixels);
-  }, []);
-
   const uploadProfilePhoto = (file: File) => {
     if (!file.type.startsWith("image/")) {
       showToast("Please choose an image file", false);
@@ -157,62 +159,71 @@ export default function Profile() {
 
     reader.onload = () => {
       setSelectedImage(String(reader.result));
+      setCrop(undefined);
+      setCompletedCrop(undefined);
     };
 
     reader.readAsDataURL(file);
   };
 
   const getCroppedImg = async () => {
-    if (!selectedImage || !croppedAreaPixels) return;
+    const image = cropImageRef.current;
+    if (!image || !completedCrop?.width || !completedCrop?.height) {
+      showToast("Please crop the image first", false);
+      return;
+    }
 
-    const image = new Image();
-    image.src = selectedImage;
+    const scaleX = image.naturalWidth / image.width;
+    const scaleY = image.naturalHeight / image.height;
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
-    image.onload = async () => {
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
+    canvas.width = completedCrop.width;
+    canvas.height = completedCrop.height;
+    ctx.drawImage(
+      image,
+      completedCrop.x * scaleX,
+      completedCrop.y * scaleY,
+      completedCrop.width * scaleX,
+      completedCrop.height * scaleY,
+      0,
+      0,
+      completedCrop.width,
+      completedCrop.height,
+    );
 
-      if (!ctx) return;
+    const croppedBase64 = canvas.toDataURL("image/jpeg", 0.92);
 
-      canvas.width = croppedAreaPixels.width;
-      canvas.height = croppedAreaPixels.height;
+    try {
+      setSaving(true);
+      const res = await API.post("/employees/update-profile-photo/", {
+        employee_id: employeeId,
+        image: croppedBase64,
+      });
 
-      ctx.drawImage(
-        image,
-        croppedAreaPixels.x,
-        croppedAreaPixels.y,
-        croppedAreaPixels.width,
-        croppedAreaPixels.height,
-        0,
-        0,
-        croppedAreaPixels.width,
-        croppedAreaPixels.height,
-      );
+      const data = res.data.employee;
+      setProfile(data);
+      localStorage.setItem("profile_img", data.profile_img || "");
+      showToast("Profile photo updated");
+      setSelectedImage(null);
+      setCrop(undefined);
+      setCompletedCrop(undefined);
+    } catch (err) {
+      showToast(getError(err, "Upload failed"), false);
+    } finally {
+      setSaving(false);
+    }
+  };
 
-      const croppedBase64 = canvas.toDataURL("image/jpeg");
-
-      try {
-        setSaving(true);
-
-        const res = await API.post("/employees/update-profile-photo/", {
-          employee_id: employeeId,
-          image: croppedBase64,
-        });
-
-        const data = res.data.employee;
-
-        setProfile(data);
-        localStorage.setItem("profile_img", data.profile_img || "");
-
-        showToast("Profile photo updated");
-
-        setSelectedImage(null);
-      } catch (err) {
-        showToast(getError(err, "Upload failed"), false);
-      } finally {
-        setSaving(false);
-      }
-    };
+  const onCropImageLoad = (event: SyntheticEvent<HTMLImageElement>) => {
+    const { width, height } = event.currentTarget;
+    const centered = centerCrop(
+      makeAspectCrop({ unit: "%", width: 80 }, 1, width, height),
+      width,
+      height,
+    );
+    setCrop(centered);
   };
 
   const captureFace = () => {
@@ -276,9 +287,9 @@ export default function Profile() {
             <h1 className="text-3xl font-bold">Account & Face Settings</h1>
           </div> */}
           <Button
-            text="<"
+            text={<ArrowBigLeft size={26}/>}
             onClick={() => navigate("/dashboard")}
-            className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-800 cursor-pointer"
+            className="px-4 cursor-pointer"
           />
         </div>
 
@@ -521,12 +532,11 @@ export default function Profile() {
       {showImageModal && profile?.profile_img && (
         <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-5">
           <div className="relative">
-            <button
+            <Button
+              text = {<X/>}
               onClick={() => setShowImageModal(false)}
-              className="absolute -top-12 right-0 text-white text-3xl"
-            >
-              ✕
-            </button>
+              className="absolute top-2 right-2 text-black text-xl cursor-pointer"
+            /> 
 
             <img
               src={getMediaUrl(profile.profile_img)}
@@ -540,28 +550,24 @@ export default function Profile() {
       {selectedImage && (
         <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-5">
           <div className="bg-slate-900 p-5 rounded-3xl w-full max-w-lg">
-            <div className="relative h-96 w-full">
-              <CropperComponent
-                image={selectedImage}
+            <div className="relative max-h-[65vh] w-full overflow-auto rounded-2xl bg-slate-950">
+              <ReactCrop
                 crop={crop}
-                zoom={zoom}
                 aspect={1}
-                onCropChange={setCrop}
-                onZoomChange={setZoom}
-                onCropComplete={onCropComplete}
-              />
-            </div>
-
-            <div className="mt-5">
-              <input
-                type="range"
-                min={1}
-                max={3}
-                step={0.1}
-                value={zoom}
-                onChange={(e) => setZoom(Number(e.target.value))}
-                className="w-full"
-              />
+                circularCrop
+                keepSelection
+                onChange={(_, percentCrop) => setCrop(percentCrop)}
+                onComplete={(pixelCrop) => setCompletedCrop(pixelCrop)}
+                className="max-h-[65vh]"
+              >
+                <img
+                  ref={cropImageRef}
+                  src={selectedImage}
+                  alt="Crop profile"
+                  onLoad={onCropImageLoad}
+                  className="max-h-[65vh] w-full object-contain"
+                />
+              </ReactCrop>
             </div>
 
             <div className="flex gap-3 mt-5">

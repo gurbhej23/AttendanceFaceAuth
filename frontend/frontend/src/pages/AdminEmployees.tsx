@@ -51,6 +51,7 @@ export default function AdminEmployees() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<"active" | "inactive" | "all">("active");
   const [role, setRole] = useState("all");
+  const [viewMode, setViewMode] = useState<"employees" | "staff">("employees");
   const [editing, setEditing] = useState<Employee | null>(null);
   const [viewing, setViewing] = useState<Employee | null>(null);
   const [toast, setToast] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -75,7 +76,7 @@ export default function AdminEmployees() {
   }, [search, status, role]);
 
   useEffect(() => {
-    if (localStorage.getItem("role") !== "admin") {
+    if (!["admin", "hr"].includes(localStorage.getItem("role") || "")) {
       navigate("/", { replace: true });
       return;
     }
@@ -85,10 +86,17 @@ export default function AdminEmployees() {
 
   const stats = useMemo(() => {
     const active = employees.filter((e) => e.is_active).length;
-    const admins = employees.filter((e) => e.role !== "employee").length;
+    const staff = employees.filter((e) => e.role !== "employee").length;
     const departments = new Set(employees.map((e) => e.department).filter(Boolean));
-    return { active, admins, departments: departments.size };
+    return { active, staff, departments: departments.size };
   }, [employees]);
+
+  const visibleEmployees = useMemo(() => {
+    if (viewMode === "staff") {
+      return employees.filter((employee) => employee.role !== "employee");
+    }
+    return employees.filter((employee) => employee.role === "employee");
+  }, [employees, viewMode]);
 
   const updateEmployee = async () => {
     if (!editing) return;
@@ -124,6 +132,12 @@ export default function AdminEmployees() {
           </div>
           <div className="flex flex-wrap gap-3">
             <button
+              onClick={() => navigate("/messages")}
+              className="rounded-xl bg-cyan-600 px-4 py-2 text-sm font-semibold hover:bg-cyan-700 cursor-pointer"
+            >
+              Messages
+            </button>
+            <button
               onClick={() => navigate("/attendance-sheet")}
               className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold hover:bg-slate-800 cursor-pointer"
             >
@@ -145,7 +159,7 @@ export default function AdminEmployees() {
           {[
             ["Visible employees", employees.length],
             ["Active accounts", stats.active],
-            ["Departments", stats.departments],
+            ["HR / Admin", stats.staff],
           ].map(([label, value]) => (
             <div key={label} className="rounded-3xl border border-slate-800 bg-slate-900 p-5">
               <p className="text-sm text-slate-400">{label}</p>
@@ -184,6 +198,29 @@ export default function AdminEmployees() {
             </select>
           </div>
 
+          <div className="flex flex-wrap gap-2 border-b border-slate-800 px-5 py-4">
+            <button
+              onClick={() => setViewMode("employees")}
+              className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                viewMode === "employees"
+                  ? "bg-blue-600 text-white"
+                  : "bg-slate-950 text-slate-400 hover:text-white"
+              }`}
+            >
+              Employees
+            </button>
+            <button
+              onClick={() => setViewMode("staff")}
+              className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                viewMode === "staff"
+                  ? "bg-cyan-600 text-white"
+                  : "bg-slate-950 text-slate-400 hover:text-white"
+              }`}
+            >
+              HR / Admin
+            </button>
+          </div>
+
           {loading ? (
             <div className="p-10 text-center text-slate-400">Loading employees...</div>
           ) : (
@@ -200,7 +237,7 @@ export default function AdminEmployees() {
                   </tr>
                 </thead>
                 <tbody>
-                  {employees.map((employee) => (
+                  {visibleEmployees.map((employee) => (
                     <tr key={employee.employee_id} className="border-t border-slate-800">
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
@@ -277,7 +314,7 @@ export default function AdminEmployees() {
                       </td>
                     </tr>
                   ))}
-                  {employees.length === 0 && (
+                  {visibleEmployees.length === 0 && (
                     <tr>
                       <td colSpan={6} className="px-5 py-10 text-center text-slate-500">
                         No employees found

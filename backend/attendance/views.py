@@ -14,9 +14,9 @@ from rest_framework.response import Response
 
 IST = pytz.timezone("Asia/Kolkata")
 TEMP_DIR = "media/temp"
-ATTENDANCE_START_HOUR = 9
+ATTENDANCE_START_HOUR = 10
 ATTENDANCE_START_MINUTE = 0
-LATE_GRACE_MINUTES = 30
+LATE_GRACE_MINUTES = 15
 
 os.makedirs(TEMP_DIR, exist_ok=True)
 
@@ -676,6 +676,7 @@ def admin_attendance_sheet(request):
 
         traceback.print_exc()
         return Response({"success": False, "error": str(e)}, status=500)
+
 
 
 @api_view(["GET"])

@@ -5,6 +5,7 @@ import { useNavigate, Link } from "react-router-dom";
 import API from "../services/api";
 import Button from "../components/Button";
 import MessageOverlay from "../components/MessageOverlay";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -163,7 +164,7 @@ export default function Login() {
                 })
               }
               onKeyDown={handleKeyPress}
-              className="w-full p-4 rounded-2xl bg-slate-900/70 border border-slate-700 text-white placeholder-slate-500 outline-none focus:border-blue-500 transition"
+              className="w-full p-4 mb-5 rounded-2xl bg-slate-900/70 border border-slate-700 text-white placeholder-slate-500 outline-none focus:border-blue-500 transition"
             />
 
             {/* PASSWORD */}
@@ -191,10 +192,10 @@ export default function Login() {
 
                 {/* SHOW PASSWORD */}
                 <Button
-                  text={showPassword ? "🙈" : "👁️"}
+                  text={showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-0 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition cursor-pointer"
+                  className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition cursor-pointer"
                 />
               </div>
 
@@ -203,7 +204,7 @@ export default function Login() {
                 <Button
                   text="Forgot Password?"
                   onClick={() => navigate("/forgot-password")}
-                  className="text-sm text-blue-400 hover:text-blue-300 transition cursor-pointer"
+                  className="text-sm mt-2 mb-4 text-blue-400 hover:text-blue-300 transition cursor-pointer"
                 />
               </div>
             </div>

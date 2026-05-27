@@ -12,6 +12,7 @@ import Profile from "./pages/Profile";
 import AdminEmployees from "./pages/AdminEmployees";
 import AdminCreateEmployee from "./pages/AdminCreateEmployee";
 import AdminAnalytics from "./pages/AdminAnalytics";
+import Messages from "./pages/Messages";
 
 function App() {
   return (
@@ -34,6 +35,7 @@ function App() {
       <Route path="/admin-employees" element={<AdminEmployees />} />
       <Route path="/admin-create-employee" element={<AdminCreateEmployee/>}/>
       <Route path="/admin-analytics" element={<AdminAnalytics />} />
+      <Route path="/messages" element={<Messages />} />
     </Routes>
   );
 }

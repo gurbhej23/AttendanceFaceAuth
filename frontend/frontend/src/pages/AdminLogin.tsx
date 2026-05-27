@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import API from "../services/api";
 import Button from "../components/Button";
 import Input from "../components/Input";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function AdminLogin() {
   const navigate = useNavigate();
@@ -126,10 +127,10 @@ export default function AdminLogin() {
             />
 
             <Button
-              text={showPass ? "🙈" : "👁️"}
+              text={showPass ? <EyeOff size={20} /> : <Eye size={20} />}
               type="button"
               onClick={() => setShowPass(!showPass)}
-              className="absolute right-3 bottom-20 -translate-y-1/2 text-slate-400 hover:text-white transition cursor-pointer"
+              className="absolute right-9 top-90 -translate-y-1/2 text-slate-400 hover:text-white transition cursor-pointer"
             />
           </div>
 

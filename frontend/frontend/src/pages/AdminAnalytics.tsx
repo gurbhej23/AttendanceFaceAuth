@@ -37,7 +37,7 @@ export default function AdminAnalytics() {
 
   useEffect(() => {
     const role = localStorage.getItem("role");
-    if (role !== "admin") navigate("/", { replace: true });
+    if (!["admin", "hr"].includes(role || "")) navigate("/", { replace: true });
   }, [navigate]);
 
   useEffect(() => {
