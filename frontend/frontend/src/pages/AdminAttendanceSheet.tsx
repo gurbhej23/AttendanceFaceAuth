@@ -345,13 +345,13 @@ export default function AdminAttendanceSheet() {
       <div className="max-w-8xl mx-auto">
         {/* HEADER */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
-          <div>
+          <div className="text-center">
             <h1 className="text-3xl text-white font-bold">Admin Dashboard</h1>
             <p className="text-slate-400 mt-1">
               Manage attendance and leave requests
             </p>
           </div>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-col gap-3">
             {activeTab === "attendance" && (
               <input
                 type="date"
@@ -366,72 +366,74 @@ export default function AdminAttendanceSheet() {
               />
             )}
 
-            {activeTab === "attendance" && (
+            <div className="flex gap-4 justify-center ">
+              {activeTab === "attendance" && (
+                <div className="group relative">
+                  <Button
+                    text={<Download />}
+                    onClick={exportCsv}
+                    className="cursor-pointer rounded-xl bg-green-600 px-5 py-3 font-semibold text-white hover:bg-green-700"
+                  />
+
+                  <div className="pointer-events-none absolute -bottom-10 left-15 mb-2 -translate-x-1/2 rounded-lg bg-green-600 px-3 py-1 text-sm whitespace-nowrap text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100">
+                    Download CSV
+                  </div>
+                </div>
+              )}
+
               <div className="group relative">
                 <Button
-                  text={<Download />}
-                  onClick={exportCsv}
-                  className="cursor-pointer rounded-xl bg-green-600 px-5 py-3 font-semibold text-white hover:bg-green-700"
+                  text={<MessageSquareText />}
+                  onClick={() => navigate("/messages")}
+                  className="cursor-pointer rounded-xl bg-cyan-600 px-5 py-3 font-semibold text-white hover:bg-cyan-700"
                 />
 
-                <div className="pointer-events-none absolute -bottom-10 left-15 mb-2 -translate-x-1/2 rounded-lg bg-green-600 px-3 py-1 text-sm whitespace-nowrap text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100">
-                  Download CSV
+                <div className="pointer-events-none absolute -bottom-10 left-15 mb-2 -translate-x-1/2 rounded-lg bg-cyan-600 px-3 py-1 text-sm whitespace-nowrap text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100">
+                  Messages
                 </div>
               </div>
-            )}
 
-            <div className="group relative">
-              <Button
-                text={<MessageSquareText />}
-                onClick={() => navigate("/messages")}
-                className="cursor-pointer rounded-xl bg-cyan-600 px-5 py-3 font-semibold text-white hover:bg-cyan-700"
-              />
+              <div className="group relative">
+                <Button
+                  text={<ChartNoAxesCombined />}
+                  onClick={() => navigate("/admin-analytics")}
+                  className="cursor-pointer rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white hover:bg-indigo-700"
+                />
 
-              <div className="pointer-events-none absolute -bottom-10 left-15 mb-2 -translate-x-1/2 rounded-lg bg-cyan-600 px-3 py-1 text-sm whitespace-nowrap text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100">
-                Messages
+                <div className="pointer-events-none absolute -bottom-10 left-15 mb-2 -translate-x-1/2 rounded-lg bg-indigo-600 px-3 py-1 text-sm whitespace-nowrap text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100">
+                  Analytics
+                </div>
               </div>
-            </div>
 
-            <div className="group relative">
-              <Button
-                text={<ChartNoAxesCombined />}
-                onClick={() => navigate("/admin-analytics")}
-                className="cursor-pointer rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white hover:bg-indigo-700"
-              />
+              <div className="group relative">
+                <Button
+                  text={<IdCardLanyard />}
+                  onClick={() => navigate("/admin-employees")}
+                  className="cursor-pointer rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700"
+                />
 
-              <div className="pointer-events-none absolute -bottom-10 left-15 mb-2 -translate-x-1/2 rounded-lg bg-indigo-600 px-3 py-1 text-sm whitespace-nowrap text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100">
-                Analytics
+                <div className="pointer-events-none absolute -bottom-10 left-15 mb-2 -translate-x-1/2 rounded-lg bg-blue-600 px-3 py-1 text-sm whitespace-nowrap text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100">
+                  Employees
+                </div>
               </div>
-            </div>
 
-            <div className="group relative">
-              <Button
-                text={<IdCardLanyard />}
-                onClick={() => navigate("/admin-employees")}
-                className="cursor-pointer rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700"
-              />
+              <div className="group relative">
+                <Button
+                  text={<LogOut />}
+                  onClick={handleLogout}
+                  className="cursor-pointer rounded-xl bg-red-600 px-5 py-3 font-semibold text-white hover:bg-red-700"
+                />
 
-              <div className="pointer-events-none absolute -bottom-10 left-15 mb-2 -translate-x-1/2 rounded-lg bg-blue-600 px-3 py-1 text-sm whitespace-nowrap text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100">
-                Employees
-              </div>
-            </div>
-
-            <div className="group relative">
-              <Button
-                text={<LogOut />}
-                onClick={handleLogout}
-                className="cursor-pointer rounded-xl bg-red-600 px-5 py-3 font-semibold text-white hover:bg-red-700"
-              />
-
-              <div className="pointer-events-none absolute -bottom-10 left-12 mb-2 -translate-x-1/2 rounded-lg bg-red-600 px-3 py-1 text-sm whitespace-nowrap text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100">
-                Logout
+                <div className="pointer-events-none absolute -bottom-10 left-12 mb-2 -translate-x-1/2 rounded-lg bg-red-600 px-3 py-1 text-sm whitespace-nowrap text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100">
+                  Logout
+                </div>
               </div>
             </div>
           </div>
         </div>
 
         {/* TABS */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex justify-center gap-2 mb-6">
           <button
             onClick={() => setActiveTab("attendance")}
             className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition cursor-pointer ${
@@ -515,7 +517,7 @@ export default function AdminAttendanceSheet() {
             {/* Table */}
             <div className="bg-slate-800 border border-slate-700 rounded-3xl overflow-hidden">
               <div className="p-5 border-b border-slate-700 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <h2 className="text-xl text-white font-bold">
+                <h2 className="text-xl text-white text-center font-bold">
                   {sheet?.sheet_name || "Attendance Sheet"}
                 </h2>
                 <input
@@ -561,12 +563,12 @@ export default function AdminAttendanceSheet() {
                           </td>
                           <td className="px-5 py-4">
                             <div className="mx-auto h-12 w-12 overflow-hidden rounded-full border border-white/10 bg-slate-700">
-                              {record.profile_img ? ( 
-                                  <img
-                                    src={getMediaUrl(record.profile_img)}
-                                    alt={record.employee_name}
-                                    className="h-full w-full object-cover"
-                                  /> 
+                              {record.profile_img ? (
+                                <img
+                                  src={getMediaUrl(record.profile_img)}
+                                  alt={record.employee_name}
+                                  className="h-full w-full object-cover"
+                                />
                               ) : (
                                 <div className="flex h-full w-full items-center justify-center bg-blue-600 font-bold text-white">
                                   {record.employee_name?.charAt(0)}

@@ -113,7 +113,7 @@ export default function AdminLogin() {
           </div>
 
           {/* Password */}
-          <div>
+          <form>
             <label className="text-white text-sm mb-2 block">Password</label>
             <Input
               type={showPass ? "text" : "password"}
@@ -132,7 +132,7 @@ export default function AdminLogin() {
               onClick={() => setShowPass(!showPass)}
               className="absolute right-9 top-90 -translate-y-1/2 text-slate-400 hover:text-white transition cursor-pointer"
             />
-          </div>
+          </form>
 
           {/* Login Button */}
           <Button

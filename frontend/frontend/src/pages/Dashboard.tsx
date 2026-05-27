@@ -9,7 +9,7 @@ import { getCurrentLocation } from "../services/attendanceSecurity";
 import {
   CalendarDays,
   LogOut,
-  MessageSquareText, 
+  MessageSquareText,
   ScanLine,
   TimerOff,
   TriangleAlert,
@@ -185,6 +185,7 @@ export default function Dashboard() {
   const [selectedDate, setSelectedDate] = useState(getLocalDate());
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [showMenu, setShowMenu] = useState(false);
 
   const [monthlySummary, setMonthlySummary] = useState<MonthlySummary | null>(
     null,
@@ -547,23 +548,43 @@ export default function Dashboard() {
         className={`max-w-7xl mx-auto transition-all duration-300 lg:ml-24 ${anyModalOpen || showWelcomePrompt ? "blur-sm pointer-events-none select-none" : ""}`}
       >
         {/* HEADER */}
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-4xl p-6 shadow-2xl mb-8">
-          <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-5">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-4xl px-6 py-6 shadow-2xl mb-8">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-              <div>
-                <p className="text-slate-400 text-sm">Attendance Dashboard</p>
-                <h1 className="text-2xl font-bold text-white">Welcome back,</h1>
+              <div className="text-center">
+                <h1 className="text-2xl font-bold text-white text-left">Welcome</h1>
                 <h2 className="text-xl font-bold bg-linear-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
                   {employeeName}
                 </h2>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 lg:hidden">
+            <div className="flex justify-end lg:hidden">
+              <button
+                onClick={() => setShowMenu(!showMenu)}
+                className="bg-white/10 border border-white/10 text-white px-3.5 py-3 rounded-xl backdrop-blur-lg transition-all duration-300 cursor-pointer"
+              >
+                <span
+                  className={`inline-block transition-transform duration-300 ${
+                    showMenu ? "rotate-180" : "rotate-0"
+                  }`}
+                >
+                  ▼
+                </span>
+              </button>
+            </div>
+
+            <div
+              className={`grid grid-cols-3 gap-7 overflow-hidden transition-all duration-500 ease-in-out lg:hidden ${
+                showMenu
+                  ? "max-h-125 opacity-100 mt-4"
+                  : "max-h-0 opacity-0"
+              }`}
+            >
               <Button
                 text="Check Out"
                 onClick={() => navigate("/check-out")}
-                className="bg-blue-600 text-white cursor-pointer p-3"
+                className="bg-blue-600 text-white cursor-pointer p-4"
               />
               <Button
                 text={"Messages"}
@@ -578,12 +599,12 @@ export default function Dashboard() {
               <Button
                 text="Summary"
                 onClick={() => setShowSummaryModal(true)}
-                className="bg-indigo-600 text-white "
+                className="bg-indigo-600 text-white p-4"
               />
               <Button
                 text="My Leaves"
                 onClick={() => setShowLeavesModal(true)}
-                className="bg-purple-600 text-white p-3"
+                className="bg-purple-600 text-white p-4"
               />
               <Button
                 text="Profile"
@@ -593,7 +614,7 @@ export default function Dashboard() {
               <Button
                 text="Logout"
                 onClick={handleLogout}
-                className="bg-red-600 text-white p-3"
+                className="bg-red-600 text-white p-4"
               />
             </div>
           </div>
@@ -717,11 +738,11 @@ export default function Dashboard() {
                       </p>
                       <p className="text-xs text-slate-400">Employee</p>
                     </td>
-                    <td className="px-4 py-4 text-slate-300 font-medium">
+                    <td className=" text-sm text-slate-300 font-medium">
                       {record.employee_id}
                     </td>
                     <td className="px-4 py-4">
-                      <span className="bg-green-500/10 text-green-300 px-3 py-1.5 rounded-xl font-mono text-sm">
+                      <span className="bg-green-500/10 text-green-300 px-1 py-1.5 rounded-xl font-mono text-sm">
                         {record.check_in}
                       </span>
                     </td>

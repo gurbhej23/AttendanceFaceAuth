@@ -83,11 +83,11 @@ export default function AdminAnalytics() {
     <div className="min-h-screen bg-slate-900 p-4 sm:p-6">
       <div className="mx-auto max-w-7xl">
         <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
+          <div className="text-center">
             <p className="text-sm text-slate-400">Admin</p>
             <h1 className="text-3xl font-bold text-white">Attendance Analytics</h1>
           </div>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex justify-center gap-3">
             <select
               value={month}
               onChange={(event) => setMonth(event.target.value)}
@@ -109,7 +109,7 @@ export default function AdminAnalytics() {
             <Button
               text="Attendance"
               onClick={() => navigate("/attendance-sheet")}
-              className="bg-blue-600 text-white hover:bg-blue-700"
+              className="bg-blue-600 text-white hover:bg-blue-700 p-4"
             />
           </div>
         </div>
