@@ -12,6 +12,8 @@ interface Contact {
   department: string;
   designation: string;
   profile_img: string;
+  is_online?: boolean;
+  last_seen?: string;
 }
 
 interface ChatMessage {
@@ -22,6 +24,7 @@ interface ChatMessage {
   recipient_id: string;
   recipient_name: string;
   message: string;
+  is_read?: boolean;
   created_at: string;
   reactions?: Record<string, string[]>;
   is_edited?: boolean;
@@ -61,6 +64,8 @@ export default function Messages() {
   const [emojiPickerMsgId, setEmojiPickerMsgId] = useState<string | null>(null);
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
+  const [typingById, setTypingById] = useState<Record<string, boolean>>({});
+  const typingStopTimer = useRef<number | null>(null);
   // Emoji picker for the message input box
   const [showInputEmoji, setShowInputEmoji] = useState(false);
 
@@ -78,7 +83,7 @@ export default function Messages() {
     return () => document.removeEventListener("click", handler);
   }, []);
 
-  const loadContacts = useCallback(async () => {
+	  const loadContacts = useCallback(async () => {
     if (!employeeId) {
       navigate("/", { replace: true });
       return;
@@ -89,16 +94,23 @@ export default function Messages() {
     const next = res.data.contacts || [];
     setContacts(next);
     setSelected((c) => c || next[0] || null);
-    setLoading(false);
-  }, [employeeId, navigate]);
+	    setLoading(false);
+	  }, [employeeId, navigate]);
 
-  const loadHistory = useCallback(async () => {
-    if (!selected) return;
-    const res = await API.get("/employees/chat-history/", {
-      params: { employee_id: employeeId, contact_id: selected.employee_id },
-    });
-    setMessages(res.data.messages || []);
-  }, [employeeId, selected]);
+	  const markConversationRead = useCallback((contactId: string) => {
+	    const socket = socketRef.current;
+	    if (socket?.readyState !== WebSocket.OPEN) return;
+	    socket.send(JSON.stringify({ type: "read", contact_id: contactId }));
+	  }, []);
+	
+		  const loadHistory = useCallback(async () => {
+	    if (!selected) return;
+	    const res = await API.get("/employees/chat-history/", {
+	      params: { employee_id: employeeId, contact_id: selected.employee_id },
+	    });
+	    setMessages(res.data.messages || []);
+	    markConversationRead(selected.employee_id);
+	  }, [employeeId, markConversationRead, selected]);
 
   useEffect(() => {
     loadContacts();
@@ -121,7 +133,37 @@ export default function Messages() {
     });
   };
 
-  useEffect(() => {
+  const formatLastSeen = (ds?: string) => {
+    if (!ds) return "Offline";
+    const d = new Date(ds);
+    if (Number.isNaN(d.getTime())) return "Offline";
+    const diff = Date.now() - d.getTime();
+    if (diff < 60_000) return "Last seen just now";
+    if (diff < 3_600_000) return `Last seen ${Math.floor(diff / 60_000)} min ago`;
+    if (d.toDateString() === new Date().toDateString()) {
+      return `Last seen ${d.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`;
+    }
+    return `Last seen ${d.toLocaleDateString([], {
+      day: "numeric",
+      month: "short",
+    })}`;
+  };
+
+  const sendTyping = (isTyping: boolean) => {
+    if (!selected || socketRef.current?.readyState !== WebSocket.OPEN) return;
+    socketRef.current.send(
+      JSON.stringify({
+        type: "typing",
+        recipient_id: selected.employee_id,
+        is_typing: isTyping,
+      }),
+    );
+  };
+
+	  useEffect(() => {
     if (!employeeId) return;
     let socket: WebSocket | null = null;
     const t = window.setTimeout(() => {
@@ -134,11 +176,14 @@ export default function Messages() {
         const data = JSON.parse(event.data);
 
         // ── New message ──────────────────────────────────────────────────────
-        if (data.type === "message") {
-          const incoming = data.message as ChatMessage;
-          const open = selectedRef.current;
-          setMessages((cur) => {
-            const belongs =
+	        if (data.type === "message") {
+	          const incoming = data.message as ChatMessage;
+	          const open = selectedRef.current;
+	          if (open && incoming.sender_id === open.employee_id) {
+	            markConversationRead(open.employee_id);
+	          }
+	          setMessages((cur) => {
+	            const belongs =
               open &&
               ((incoming.sender_id === open.employee_id &&
                 incoming.recipient_id === employeeId) ||
@@ -150,54 +195,66 @@ export default function Messages() {
         }
 
         // ── Edit broadcast — other person edited a message ───────────────────
-        else if (data.type === "edit") {
-          // Only apply if it came from the other person (we already updated locally for ourselves)
-          if (data.sender_id !== employeeId) {
-            setMessages((cur) =>
-              cur.map((m) =>
-                m.id === data.message_id
-                  ? { ...m, message: data.new_text, is_edited: true }
-                  : m,
-              ),
-            );
-          }
-        }
+	        else if (data.type === "edit") {
+	          const updated = data.message as ChatMessage;
+	          setMessages((cur) =>
+	            cur.map((m) => (m.id === updated.id ? { ...m, ...updated } : m)),
+	          );
+	        }
 
         // ── Delete broadcast ─────────────────────────────────────────────────
-        else if (data.type === "delete") {
-          if (data.sender_id !== employeeId) {
-            setMessages((cur) =>
-              cur.map((m) =>
-                m.id === data.message_id
-                  ? {
-                      ...m,
-                      is_deleted: true,
-                      message: "This message was deleted",
-                    }
-                  : m,
-              ),
-            );
-          }
-        }
+	        else if (data.type === "delete") {
+	          const updated = data.message as ChatMessage;
+	          setMessages((cur) =>
+	            cur.map((m) => (m.id === updated.id ? { ...m, ...updated } : m)),
+	          );
+	        }
 
         // ── React broadcast ──────────────────────────────────────────────────
-        else if (data.type === "react") {
-          if (data.sender_id !== employeeId) {
-            setMessages((cur) =>
-              cur.map((m) => {
-                if (m.id !== data.message_id) return m;
-                const reactions = { ...(m.reactions || {}) };
-                const users = [...(reactions[data.emoji] || [])];
-                const idx = users.indexOf(data.sender_id);
-                if (idx >= 0) users.splice(idx, 1);
-                else users.push(data.sender_id);
-                if (users.length === 0) delete reactions[data.emoji];
-                else reactions[data.emoji] = users;
-                return { ...m, reactions };
-              }),
-            );
-          }
-        }
+	        else if (data.type === "react") {
+	          const updated = data.message as ChatMessage;
+	          setMessages((cur) =>
+	            cur.map((m) => (m.id === updated.id ? { ...m, ...updated } : m)),
+	          );
+	        } else if (data.type === "typing") {
+	          setTypingById((cur) => ({
+	            ...cur,
+	            [data.sender_id]: Boolean(data.is_typing),
+	          }));
+	        } else if (data.type === "presence") {
+	          setContacts((cur) =>
+	            cur.map((contact) =>
+	              contact.employee_id === data.employee_id
+	                ? {
+	                    ...contact,
+	                    is_online: Boolean(data.is_online),
+	                    last_seen: data.last_seen || contact.last_seen,
+	                  }
+	                : contact,
+	            ),
+	          );
+		          setSelected((contact) => {
+		            if (!contact || contact.employee_id !== data.employee_id) {
+		              return contact;
+		            }
+		            return {
+		              ...contact,
+		              is_online: Boolean(data.is_online),
+		              last_seen: data.last_seen || contact.last_seen,
+		            };
+		          });
+	        } else if (data.type === "read") {
+	          if (data.reader_id === selectedRef.current?.employee_id) {
+	            setMessages((cur) =>
+	              cur.map((message) =>
+	                message.sender_id === employeeId &&
+	                message.recipient_id === data.reader_id
+	                  ? { ...message, is_read: true }
+	                  : message,
+	              ),
+	            );
+	          }
+	        }
       };
     }, 150);
     return () => {
@@ -205,7 +262,7 @@ export default function Messages() {
       if (socket?.readyState === WebSocket.OPEN) socket.close();
       socketRef.current = null;
     };
-  }, [employeeId]);
+	  }, [employeeId, markConversationRead]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -216,16 +273,28 @@ export default function Messages() {
     [contacts],
   );
 
-  const sendMessage = () => {
-    const text = draft.trim();
-    if (!text || !selected || socketRef.current?.readyState !== WebSocket.OPEN)
-      return;
+	  const sendMessage = () => {
+	    const text = draft.trim();
+	    if (!text || !selected || socketRef.current?.readyState !== WebSocket.OPEN)
+	      return;
     socketRef.current.send(
       JSON.stringify({ recipient_id: selected.employee_id, message: text }),
-    );
-    setDraft("");
-    inputRef.current?.focus();
-  };
+	    );
+	    setDraft("");
+	    sendTyping(false);
+	    inputRef.current?.focus();
+	  };
+
+	  const handleDraftChange = (value: string) => {
+	    setDraft(value);
+	    sendTyping(Boolean(value.trim()));
+	    if (typingStopTimer.current) {
+	      window.clearTimeout(typingStopTimer.current);
+	    }
+	    typingStopTimer.current = window.setTimeout(() => {
+	      sendTyping(false);
+	    }, 1200);
+	  };
 
   const deleteMessage = async (msgId: string) => {
     setMenuMsgId(null);
@@ -239,25 +308,27 @@ export default function Messages() {
       ),
     );
 
-    // Broadcast via WebSocket so other person sees it instantly
-    if (socketRef.current?.readyState === WebSocket.OPEN) {
-      socketRef.current.send(
-        JSON.stringify({
-          type: "delete",
-          message_id: msgId,
-        }),
-      );
-    }
-
-    // Also persist to DB
-    try {
-      await API.delete(`/employees/chat-message/${msgId}/`, {
-        data: { employee_id: employeeId },
-      });
-    } catch {
-      /* already updated locally */
-    }
-  };
+		    const socket = socketRef.current;
+		    const socketOpen = socket?.readyState === WebSocket.OPEN;
+		    if (socketOpen) {
+		      socket.send(
+	        JSON.stringify({
+	          type: "delete",
+	          message_id: msgId,
+	        }),
+	      );
+	    }
+	
+	    if (!socketOpen) {
+	      try {
+	        await API.delete(`/employees/chat-message/${msgId}/`, {
+	          data: { employee_id: employeeId },
+	        });
+	      } catch {
+	        /* already updated locally */
+	      }
+	    }
+	  };
 
   const startEdit = (msg: ChatMessage) => {
     setMenuMsgId(null);
@@ -276,26 +347,28 @@ export default function Messages() {
       ),
     );
 
-    // Broadcast via WebSocket so other person sees it instantly
-    if (socketRef.current?.readyState === WebSocket.OPEN) {
-      socketRef.current.send(
-        JSON.stringify({
-          type: "edit",
+		    const socket = socketRef.current;
+		    const socketOpen = socket?.readyState === WebSocket.OPEN;
+		    if (socketOpen) {
+		      socket.send(
+	        JSON.stringify({
+	          type: "edit",
           message_id: editingMsgId,
           new_text: newText,
         }),
-      );
-    }
-
-    // Also persist to DB
-    try {
-      await API.patch(`/employees/chat-message/${editingMsgId}/`, {
-        employee_id: employeeId,
-        message: newText,
-      });
-    } catch {
-      /* already updated locally */
-    }
+	      );
+	    }
+	
+	    if (!socketOpen) {
+	      try {
+	        await API.patch(`/employees/chat-message/${editingMsgId}/`, {
+	          employee_id: employeeId,
+	          message: newText,
+	        });
+	      } catch {
+	        /* already updated locally */
+	      }
+	    }
 
     setEditingMsgId(null);
     setEditDraft("");
@@ -319,27 +392,29 @@ export default function Messages() {
       }),
     );
 
-    // Broadcast via WebSocket so other person sees reaction instantly
-    if (socketRef.current?.readyState === WebSocket.OPEN) {
-      socketRef.current.send(
-        JSON.stringify({
-          type: "react",
+		    const socket = socketRef.current;
+		    const socketOpen = socket?.readyState === WebSocket.OPEN;
+		    if (socketOpen) {
+		      socket.send(
+	        JSON.stringify({
+	          type: "react",
           message_id: msgId,
           emoji: emoji,
         }),
-      );
-    }
-
-    // Also persist to DB
-    try {
-      await API.post(`/employees/chat-message/${msgId}/react/`, {
-        employee_id: employeeId,
-        emoji,
-      });
-    } catch {
-      /* already updated locally */
-    }
-  };
+	      );
+	    }
+	
+	    if (!socketOpen) {
+	      try {
+	        await API.post(`/employees/chat-message/${msgId}/react/`, {
+	          employee_id: employeeId,
+	          emoji,
+	        });
+	      } catch {
+	        /* already updated locally */
+	      }
+	    }
+	  };
 
   // Insert emoji into message input
   const insertEmoji = (emoji: string) => {
@@ -403,26 +478,33 @@ export default function Messages() {
                         : "bg-slate-950 hover:bg-slate-800"
                     }`}
                   >
-                    <div className="h-11 w-11 shrink-0 overflow-hidden rounded-2xl bg-slate-800">
-                      {contact.profile_img ? (
-                        <img
+	                    <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-2xl bg-slate-800">
+	                      {contact.profile_img ? (
+	                        <img
                           src={getMediaUrl(contact.profile_img)}
                           alt={contact.name}
                           className="h-full w-full object-cover"
                         />
                       ) : (
                         <div className="grid h-full w-full place-items-center bg-cyan-600 font-bold text-sm">
-                          {contact.name.charAt(0)}
-                        </div>
-                      )}
-                    </div>
+	                          {contact.name.charAt(0)}
+	                        </div>
+	                      )}
+	                      <span
+	                        className={`absolute -bottom-1 right-1 h-2.5 w-2.5 rounded-full border border-slate-950 ${
+	                          contact.is_online ? "bg-green-400" : "bg-slate-500"
+	                        }`}
+	                      />
+	                    </div>
                     <div className="min-w-0">
                       <p className="truncate font-semibold text-sm">
                         {contact.name}
                       </p>
-                      <p className="truncate text-xs text-slate-400">
-                        {contact.role.toUpperCase()} / {contact.department}
-                      </p>
+	                      <p className="truncate text-xs text-slate-400">
+	                        {contact.is_online
+	                          ? "Online"
+	                          : formatLastSeen(contact.last_seen)}
+	                      </p>
                     </div>
                   </button>
                 ))
@@ -436,8 +518,8 @@ export default function Messages() {
               <>
                 {/* Chat header */}
                 <div className="border-b border-slate-800 p-4 flex items-center gap-3">
-                  <div className="h-9 w-9 shrink-0 overflow-hidden rounded-xl bg-slate-800">
-                    {selected.profile_img ? (
+	                  <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-xl bg-slate-800">
+	                    {selected.profile_img ? (
                       <img
                         src={getMediaUrl(selected.profile_img)}
                         alt={selected.name}
@@ -445,16 +527,25 @@ export default function Messages() {
                       />
                     ) : (
                       <div className="grid h-full w-full place-items-center bg-cyan-600 font-bold text-sm">
-                        {selected.name.charAt(0)}
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <p className="font-bold text-sm">{selected.name}</p>
-                    <p className="text-xs text-slate-400">
-                      {selected.employee_id} / {selected.designation}
-                    </p>
-                  </div>
+	                        {selected.name.charAt(0)}
+	                      </div>
+	                    )}
+	                    <span
+	                      className={`absolute -bottom-1 z-50 right-0 h-2.5 w-2.5 rounded-full border border-slate-900 ${
+	                        selected.is_online ? "bg-green-400" : "bg-slate-500"
+	                      }`}
+	                    />
+	                  </div>
+	                  <div>
+	                    <p className="font-bold text-sm">{selected.name}</p>
+	                    <p className="text-xs text-slate-400">
+	                      {typingById[selected.employee_id]
+	                        ? "Typing..."
+	                        : selected.is_online
+	                          ? "Online"
+	                          : formatLastSeen(selected.last_seen)}
+	                    </p>
+	                  </div>
                 </div>
 
                 {/* Messages list */}
@@ -616,16 +707,21 @@ export default function Messages() {
                                       edited
                                     </span>
                                   )}
-                                  <span className="text-[11px] opacity-60">
-                                    {new Date(
-                                      msg.created_at,
+	                                  <span className="text-[11px] opacity-60">
+	                                    {new Date(
+	                                      msg.created_at,
                                     ).toLocaleTimeString([], {
                                       hour: "2-digit",
-                                      minute: "2-digit",
-                                    })}
-                                  </span>
-                                </div>
-                              </div>
+	                                      minute: "2-digit",
+	                                    })}
+	                                  </span>
+	                                  {mine && !msg.is_deleted && (
+	                                    <span className="text-[10px] opacity-70">
+	                                      {msg.is_read ? "Seen" : "Sent"}
+	                                    </span>
+	                                  )}
+	                                </div>
+	                              </div>
                             )}
 
                             {/* Reactions display */}
@@ -661,9 +757,14 @@ export default function Messages() {
                   <div ref={bottomRef} />
                 </div>
 
-                {/* Input bar */}
-                <div className="border-t border-slate-800 p-4">
-                  <div className="flex gap-2 items-end">
+	                {/* Input bar */}
+	                <div className="border-t border-slate-800 p-4">
+	                  {selected && typingById[selected.employee_id] && (
+	                    <p className="mb-2 text-xs font-semibold text-green-300">
+	                      {selected.name} is typing...
+	                    </p>
+	                  )}
+	                  <div className="flex gap-2 items-end">
                     {/* Emoji button for input */}
                     <div className="relative">
                       <button
@@ -687,9 +788,9 @@ export default function Messages() {
                     </div>
 
                     <textarea
-                      ref={inputRef}
-                      value={draft}
-                      onChange={(e) => setDraft(e.target.value)}
+	                      ref={inputRef}
+	                      value={draft}
+	                      onChange={(e) => handleDraftChange(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
                           e.preventDefault();

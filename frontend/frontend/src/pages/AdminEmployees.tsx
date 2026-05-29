@@ -130,7 +130,7 @@ export default function AdminEmployees() {
             <p className="text-sm text-blue-300">Admin workspace</p>
             <h1 className="text-3xl font-bold">Employee Management</h1>
           </div>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex md:flex-wrap justify-center gap-3">
             <button
               onClick={() => navigate("/messages")}
               className="rounded-xl bg-cyan-600 px-4 py-2 text-sm font-semibold hover:bg-cyan-700 cursor-pointer"
@@ -155,13 +155,13 @@ export default function AdminEmployees() {
           </div>
         </header>
 
-        <div className="mb-5 grid gap-4 md:grid-cols-3">
+        <div className="mb-5 grid grid-cols-3 gap-4 md:grid-cols-3">
           {[
             ["Visible employees", employees.length],
             ["Active accounts", stats.active],
             ["HR / Admin", stats.staff],
           ].map(([label, value]) => (
-            <div key={label} className="rounded-3xl border border-slate-800 bg-slate-900 p-5">
+            <div key={label} className="flex flex-row md:flex-col md:items-center gap-3 rounded-3xl border border-slate-800 bg-slate-900 p-3">
               <p className="text-sm text-slate-400">{label}</p>
               <p className="mt-2 text-3xl font-bold">{value}</p>
             </div>
@@ -201,7 +201,7 @@ export default function AdminEmployees() {
           <div className="flex flex-wrap gap-2 border-b border-slate-800 px-5 py-4">
             <button
               onClick={() => setViewMode("employees")}
-              className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+              className={`rounded-xl px-4 py-2 text-sm font-semibold transition cursor-pointer ${
                 viewMode === "employees"
                   ? "bg-blue-600 text-white"
                   : "bg-slate-950 text-slate-400 hover:text-white"
@@ -211,7 +211,7 @@ export default function AdminEmployees() {
             </button>
             <button
               onClick={() => setViewMode("staff")}
-              className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+              className={`rounded-xl px-4 py-2 text-sm font-semibold transition cursor-pointer ${
                 viewMode === "staff"
                   ? "bg-cyan-600 text-white"
                   : "bg-slate-950 text-slate-400 hover:text-white"
@@ -226,22 +226,22 @@ export default function AdminEmployees() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left">
-                <thead className="bg-slate-950 text-xs uppercase tracking-wider text-slate-500">
+                <thead className="bg-slate-950 text-xs uppercase tracking-wider text-slate-500 text-center">
                   <tr>
                     <th className="px-5 py-4">Employee</th>
                     <th className="px-5 py-4">Department</th>
                     <th className="px-5 py-4">Phone</th>
                     <th className="px-5 py-4">Access</th>
                     <th className="px-5 py-4">Status</th>
-                    <th className="px-5 py-4 text-right">Actions</th>
+                    <th className="px-5 py-4">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {visibleEmployees.map((employee) => (
-                    <tr key={employee.employee_id} className="border-t border-slate-800">
+                    <tr key={employee.employee_id} className="border-t border-slate-800 text-center">
                       <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <button
+                        <div className="">
+                          {/* <button
                             onClick={() => setViewing(employee)}
                             className="h-11 w-11 overflow-hidden rounded-2xl bg-slate-800"
                             title="View profile"
@@ -257,7 +257,7 @@ export default function AdminEmployees() {
                                 {employee.name.charAt(0)}
                               </div>
                             )}
-                          </button>
+                          </button> */}
                           <div>
                             <button
                               onClick={() => setViewing(employee)}
@@ -297,7 +297,7 @@ export default function AdminEmployees() {
                         </span>
                       </td>
                       <td className="px-5 py-4">
-                        <div className="flex justify-end gap-2">
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                           <button
                             onClick={() => setEditing(employee)}
                             className="rounded-xl bg-slate-800 px-3 py-2 text-xs font-semibold hover:bg-slate-700 cursor-pointer"

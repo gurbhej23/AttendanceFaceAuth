@@ -28,21 +28,24 @@ export default function AdminLogin() {
       });
 
       if (response.data.success) {
-        console.log("LOGIN RESPONSE:", response.data);
-
         const empId = response.data.employee_id;
         const empName = response.data.name;
         const token = response.data.access || "authenticated";
-        const role = response.data.role;
+        const role = String(response.data.role || "").toLowerCase();
+
+        if (role !== "admin" && role !== "hr") {
+          setError("Access denied. Admin or HR role required.");
+          return;
+        }
 
         localStorage.setItem("token", token);
         localStorage.setItem("employee_id", empId);
         localStorage.setItem("employee_name", empName);
         localStorage.setItem("role", role);
 
-        if (response.data.role === "admin" || response.data.role === "hr") {
-          navigate("/attendance-sheet", { replace: true });
-        }
+        navigate("/attendance-sheet", { replace: true });
+      } else {
+        setError(response.data.error || "Admin login failed");
       }
     } catch (err: unknown) {
       const error = err as { response?: { data?: { error?: string } } };
@@ -54,6 +57,7 @@ export default function AdminLogin() {
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
+      e.preventDefault();
       handleLogin();
     }
   };
@@ -96,7 +100,13 @@ export default function AdminLogin() {
           </div>
         )}
 
-        <div className="space-y-5">
+        <form
+          className="space-y-5"
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleLogin();
+          }}
+        >
           {/* Employee ID */}
           <div>
             <label className="text-white text-sm mb-2 block">Employee ID</label>
@@ -113,7 +123,7 @@ export default function AdminLogin() {
           </div>
 
           {/* Password */}
-          <form>
+          <div>
             <label className="text-white text-sm mb-2 block">Password</label>
             <Input
               type={showPass ? "text" : "password"}
@@ -132,16 +142,16 @@ export default function AdminLogin() {
               onClick={() => setShowPass(!showPass)}
               className="absolute right-9 top-90 -translate-y-1/2 text-slate-400 hover:text-white transition cursor-pointer"
             />
-          </form>
+          </div>
 
           {/* Login Button */}
           <Button
             text={loading ? "Verifying..." : "Login"}
-            onClick={handleLogin}
+            type="submit"
             disabled={loading}
             className="w-full bg-blue-600 hover:bg-blue-700 transition p-4 rounded-2xl text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed mt-3 cursor-pointer"
           />
-        </div>
+        </form>
       </div>
     </div>
   );

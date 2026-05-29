@@ -63,14 +63,48 @@ def create_access_token(employee: Employee) -> str:
     return str(token)
 
 
+def send_employee_credentials_email(name: str, email: str, employee_id: str, password: str) -> tuple[bool, str]:
+    try:
+        send_mail(
+            subject="Welcome! Your Employee Account Credentials",
+            message=(
+                f"Hello {name},\n\n"
+                f"Your employee account has been created successfully.\n\n"
+                f"Employee ID : {employee_id}\n"
+                f"Password    : {password}\n\n"
+                f"Please keep these credentials safe.\n"
+                f"We recommend changing your password after your first login.\n\n"
+                f"Regards,\n"
+                f"Attendance System"
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            fail_silently=False,
+        )
+        return True, ""
+    except Exception as exc:
+        print(f"Credential email failed for {email}: {exc}")
+        return False, str(exc)
+
+
 def media_url(path: str) -> str:
     if not path:
         return ""
     normalized = path.replace("\\", "/")
+    if normalized.startswith(("http://", "https://")):
+        return normalized
     if normalized.startswith("/media/"):
+        relative_path = normalized[len("/media/") :]
+        if not (settings.MEDIA_ROOT / relative_path).exists():
+            return ""
         return normalized
     if normalized.startswith("media/"):
+        relative_path = normalized[len("media/") :]
+        if not (settings.MEDIA_ROOT / relative_path).exists():
+            return ""
         return f"/{normalized}"
+    if not (settings.MEDIA_ROOT / normalized.lstrip("/")).exists():
+        return ""
     return f"{settings.MEDIA_URL}{normalized.lstrip('/')}"
 
 
@@ -130,6 +164,10 @@ def employee_payload(employee: Employee) -> dict:
         "department": employee.department,
         "designation": employee.designation,
         "is_active": employee.is_active,
+        "is_online": getattr(employee, "is_online", False),
+        "last_seen": employee.last_seen.isoformat()
+        if getattr(employee, "last_seen", None)
+        else "",
         "profile_img": media_url(employee.profile_img or employee.photo_path or ""),
         "cv_file": media_url(employee.cv_file or ""),
     }
@@ -145,6 +183,9 @@ def chat_payload(message: ChatMessage) -> dict:
         "recipient_name": message.recipient_name,
         "message": message.message,
         "is_read": message.is_read,
+        "is_edited": getattr(message, "is_edited", False),
+        "is_deleted": getattr(message, "is_deleted", False),
+        "reactions": getattr(message, "reactions", {}) or {},
         "created_at": message.created_at.isoformat(),
     }
 
@@ -168,7 +209,7 @@ def register_employee(request):
         department = request.data.get("department", "General").strip()
         designation = request.data.get("designation", "Employee").strip()
 
-        print(f"📋 Register attempt: {email}")
+        print(f"Register attempt: {email}")
 
         # ── Validate required fields ──────────────────────────────────────────
         if not all([name, email, image]):
@@ -199,11 +240,11 @@ def register_employee(request):
             )
 
         # ── Extract face embedding ────────────────────────────────────────────
-        print(f"🔍 Extracting face embedding for {email}...")
+        print(f"Extracting face embedding for {email}...")
         embedding, error, photo_path = extract_and_save_embedding(image, email)
 
         if error:
-            print(f"❌ Embedding error: {error}")
+            print(f"Embedding error: {error}")
             return Response(
                 {"success": False, "error": f"Face processing failed: {error}"},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -218,7 +259,7 @@ def register_employee(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        print(f"✅ Embedding extracted: {len(embedding)} dimensions")
+        print(f"Embedding extracted: {len(embedding)} dimensions")
 
         for existing_employee in Employee.objects(face_embedding__ne=[]):
             if not getattr(existing_employee, "face_embedding", None):
@@ -242,7 +283,7 @@ def register_employee(request):
         hashed = make_password(raw_password)
         cv_path = save_base64_cv(cv_file, cv_file_name) if cv_file else ""
 
-        print(f"🆔 Generated Employee ID: {employee_id}")
+        print(f"Generated Employee ID: {employee_id}")
 
         # ── Save employee ─────────────────────────────────────────────────────
         employee = Employee(
@@ -265,38 +306,34 @@ def register_employee(request):
         # ── Clean up OTP record ───────────────────────────────────────────────
         otp_record.delete()
 
-        # ── Email credentials to employee ─────────────────────────────────────
-        send_mail(
-            subject="Welcome! Your Employee Account Credentials",
-            message=(
-                f"Hello {name},\n\n"
-                f"Your employee account has been created successfully.\n\n"
-                f"━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"  Employee ID : {employee_id}\n"
-                f"  Password    : {raw_password}\n"
-                f"━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-                f"Please keep these credentials safe.\n"
-                f"We recommend changing your password after your first login.\n\n"
-                f"Regards,\n"
-                f"Attendance System"
-            ),
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[email],
-            fail_silently=False,
+        email_sent, email_error = send_employee_credentials_email(
+            name, email, employee_id, raw_password
         )
 
-        print(f"✅ Employee registered: {employee_id} | Credentials emailed to {email}")
+        print(f"Employee registered: {employee_id} | Credentials email sent: {email_sent}")
+
+        response_data = {
+            "success": True,
+            "message": f"Registration successful! Your Employee ID and password have been sent to {email}.",
+        }
+        if not email_sent:
+            response_data["message"] = (
+                "Registration successful, but the credentials email could not be sent. "
+                "Please save the Employee ID and temporary password shown here."
+            )
+            response_data["credentials"] = {
+                "employee_id": employee_id,
+                "password": raw_password,
+            }
+            response_data["email_error"] = email_error
 
         return Response(
-            {
-                "success": True,
-                "message": f"Registration successful! Your Employee ID and password have been sent to {email}.",
-            },
+            response_data,
             status=status.HTTP_201_CREATED,
         )
 
     except Exception as e:
-        print(f"❌ Register error: {str(e)}")
+        print(f"Register error: {str(e)}")
         import traceback
 
         traceback.print_exc()
@@ -315,7 +352,7 @@ def login_employee(request):
         employee_id = request.data.get("employee_id", "").strip()
         password = request.data.get("password", "").strip()
 
-        print(f"🔐 Login attempt: {employee_id}")
+        print(f"Login attempt: {employee_id}")
 
         if not employee_id or not password:
             return Response(
@@ -339,7 +376,7 @@ def login_employee(request):
 
         token = create_access_token(employee)
 
-        print(f"✅ Login success: {employee_id} | role: {employee.role}")
+        print(f"Login success: {employee_id} | role: {employee.role}")
 
         return Response(
             {
@@ -361,7 +398,7 @@ def login_employee(request):
         )
 
     except Exception as e:
-        print(f"❌ Login error: {str(e)}")
+        print(f"Login error: {str(e)}")
         import traceback
 
         traceback.print_exc()
@@ -380,7 +417,7 @@ def admin_login(request):
         employee_id = request.data.get("employee_id", "").strip()
         password = request.data.get("password", "").strip()
 
-        print(f"🔐 Admin login attempt: {employee_id}")
+        print(f"Admin login attempt: {employee_id}")
 
         if not employee_id or not password:
             return Response(
@@ -413,7 +450,7 @@ def admin_login(request):
 
         token = create_access_token(employee)
 
-        print(f"✅ Admin login success: {employee_id} | role: {employee.role}")
+        print(f"Admin login success: {employee_id} | role: {employee.role}")
 
         return Response(
             {
@@ -435,7 +472,7 @@ def admin_login(request):
         )
 
     except Exception as e:
-        print(f"❌ Admin login error: {str(e)}")
+        print(f"Admin login error: {str(e)}")
         import traceback
 
         traceback.print_exc()
@@ -453,7 +490,7 @@ def send_otp(request):
     try:
         email = request.data.get("email", "").strip().lower()
 
-        print(f"📧 OTP request for: {email}")
+        print(f"OTP request for: {email}")
 
         if not email:
             return Response(
@@ -476,7 +513,7 @@ def send_otp(request):
         employee.reset_otp = otp
         employee.save()
 
-        print(f"🔑 OTP for {email}: {otp}")
+        print(f"OTP for {email}: {otp}")
 
         send_mail(
             subject="Your Password Reset OTP",
@@ -492,14 +529,14 @@ def send_otp(request):
             fail_silently=False,
         )
 
-        print(f"✅ OTP email sent to {email}")
+        print(f"OTP email sent to {email}")
 
         return Response(
             {"success": True, "message": "OTP sent to your registered email"},
         )
 
     except Exception as e:
-        print(f"❌ Send OTP error: {str(e)}")
+        print(f"Send OTP error: {str(e)}")
         import traceback
 
         traceback.print_exc()
@@ -519,7 +556,7 @@ def reset_password(request):
         otp = request.data.get("otp", "").strip()
         new_password = request.data.get("new_password", "").strip()
 
-        print(f"🔑 Password reset attempt for: {email}")
+        print(f"Password reset attempt for: {email}")
 
         if not all([email, otp, new_password]):
             return Response(
@@ -554,7 +591,7 @@ def reset_password(request):
         employee.reset_otp = ""
         employee.save()
 
-        print(f"✅ Password reset success for {email}")
+        print(f"Password reset success for {email}")
 
         return Response(
             {
@@ -564,7 +601,7 @@ def reset_password(request):
         )
 
     except Exception as e:
-        print(f"❌ Reset password error: {str(e)}")
+        print(f"Reset password error: {str(e)}")
         import traceback
 
         traceback.print_exc()
@@ -614,7 +651,7 @@ def send_registration_otp(request):
             fail_silently=False,
         )
 
-        print(f"📧 Registration OTP for {email}: {otp}")
+        print(f"Registration OTP for {email}: {otp}")
 
         return Response(
             {
@@ -624,7 +661,7 @@ def send_registration_otp(request):
         )
 
     except Exception as e:
-        print(f"❌ Send registration OTP error: {str(e)}")
+        print(f"Send registration OTP error: {str(e)}")
         import traceback
 
         traceback.print_exc()
@@ -666,7 +703,7 @@ def verify_registration_otp(request):
         )
 
     except Exception as e:
-        print(f"❌ Verify OTP error: {str(e)}")
+        print(f"Verify OTP error: {str(e)}")
         import traceback
 
         traceback.print_exc()
@@ -717,6 +754,8 @@ def update_profile(request):
     designation = request.data.get("designation", "").strip()
     current_password = request.data.get("current_password", "").strip()
     new_password = request.data.get("new_password", "").strip()
+    cv_file = request.data.get("cv_file", "").strip()
+    cv_file_name = request.data.get("cv_file_name", "").strip()
 
     if name:
         employee.name = name
@@ -740,6 +779,15 @@ def update_profile(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         employee.password = make_password(new_password)
+
+    if cv_file:
+        try:
+            employee.cv_file = save_base64_cv(cv_file, cv_file_name)
+        except Exception as exc:
+            return Response(
+                {"success": False, "error": f"Could not save CV: {exc}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
     employee.save()
     return Response(
@@ -916,6 +964,79 @@ def chat_history(request):
             "messages": [chat_payload(message) for message in messages],
         }
     )
+
+
+@api_view(["PATCH", "DELETE"])
+def chat_message_detail(request, message_id):
+    employee_id = request.data.get("employee_id", "").strip()
+    message = ChatMessage.objects(id=message_id).first()
+    if not message:
+        return Response(
+            {"success": False, "error": "Message not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if message.sender_id != employee_id:
+        return Response(
+            {"success": False, "error": "You can only change your own messages"},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    if request.method == "DELETE":
+        message.is_deleted = True
+        message.message = "This message was deleted"
+        message.save()
+        return Response({"success": True, "message": chat_payload(message)})
+
+    new_text = request.data.get("message", "").strip()
+    if not new_text:
+        return Response(
+            {"success": False, "error": "Message text is required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    message.message = new_text
+    message.is_edited = True
+    message.save()
+    return Response({"success": True, "message": chat_payload(message)})
+
+
+@api_view(["POST"])
+def chat_message_react(request, message_id):
+    employee_id = request.data.get("employee_id", "").strip()
+    emoji = request.data.get("emoji", "").strip()
+    message = ChatMessage.objects(id=message_id).first()
+    if not message:
+        return Response(
+            {"success": False, "error": "Message not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    if employee_id not in {message.sender_id, message.recipient_id}:
+        return Response(
+            {"success": False, "error": "Not allowed"},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    if not emoji:
+        return Response(
+            {"success": False, "error": "Emoji is required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    reactions = getattr(message, "reactions", {}) or {}
+    users = list(reactions.get(emoji, []))
+    if employee_id in users:
+        users.remove(employee_id)
+    else:
+        users.append(employee_id)
+
+    if users:
+        reactions[emoji] = users
+    elif emoji in reactions:
+        del reactions[emoji]
+
+    message.reactions = reactions
+    message.save()
+    return Response({"success": True, "message": chat_payload(message)})
 
 
 @api_view(["POST"])

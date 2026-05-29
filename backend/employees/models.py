@@ -21,6 +21,8 @@ class Employee(me.Document):
     is_active = me.BooleanField(default=True)
     role = me.StringField(default="employee")
     reset_otp = me.StringField(default="")
+    is_online = me.BooleanField(default=False)
+    last_seen = me.DateTimeField(default=datetime.now)
 
     meta = {"collection": "employees", "strict": False}
 
@@ -42,6 +44,9 @@ class ChatMessage(me.Document):
     recipient_name = me.StringField(default="")
     message = me.StringField(required=True)
     is_read = me.BooleanField(default=False)
+    is_edited = me.BooleanField(default=False)
+    is_deleted = me.BooleanField(default=False)
+    reactions = me.DictField(default=dict)
     created_at = me.DateTimeField(default=datetime.now)
 
     meta = {

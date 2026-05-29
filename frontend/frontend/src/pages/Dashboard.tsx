@@ -9,6 +9,7 @@ import { getCurrentLocation } from "../services/attendanceSecurity";
 import {
   CalendarDays,
   LogOut,
+  Menu,
   MessageSquareText,
   ScanLine,
   TimerOff,
@@ -452,8 +453,8 @@ export default function Dashboard() {
         </div>
       )}
 
-      <aside className="group hidden lg:flex fixed left-3 top-5 bottom-5 z-30 w-20 hover:w-72 flex-col rounded-[28px] border border-white/10 bg-slate-950/85 p-4 shadow-2xl backdrop-blur-xl transition-all duration-300 ease-out overflow-hidden">
-        <div className="mb-6 flex items-start gap-3">
+      <aside className="group hidden lg:flex items-start fixed left-3 top-5 bottom-5 z-30 w-20 hover:w-72 flex-col rounded-[28px] border border-white/10 p-4 shadow-2xl backdrop-blur-xl transition-all duration-300 ease-out overflow-hidden">
+        <div className="mb-6 flex gap-3">
           <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-slate-800">
             {profileImg ? (
               <button onClick={() => navigate("/profile")}>
@@ -475,7 +476,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <nav className="space-y-2">
+        <nav className="space-y-7 w-full">
           {[
             {
               icon: <ScanLine />,
@@ -545,40 +546,41 @@ export default function Dashboard() {
       </aside>
 
       <div
-        className={`max-w-7xl mx-auto transition-all duration-300 lg:ml-24 ${anyModalOpen || showWelcomePrompt ? "blur-sm pointer-events-none select-none" : ""}`}
+        className={`max-w-8xl mx-auto transition-all duration-300 lg:ml-24 ${anyModalOpen || showWelcomePrompt ? "blur-sm pointer-events-none select-none" : ""}`}
       >
+        
         {/* HEADER */}
         <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-4xl px-6 py-6 shadow-2xl mb-8">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
               <div className="text-center">
-                <h1 className="text-2xl font-bold text-white text-left">Welcome</h1>
+                <h1 className="text-2xl font-bold text-white text-left">
+                  Welcome
+                </h1>
                 <h2 className="text-xl font-bold bg-linear-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
                   {employeeName}
                 </h2>
               </div>
             </div>
-
+            
             <div className="flex justify-end lg:hidden">
               <button
                 onClick={() => setShowMenu(!showMenu)}
-                className="bg-white/10 border border-white/10 text-white px-3.5 py-3 rounded-xl backdrop-blur-lg transition-all duration-300 cursor-pointer"
+                className="bg-white/10 border border-white/10 text-white px-3 flex justify-center py-3 rounded-xl backdrop-blur-lg transition-all duration-300 cursor-pointer"
               >
                 <span
                   className={`inline-block transition-transform duration-300 ${
                     showMenu ? "rotate-180" : "rotate-0"
                   }`}
                 >
-                  ▼
+                  <Menu />
                 </span>
               </button>
             </div>
-
+                    
             <div
-              className={`grid grid-cols-3 gap-7 overflow-hidden transition-all duration-500 ease-in-out lg:hidden ${
-                showMenu
-                  ? "max-h-125 opacity-100 mt-4"
-                  : "max-h-0 opacity-0"
+              className={`flex flex-wrap justify-center gap-3 overflow-hidden transition-all duration-500 ease-in-out lg:hidden ${
+                showMenu ? "max-h-125 opacity-100 mt-4" : "max-h-0 opacity-0"
               }`}
             >
               <Button
@@ -589,12 +591,12 @@ export default function Dashboard() {
               <Button
                 text={"Messages"}
                 onClick={() => navigate("/messages")}
-                className="bg-cyan-600 text-white cursor-pointer p-3"
+                className="bg-cyan-600 text-white cursor-pointer p-4"
               />
               <Button
                 text="Half Day"
                 onClick={() => setShowHalfDayModal(true)}
-                className="bg-orange-600 text-white cursor-pointer p-3"
+                className="bg-orange-600 text-white cursor-pointer p-4"
               />
               <Button
                 text="Summary"
@@ -609,7 +611,7 @@ export default function Dashboard() {
               <Button
                 text="Profile"
                 onClick={() => navigate("/profile")}
-                className="bg-slate-700 text-white"
+                className="bg-slate-700 text-white p-4"
               />
               <Button
                 text="Logout"

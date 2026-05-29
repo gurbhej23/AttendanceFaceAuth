@@ -27,7 +27,7 @@ export default function MessageOverlay({
           <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-2 border-slate-700 border-t-blue-400" />
         )}
         <h2 className="text-2xl font-bold text-white">{title}</h2>
-        {message && <p className="mt-3 text-sm leading-6 text-slate-300">{message}</p>}
+        {message && <p className="mt-3 whitespace-pre-line text-sm leading-6 text-slate-300">{message}</p>}
         {onClose && (
           <button
             type="button"

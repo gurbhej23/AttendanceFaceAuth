@@ -17,7 +17,7 @@ import ReactCrop, {
   type PixelCrop,
 } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
-import { ArrowBigLeft, X } from "lucide-react"
+import { ArrowBigLeft, X } from "lucide-react";
 
 const DEPARTMENTS = ["IT", "HR", "Finance", "Operations", "Sales", "Marketing"];
 const JOB_ROLES = [
@@ -65,6 +65,8 @@ export default function Profile() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [cvFile, setCvFile] = useState("");
+  const [cvFileName, setCvFileName] = useState("");
   const [showFaceEnrollment, setShowFaceEnrollment] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
@@ -132,21 +134,53 @@ export default function Profile() {
         designation,
         current_password: currentPassword,
         new_password: newPassword,
+        cv_file: cvFile,
+        cv_file_name: cvFileName,
       });
       const data = res.data.employee as EmployeeProfile;
       setProfile(data);
       localStorage.setItem("employee_name", data.name);
+      localStorage.setItem("cv_file", data.cv_file || "");
       setDepartment(data.department || "IT");
       setDesignation(data.designation || "Software Engineer");
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
+      setCvFile("");
+      setCvFileName("");
       showToast(res.data.message || "Profile updated");
     } catch (err) {
       showToast(getError(err, "Profile update failed"), false);
     } finally {
       setSaving(false);
     }
+  };
+
+  const uploadCv = (file: File) => {
+    const allowedTypes = [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ];
+    const allowedExtensions = [".pdf", ".doc", ".docx"];
+    const lowerName = file.name.toLowerCase();
+
+    if (
+      !allowedTypes.includes(file.type) &&
+      !allowedExtensions.some((extension) => lowerName.endsWith(extension))
+    ) {
+      showToast("Please choose a PDF, DOC, or DOCX file", false);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCvFile(String(reader.result));
+      setCvFileName(file.name);
+      showToast("CV selected. Click Save profile to upload it.");
+    };
+    reader.onerror = () => showToast("Could not read CV file", false);
+    reader.readAsDataURL(file);
   };
 
   const uploadProfilePhoto = (file: File) => {
@@ -287,7 +321,7 @@ export default function Profile() {
             <h1 className="text-3xl font-bold">Account & Face Settings</h1>
           </div> */}
           <Button
-            text={<ArrowBigLeft size={26}/>}
+            text={<ArrowBigLeft size={26} />}
             onClick={() => navigate("/dashboard")}
             className="px-4 cursor-pointer"
           />
@@ -349,6 +383,11 @@ export default function Profile() {
                   View CV
                 </a>
               )}
+              {!profile?.cv_file && (
+                <div className="rounded-2xl border border-slate-700 bg-slate-950 p-3 text-center text-slate-400">
+                  No CV uploaded
+                </div>
+              )}
             </div>
           </section>
 
@@ -364,6 +403,7 @@ export default function Profile() {
                     className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 p-3 text-white outline-none focus:border-blue-500"
                   />
                 </label>
+
                 <label className="text-sm text-slate-400">
                   Phone
                   <Input
@@ -372,6 +412,7 @@ export default function Profile() {
                     className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 p-3 text-white outline-none focus:border-blue-500"
                   />
                 </label>
+
                 <label className="text-sm text-slate-400">
                   Department
                   <select
@@ -386,6 +427,7 @@ export default function Profile() {
                     ))}
                   </select>
                 </label>
+                
                 <label className="text-sm text-slate-400">
                   Job Role
                   <select
@@ -399,6 +441,22 @@ export default function Profile() {
                       </option>
                     ))}
                   </select>
+                </label>
+
+                <label className="block cursor-pointer rounded-2xl border border-cyan-500/30 bg-cyan-500/10 p-3 text-center font-semibold text-cyan-300 hover:bg-cyan-500/20">
+                  {cvFileName
+                    ? `Selected: ${cvFileName}`
+                    : "Upload / Replace CV"}
+                  <Input
+                    type="file"
+                    accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) uploadCv(file);
+                      e.target.value = "";
+                    }}
+                  />
                 </label>
               </div>
               <Button
@@ -474,8 +532,8 @@ export default function Profile() {
               </div>
 
               {showFaceEnrollment && (
-	                <div className="mt-5 grid gap-5 lg:grid-cols-[420px_1fr]">
-	                  <div className="relative aspect-video overflow-hidden rounded-[28px] border-4 border-slate-700 bg-black">
+                <div className="mt-5 grid gap-5 lg:grid-cols-[420px_1fr]">
+                  <div className="relative aspect-video overflow-hidden rounded-[28px] border-4 border-slate-700 bg-black">
                     {capturedImage ? (
                       <img
                         src={capturedImage}
@@ -533,10 +591,10 @@ export default function Profile() {
         <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-5">
           <div className="relative">
             <Button
-              text = {<X/>}
+              text={<X />}
               onClick={() => setShowImageModal(false)}
               className="absolute top-2 right-2 text-black text-xl cursor-pointer"
-            /> 
+            />
 
             <img
               src={getMediaUrl(profile.profile_img)}

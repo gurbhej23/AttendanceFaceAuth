@@ -311,13 +311,20 @@ export default function Register() {
         cv_file_name: cvFileName,
       });
       if (response.data.success) {
+        const credentials = response.data.credentials;
+        const successMessage = credentials
+          ? `${response.data.message}\n\nEmployee ID: ${credentials.employee_id}\nTemporary password: ${credentials.password}`
+          : response.data.message ||
+            `Your Employee ID and password have been sent to ${formData.email}.`;
         setOverlay({
           title: "Registration successful",
-          message: `Your Employee ID and password have been sent to ${formData.email}.`,
+          message: successMessage,
           tone: "success",
-          loading: true,
+          loading: !credentials,
         });
-        setTimeout(() => navigate("/"), 2000);
+        if (!credentials) {
+          setTimeout(() => navigate("/"), 2000);
+        }
       } else {
         setError(response.data.error || "Registration failed");
       }

@@ -9,7 +9,9 @@ import {
   Download,
   IdCardLanyard,
   LogOut,
+  Menu,
   MessageSquareText,
+  User,
 } from "lucide-react";
 
 interface SheetRecord {
@@ -124,7 +126,7 @@ const leaveTypeIcon = (t: string) => {
 const getMediaUrl = (path?: string | null) => {
   if (!path) return "";
   if (path.startsWith("http")) return path;
-  return `http://localhost:8000${path.startsWith("/") ? path : `/${path}`}`;
+  return `https://override-jawless-boogieman.ngrok-free.dev${path.startsWith("/") ? path : `/${path}`}`;
 };
 
 export default function AdminAttendanceSheet() {
@@ -152,6 +154,8 @@ export default function AdminAttendanceSheet() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
+
+  const [showMenu, setShowMenu] = useState(false);
 
   const today = getLocalDate();
 
@@ -328,611 +332,674 @@ export default function AdminAttendanceSheet() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 p-4 sm:p-6">
-      {/* TOAST */}
-      {toast && (
-        <div
-          className={`fixed top-5 left-1/2 -translate-x-1/2 z-50 px-6 py-4 rounded-2xl text-sm font-semibold shadow-xl border transition-all ${
-            toast.ok
-              ? "bg-green-500/15 border-green-500/30 text-green-300"
-              : "bg-red-500/15 border-red-500/30 text-red-300"
-          }`}
-        >
-          {toast.msg}
-        </div>
-      )}
-
-      <div className="max-w-8xl mx-auto">
-        {/* HEADER */}
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
-          <div className="text-center">
-            <h1 className="text-3xl text-white font-bold">Admin Dashboard</h1>
-            <p className="text-slate-400 mt-1">
-              Manage attendance and leave requests
-            </p>
+    <>
+      <div className="min-h-screen bg-slate-900 p-4 sm:p-6">
+        {/* TOAST */}
+        {toast && (
+          <div
+            className={`fixed top-5 left-1/2 -translate-x-1/2 z-50 px-6 py-4 rounded-2xl text-sm font-semibold shadow-xl border transition-all ${
+              toast.ok
+                ? "bg-green-500/15 border-green-500/30 text-green-300"
+                : "bg-red-500/15 border-red-500/30 text-red-300"
+            }`}
+          >
+            {toast.msg}
           </div>
-          <div className="flex flex-col gap-3">
-            {activeTab === "attendance" && (
-              <input
-                type="date"
-                value={selectedDate}
-                max={today}
-                onChange={(e) =>
-                  setSelectedDate(
-                    e.target.value > today ? today : e.target.value,
-                  )
-                }
-                className="rounded-xl border border-slate-700 bg-slate-800 p-3 text-white outline-none focus:border-blue-500"
-              />
-            )}
+        )}
 
-            <div className="flex gap-4 justify-center ">
-              {activeTab === "attendance" && (
-                <div className="group relative">
-                  <Button
-                    text={<Download />}
-                    onClick={exportCsv}
-                    className="cursor-pointer rounded-xl bg-green-600 px-5 py-3 font-semibold text-white hover:bg-green-700"
+        <aside className="group hidden lg:flex fixed left-3 top-5 bottom-5 z-30 w-20 hover:w-72 flex-col rounded-[28px] border border-white/10 p-4 shadow-2xl backdrop-blur-xl transition-all duration-300 ease-out overflow-hidden">
+          <div className="mb-6 flex items-start gap-3"></div>
+          <nav className="space-y-7">
+            {[
+              {
+                icon: <User />,
+                label: "Profile",
+                action: () => navigate("/profile"),
+                tone: "cursor-pointer rounded-xl bg-slate-700 px-2 py-3 font-semibold text-white hover:bg-slate-600",
+              },
+              {
+                icon: <MessageSquareText />,
+                label: "Messages",
+                action: () => navigate("/messages"),
+                tone: "cursor-pointer rounded-xl bg-cyan-600 px-2 py-3 font-semibold text-white hover:bg-cyan-700",
+              },
+              {
+                icon: <Download />,
+                label: "Download",
+                action: exportCsv,
+                tone: "bg-green-600 hover:bg-green-700",
+              },
+              {
+                icon: <ChartNoAxesCombined />,
+                label: "Analytics",
+                action: () => navigate("/admin-analytics"),
+                tone: "cursor-pointer rounded-xl bg-indigo-600 px-2 py-3 font-semibold text-white hover:bg-indigo-700",
+              },
+              {
+                icon: <IdCardLanyard />,
+                label: "Admin Employees",
+                action: () => navigate("/admin-employees"),
+                tone: "cursor-pointer rounded-xl bg-blue-600 px-2 py-3 font-semibold text-white hover:bg-blue-700",
+              },
+            ].map((item) => (
+              <button
+                key={item.label}
+                onClick={item.action}
+                className={`flex h-12 w-full cursor-pointer items-center gap-3 rounded-2xl px-2 text-sm text-white transition ${item.tone}`}
+                title={item.label}
+              >
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-xl">
+                  {item.icon}
+                </span>
+                <span className="whitespace-nowrap opacity-0 translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
+                  {item.label}
+                </span>
+              </button>
+            ))}
+
+            <button
+              onClick={handleLogout}
+              className="mt-auto flex h-12 w-full cursor-pointer items-center gap-3 rounded-2xl bg-red-600 px-2 text-sm font-bold text-white transition hover:bg-red-700"
+              title="Logout"
+            >
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-white/15 text-[11px]">
+                <LogOut />
+              </span>
+              <span className="whitespace-nowrap opacity-0 translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
+                Logout
+              </span>
+            </button>
+          </nav>
+        </aside>
+
+        <div className=" max-xl mx-auto transition-all duration-300 lg:ml-24 ">
+          <div>
+            {/* HEADER */}
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
+              <div className="text-center">
+                <h1 className="text-3xl text-white font-bold">
+                  Admin Dashboard
+                </h1>
+                <p className="text-slate-400 mt-1">
+                  Manage attendance and leave requests
+                </p>
+              </div>
+              <div className="text-center">
+                {activeTab === "attendance" && (
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    max={today}
+                    onChange={(e) =>
+                      setSelectedDate(
+                        e.target.value > today ? today : e.target.value,
+                      )
+                    }
+                    className="rounded-xl border border-slate-700 bg-slate-800 p-3 text-white outline-none focus:border-blue-500"
                   />
+                )}
+              </div>
+            </div>
+            <div>
+              <div className="lg:hidden absolute top-2 left-0 p-5">
+                <button
+                  onClick={() => setShowMenu(!showMenu)}
+                  className=" text-white rounded-xl backdrop-blur-lg transition-all duration-300 cursor-pointer"
+                >
+                  <span
+                    className={`inline-block transition-transform duration-300 ${
+                      showMenu ? "rotate-180" : "rotate-0"
+                    }`}
+                  >
+                    <Menu size={30} />
+                  </span>
+                </button>
+              </div>
 
-                  <div className="pointer-events-none absolute -bottom-10 left-15 mb-2 -translate-x-1/2 rounded-lg bg-green-600 px-3 py-1 text-sm whitespace-nowrap text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100">
-                    Download CSV
-                  </div>
-                </div>
-              )}
-
-              <div className="group relative">
+              <div
+                className={`space-y-7 absolute top-20 left-0 p-2 grid grid-row-3 gap-4 overflow-hidden transition-all duration-500 ease-in-out lg:hidden rounded-3xl ${
+                  showMenu
+                    ? "max-w-50 opacity-100 mt-0 backdrop-blur-xl"
+                    : "max-w-0 opacity-0 backdrop-blur-xl"
+                }`}
+              >
                 <Button
                   text={<MessageSquareText />}
                   onClick={() => navigate("/messages")}
-                  className="cursor-pointer rounded-xl bg-cyan-600 px-5 py-3 font-semibold text-white hover:bg-cyan-700"
+                  className="cursor-pointer rounded-xl bg-cyan-600 px-4 py-2 font-semibold text-white hover:bg-cyan-700"
                 />
-
-                <div className="pointer-events-none absolute -bottom-10 left-15 mb-2 -translate-x-1/2 rounded-lg bg-cyan-600 px-3 py-1 text-sm whitespace-nowrap text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100">
-                  Messages
-                </div>
-              </div>
-
-              <div className="group relative">
+                <Button
+                  text={<Download />}
+                  onClick={exportCsv}
+                  className="bg-green-600 hover:bg-green-700 px-4 py-3 text-white"
+                />{" "}
                 <Button
                   text={<ChartNoAxesCombined />}
                   onClick={() => navigate("/admin-analytics")}
-                  className="cursor-pointer rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white hover:bg-indigo-700"
+                  className="cursor-pointer rounded-xl bg-indigo-600 px-4 py-3 font-semibold text-white hover:bg-indigo-700"
                 />
-
-                <div className="pointer-events-none absolute -bottom-10 left-15 mb-2 -translate-x-1/2 rounded-lg bg-indigo-600 px-3 py-1 text-sm whitespace-nowrap text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100">
-                  Analytics
-                </div>
-              </div>
-
-              <div className="group relative">
                 <Button
                   text={<IdCardLanyard />}
                   onClick={() => navigate("/admin-employees")}
-                  className="cursor-pointer rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700"
+                  className="cursor-pointer rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700"
                 />
-
-                <div className="pointer-events-none absolute -bottom-10 left-15 mb-2 -translate-x-1/2 rounded-lg bg-blue-600 px-3 py-1 text-sm whitespace-nowrap text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100">
-                  Employees
-                </div>
-              </div>
-
-              <div className="group relative">
                 <Button
                   text={<LogOut />}
                   onClick={handleLogout}
-                  className="cursor-pointer rounded-xl bg-red-600 px-5 py-3 font-semibold text-white hover:bg-red-700"
-                />
-
-                <div className="pointer-events-none absolute -bottom-10 left-12 mb-2 -translate-x-1/2 rounded-lg bg-red-600 px-3 py-1 text-sm whitespace-nowrap text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover:opacity-100">
-                  Logout
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* TABS */}
-        <div className="flex justify-center gap-2 mb-6">
-          <button
-            onClick={() => setActiveTab("attendance")}
-            className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition cursor-pointer ${
-              activeTab === "attendance"
-                ? "bg-blue-600 text-white"
-                : "bg-slate-800 text-slate-400 hover:text-white border border-slate-700"
-            }`}
-          >
-            📋 Attendance Sheet
-          </button>
-          <button
-            onClick={() => setActiveTab("leaves")}
-            className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition cursor-pointer relative ${
-              activeTab === "leaves"
-                ? "bg-purple-600 text-white"
-                : "bg-slate-800 text-slate-400 hover:text-white border border-slate-700"
-            }`}
-          >
-            🏖️ Leave Requests
-            {pendingCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                {pendingCount > 9 ? "9+" : pendingCount}
-              </span>
-            )}
-          </button>
-        </div>
-
-        {activeTab === "attendance" && (
-          <>
-            {error && (
-              <div className="bg-red-500/20 border border-red-500 text-red-300 p-4 rounded-xl mb-5">
-                {error}
-              </div>
-            )}
-
-            {/* Summary cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              {[
-                {
-                  filter: "all",
-                  label: "Total",
-                  value: sheet?.total_employees ?? 0,
-                  color: "border-slate-700",
-                  text: "text-slate-300",
-                },
-                {
-                  filter: "present",
-                  label: "Present",
-                  value: sheet?.present_count ?? 0,
-                  color: "border-green-500/30",
-                  text: "text-green-400",
-                },
-                {
-                  filter: "absent",
-                  label: "Absent",
-                  value: sheet?.absent_count ?? 0,
-                  color: "border-red-500/30",
-                  text: "text-red-400",
-                },
-                {
-                  filter: "half_day",
-                  label: "Half Day",
-                  value: sheet?.half_day_count ?? 0,
-                  color: "border-orange-500/30",
-                  text: "text-orange-400",
-                },
-              ].map(({ filter, label, value, color, text }) => (
-                <button
-                  key={filter}
-                  onClick={() => setStatusFilter(filter as StatusFilter)}
-                  className={`text-left bg-slate-800 border p-5 rounded-2xl transition hover:scale-[1.02] cursor-pointer ${
-                    statusFilter === filter ? color.replace("/30", "") : color
-                  }`}
-                >
-                  <p className={`text-sm ${text}`}>{label}</p>
-                  <p className="text-3xl text-white font-bold mt-2">{value}</p>
-                </button>
-              ))}
-            </div>
-
-            {/* Table */}
-            <div className="bg-slate-800 border border-slate-700 rounded-3xl overflow-hidden">
-              <div className="p-5 border-b border-slate-700 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <h2 className="text-xl text-white text-center font-bold">
-                  {sheet?.sheet_name || "Attendance Sheet"}
-                </h2>
-                <input
-                  type="search"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search employee, ID, department..."
-                  className="w-full md:w-96 p-3 rounded-xl bg-slate-700 text-white border border-slate-600 focus:border-blue-500 outline-none"
+                  className="px-4 py-3 cursor-pointer items-center gap-3 rounded-2xl bg-red-600 text-sm font-bold text-white transition hover:bg-red-700"
                 />
               </div>
-
-              {loading ? (
-                <div className="p-8 text-center text-slate-300">
-                  Loading sheet...
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-white">
-                    <thead className="bg-slate-700/50 border-b border-slate-700 text-xs text-slate-400 uppercase tracking-wider text-center">
-                      <tr>
-                        <th className="px-5 py-4">No.</th>
-                        <th className="px-5 py-4">Photo</th>
-                        <th className="px-5 py-4">Employee</th>
-                        <th className="px-5 py-4">ID</th>
-                        <th className="px-5 py-4">Department</th>
-                        <th className="px-5 py-4">Check In</th>
-                        <th className="px-5 py-4">Check Out</th>
-                        <th className="px-5 py-4">Duration</th>
-                        <th className="px-5 py-4">Status</th>
-                        <th className="px-5 py-4">Location</th>
-                        <th className="px-5 py-4">Reason</th>
-                        <th className="px-5 py-4">CV</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredRecords.map((record) => (
-                        <tr
-                          key={record.employee_id}
-                          className="border-b border-slate-700 hover:bg-slate-700/40 transition text-center"
-                        >
-                          <td className="px-5 py-4 text-slate-400">
-                            {record.serial_no}
-                          </td>
-                          <td className="px-5 py-4">
-                            <div className="mx-auto h-12 w-12 overflow-hidden rounded-full border border-white/10 bg-slate-700">
-                              {record.profile_img ? (
-                                <img
-                                  src={getMediaUrl(record.profile_img)}
-                                  alt={record.employee_name}
-                                  className="h-full w-full object-cover"
-                                />
-                              ) : (
-                                <div className="flex h-full w-full items-center justify-center bg-blue-600 font-bold text-white">
-                                  {record.employee_name?.charAt(0)}
-                                </div>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-5 py-4 text-left">
-                            <p className="font-medium">
-                              {record.employee_name}
-                            </p>
-                            <p className="text-xs text-slate-400">
-                              {record.email}
-                            </p>
-                          </td>
-                          <td className="px-5 py-4 text-slate-300">
-                            {record.employee_id}
-                          </td>
-                          <td className="px-5 py-4 text-slate-300">
-                            <p>{record.department}</p>
-                            <p className="text-xs text-slate-500">
-                              {record.designation}
-                            </p>
-                          </td>
-                          <td className="px-5 py-4 font-mono text-green-300">
-                            {record.check_in}
-                          </td>
-                          <td className="px-5 py-4 font-mono text-red-300">
-                            {record.check_out}
-                          </td>
-                          <td className="px-5 py-4 text-slate-300">
-                            {record.duration}
-                          </td>
-                          <td className="px-5 py-4">
-                            <span
-                              className={`px-3 py-1 rounded-full text-sm font-medium ${statusClass(record.status)}`}
-                            >
-                              {statusLabel(record.status)}
-                            </span>
-                            {record.minutes_late > 0 && (
-                              <p className="text-xs text-yellow-400 mt-1">
-                                {record.minutes_late}m late
-                              </p>
-                            )}
-                          </td>
-                          <td className="px-5 py-4">
-                            {record.location_maps_url ? (
-                              <a
-                                href={record.location_maps_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-xs font-semibold text-cyan-300 hover:text-cyan-200"
-                              >
-                                {statusLabel(
-                                  record.location_status || "captured",
-                                )}
-                                {record.location_distance_meters
-                                  ? ` · ${Math.round(record.location_distance_meters)}m`
-                                  : ""}
-                              </a>
-                            ) : (
-                              <span className="text-xs text-slate-500">
-                                {statusLabel(
-                                  record.location_status || "not captured",
-                                )}
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-5 py-4">
-                            {record.reason && record.reason !== "--" ? (
-                              <button
-                                onClick={() => setViewReason(record.reason)}
-                                className="text-slate-400 max-w-35 truncate block hover:text-blue-400 underline underline-offset-2 transition cursor-pointer text-sm"
-                              >
-                                {record.reason}
-                              </button>
-                            ) : (
-                              <span className="text-slate-600">--</span>
-                            )}
-                          </td>
-                          <td className="px-5 py-4">
-                            {record.cv_file ? (
-                              <a
-                                href={getMediaUrl(record.cv_file)}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-xs font-semibold text-blue-400 hover:text-blue-300"
-                              >
-                                View CV
-                              </a>
-                            ) : (
-                              <span className="text-slate-600 text-xs">--</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                      {filteredRecords.length === 0 && (
-                        <tr>
-                          <td
-                            colSpan={12}
-                            className="px-5 py-8 text-center text-slate-400"
-                          >
-                            No records found
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </>
-        )}
-
-        {/* ═══════════════════════════════════════════════════════════════
-            LEAVE REQUESTS TAB
-        ════════════════════════════════════════════════════════════════ */}
-        {activeTab === "leaves" && (
-          <>
-            {/* Leave filter tabs */}
-            <div className="flex flex-wrap gap-2 mb-5">
-              {(
-                [
-                  "leave_pending",
-                  "leave_approved",
-                  "leave_rejected",
-                  "all",
-                ] as const
-              ).map((f) => {
-                const labels: Record<string, string> = {
-                  leave_pending: "⏳ Pending",
-                  leave_approved: "✅ Approved",
-                  leave_rejected: "❌ Rejected",
-                  all: "📋 All",
-                };
-                const active = leaveFilter === f;
-                return (
-                  <button
-                    key={f}
-                    onClick={() => setLeaveFilter(f)}
-                    className={`px-4 py-2 rounded-xl text-sm font-semibold transition cursor-pointer ${
-                      active
-                        ? f === "leave_pending"
-                          ? "bg-yellow-500 text-slate-900"
-                          : f === "leave_approved"
-                            ? "bg-green-600 text-white"
-                            : f === "leave_rejected"
-                              ? "bg-red-600 text-white"
-                              : "bg-slate-600 text-white"
-                        : "bg-slate-800 text-slate-400 border border-slate-700 hover:text-white"
-                    }`}
-                  >
-                    {labels[f]}
-                    {f === "leave_pending" && pendingCount > 0 && (
-                      <span className="ml-1.5 bg-red-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5">
-                        {pendingCount}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
             </div>
 
-            {/* Search */}
-            <div className="mb-5">
-              <input
-                type="search"
-                value={leaveSearch}
-                onChange={(e) => setLeaveSearch(e.target.value)}
-                placeholder="Search by name, ID, department, date..."
-                className="w-full md:w-96 p-3 rounded-xl bg-slate-800 text-white border border-slate-700 focus:border-purple-500 outline-none"
-              />
-            </div>
-
-            {leaveLoading ? (
-              <div className="bg-slate-800 border border-slate-700 rounded-3xl p-12 text-center text-slate-400">
-                Loading leave requests...
-              </div>
-            ) : filteredLeaves.length === 0 ? (
-              <div className="bg-slate-800 border border-slate-700 rounded-3xl p-12 text-center">
-                <div className="text-5xl mb-4">🏖️</div>
-                <p className="text-slate-300 text-lg font-semibold">
-                  No leave requests found
-                </p>
-                <p className="text-slate-500 mt-1 text-sm">
-                  {leaveFilter === "leave_pending"
-                    ? "No pending requests at this time"
-                    : "No records matching your filter"}
-                </p>
-              </div>
-            ) : (
-              <div className="bg-slate-800 border border-slate-700 rounded-3xl overflow-hidden">
-                <div className="p-5 border-b border-slate-700 flex items-center justify-between">
-                  <h2 className="text-xl text-white font-bold">
-                    Leave Requests
-                  </h2>
-                  <span className="text-slate-400 text-sm">
-                    {filteredLeaves.length} record
-                    {filteredLeaves.length !== 1 ? "s" : ""}
+            {/* TABS */}
+            <div className="flex justify-center gap-2 mb-6">
+              <button
+                onClick={() => setActiveTab("attendance")}
+                className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition cursor-pointer ${
+                  activeTab === "attendance"
+                    ? "bg-blue-600 text-white"
+                    : "bg-slate-800 text-slate-400 hover:text-white border border-slate-700"
+                }`}
+              >
+                📋 Attendance Sheet
+              </button>
+              <button
+                onClick={() => setActiveTab("leaves")}
+                className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition cursor-pointer relative ${
+                  activeTab === "leaves"
+                    ? "bg-purple-600 text-white"
+                    : "bg-slate-800 text-slate-400 hover:text-white border border-slate-700"
+                }`}
+              >
+                🏖️ Leave Requests
+                {pendingCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                    {pendingCount > 9 ? "9+" : pendingCount}
                   </span>
+                )}
+              </button>
+            </div>
+
+            {activeTab === "attendance" && (
+              <>
+                {error && (
+                  <div className="bg-red-500/20 border border-red-500 text-red-300 p-4 rounded-xl mb-5">
+                    {error}
+                  </div>
+                )}
+
+                {/* Summary cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                  {[
+                    {
+                      filter: "all",
+                      label: "Total",
+                      value: sheet?.total_employees ?? 0,
+                      color: "border-slate-700",
+                      text: "text-slate-300",
+                    },
+                    {
+                      filter: "present",
+                      label: "Present",
+                      value: sheet?.present_count ?? 0,
+                      color: "border-green-500/30",
+                      text: "text-green-400",
+                    },
+                    {
+                      filter: "absent",
+                      label: "Absent",
+                      value: sheet?.absent_count ?? 0,
+                      color: "border-red-500/30",
+                      text: "text-red-400",
+                    },
+                    {
+                      filter: "half_day",
+                      label: "Half Day",
+                      value: sheet?.half_day_count ?? 0,
+                      color: "border-orange-500/30",
+                      text: "text-orange-400",
+                    },
+                  ].map(({ filter, label, value, color, text }) => (
+                    <button
+                      key={filter}
+                      onClick={() => setStatusFilter(filter as StatusFilter)}
+                      className={`text-left bg-slate-800 border p-5 rounded-2xl transition hover:scale-[1.02] cursor-pointer ${
+                        statusFilter === filter
+                          ? color.replace("/30", "")
+                          : color
+                      }`}
+                    >
+                      <p className={`text-sm ${text}`}>{label}</p>
+                      <p className="text-3xl text-white font-bold mt-2">
+                        {value}
+                      </p>
+                    </button>
+                  ))}
                 </div>
 
-                <div className="overflow-x-auto">
-                  <table className="w-full text-white">
-                    <thead className="bg-slate-700/50 border-b border-slate-700 text-xs text-slate-400 uppercase tracking-wider text-center">
-                      <tr>
-                        <th className="px-5 py-4">Employee</th>
-                        <th className="px-5 py-4">Department</th>
-                        <th className="px-5 py-4">Leave Date</th>
-                        <th className="px-5 py-4">Type</th>
-                        <th className="px-5 py-4">Reason</th>
-                        <th className="px-5 py-4">Status</th>
-                        {leaveFilter === "leave_pending" && (
-                          <th className="px-5 py-4">Actions</th>
-                        )}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredLeaves.map((record) => (
-                        <tr
-                          key={record.id}
-                          className="border-b border-slate-700 hover:bg-slate-700/40 transition text-center"
-                        >
-                          {/* Employee */}
-                          <td className="px-5 py-4">
-                            <div className="flex items-center gap-3 text-left">
-                              <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-slate-700">
-                                {record.profile_img ? (
-                                  <img
-                                    src={getMediaUrl(record.profile_img)}
-                                    alt={record.employee_name}
-                                    className="h-full w-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="flex h-full w-full items-center justify-center bg-purple-600 font-bold text-white text-sm">
-                                    {record.employee_name?.charAt(0)}
-                                  </div>
-                                )}
-                              </div>
-                              <div>
-                                <p className="font-semibold text-sm">
+                {/* Table */}
+                <div className="bg-slate-800 border border-slate-700 rounded-3xl overflow-hidden">
+                  <div className="p-5 border-b border-slate-700 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <h2 className="text-xl text-white text-center font-bold">
+                      {sheet?.sheet_name || "Attendance Sheet"}
+                    </h2>
+                    <input
+                      type="search"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Search employee, ID, department..."
+                      className="w-full md:w-96 p-3 rounded-xl bg-slate-700 text-white border border-slate-600 focus:border-blue-500 outline-none"
+                    />
+                  </div>
+
+                  {loading ? (
+                    <div className="p-8 text-center text-slate-300">
+                      Loading sheet...
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-white">
+                        <thead className="bg-slate-700/50 border-b border-slate-700 text-xs text-slate-400 uppercase tracking-wider text-center">
+                          <tr>
+                            <th className="px-5 py-4">No.</th>
+                            <th className="px-5 py-4">Photo</th>
+                            <th className="px-5 py-4">Employee</th>
+                            <th className="px-5 py-4">ID</th>
+                            <th className="px-5 py-4">Department</th>
+                            <th className="px-5 py-4">Check In</th>
+                            <th className="px-5 py-4">Check Out</th>
+                            <th className="px-5 py-4">Duration</th>
+                            <th className="px-5 py-4">Status</th>
+                            <th className="px-5 py-4">Location</th>
+                            <th className="px-5 py-4">Reason</th>
+                            <th className="px-5 py-4">CV</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredRecords.map((record) => (
+                            <tr
+                              key={record.employee_id}
+                              className="border-b border-slate-700 hover:bg-slate-700/40 transition text-center"
+                            >
+                              <td className="px-5 py-4 text-slate-400">
+                                {record.serial_no}
+                              </td>
+                              <td className="px-5 py-4">
+                                <div className="mx-auto h-12 w-12 overflow-hidden rounded-full border border-white/10 bg-slate-700">
+                                  {record.profile_img ? (
+                                    <img
+                                      src={getMediaUrl(record.profile_img)}
+                                      alt={record.employee_name}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="flex h-full w-full items-center justify-center bg-blue-600 font-bold text-white">
+                                      {record.employee_name?.charAt(0)}
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-5 py-4 text-left">
+                                <p className="font-medium">
                                   {record.employee_name}
                                 </p>
                                 <p className="text-xs text-slate-400">
-                                  {record.employee_id}
+                                  {record.email}
                                 </p>
-                              </div>
-                            </div>
-                          </td>
-
-                          {/* Department */}
-                          <td className="px-5 py-4 text-slate-300">
-                            <p className="text-sm">
-                              {record.department || "--"}
-                            </p>
-                            <p className="text-xs text-slate-500">
-                              {record.designation || ""}
-                            </p>
-                          </td>
-
-                          {/* Leave Date */}
-                          <td className="px-5 py-4">
-                            <span className="bg-slate-700 text-slate-200 px-3 py-1 rounded-lg font-mono text-sm">
-                              {record.date}
-                            </span>
-                          </td>
-
-                          {/* Type */}
-                          <td className="px-5 py-4">
-                            <span
-                              className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${leaveTypeBadge(record.leave_type)}`}
-                            >
-                              {leaveTypeIcon(record.leave_type)}{" "}
-                              {record.leave_type || "casual"}
-                            </span>
-                          </td>
-
-                          {/* Reason */}
-                          <td className="px-5 py-4 max-w-50">
-                            {record.reason && record.reason !== "--" ? (
-                              <button
-                                onClick={() => setViewReason(record.reason)}
-                                className="text-slate-400 truncate block w-full hover:text-blue-400 underline underline-offset-2 transition cursor-pointer text-sm text-left"
-                                title={record.reason}
+                              </td>
+                              <td className="px-5 py-4 text-sm text-slate-300 ">
+                                {record.employee_id}
+                              </td>
+                              <td className="px-5 py-4 text-slate-300">
+                                <p className="text-sm">{record.department}</p>
+                                <p className="text-xs text-slate-500">
+                                  {record.designation}
+                                </p>
+                              </td>
+                              <td className="px-5 py-4 font-mono text-sm text-green-300">
+                                {record.check_in}
+                              </td>
+                              <td className="px-5 py-4 font-mono text-sm text-red-300">
+                                {record.check_out}
+                              </td>
+                              <td className="px-5 py-4 text-slate-300">
+                                {record.duration}
+                              </td>
+                              <td className="px-5 py-4">
+                                <span
+                                  className={`px-3 py-1 rounded-full text-sm font-medium flex ${statusClass(record.status)}`}
+                                >
+                                  {statusLabel(record.status)}
+                                </span>
+                                {record.minutes_late > 0 && (
+                                  <p className="text-xs text-yellow-400 mt-1">
+                                    {record.minutes_late}m late
+                                  </p>
+                                )}
+                              </td>
+                              <td className="px-5 py-4">
+                                {record.location_maps_url ? (
+                                  <a
+                                    href={record.location_maps_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-xs font-semibold text-cyan-300 hover:text-cyan-200"
+                                  >
+                                    {statusLabel(
+                                      record.location_status || "captured",
+                                    )}
+                                    {record.location_distance_meters
+                                      ? ` · ${Math.round(record.location_distance_meters)}m`
+                                      : ""}
+                                  </a>
+                                ) : (
+                                  <span className="text-xs text-slate-500">
+                                    {statusLabel(
+                                      record.location_status || "not captured",
+                                    )}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-5 py-4">
+                                {record.reason && record.reason !== "--" ? (
+                                  <button
+                                    onClick={() => setViewReason(record.reason)}
+                                    className="text-slate-400 max-w-35 truncate block hover:text-blue-400 underline underline-offset-2 transition cursor-pointer text-sm"
+                                  >
+                                    {record.reason}
+                                  </button>
+                                ) : (
+                                  <span className="text-slate-600">--</span>
+                                )}
+                              </td>
+                              <td className="px-5 py-4">
+                                {record.cv_file ? (
+                                  <a
+                                    href={getMediaUrl(record.cv_file)}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-xs font-semibold text-blue-400 hover:text-blue-300"
+                                  >
+                                    View CV
+                                  </a>
+                                ) : (
+                                  <span className="text-slate-600 text-xs">
+                                    --
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                          {filteredRecords.length === 0 && (
+                            <tr>
+                              <td
+                                colSpan={12}
+                                className="px-5 py-8 text-center text-slate-400"
                               >
-                                {record.reason}
-                              </button>
-                            ) : (
-                              <span className="text-slate-600">--</span>
-                            )}
-                          </td>
-
-                          {/* Status badge */}
-                          <td className="px-5 py-4">
-                            <span
-                              className={`px-3 py-1 rounded-full text-xs font-semibold ${statusClass(record.status)}`}
-                            >
-                              {statusLabel(record.status)}
-                            </span>
-                          </td>
-
-                          {/* Actions — only for pending tab */}
-                          {leaveFilter === "leave_pending" && (
-                            <td className="px-5 py-4">
-                              <div className="flex items-center justify-center gap-2">
-                                <button
-                                  onClick={() =>
-                                    handleLeaveAction(record.id, "approve")
-                                  }
-                                  disabled={!!actionLoading}
-                                  className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-4 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer"
-                                >
-                                  {actionLoading === record.id + "approve"
-                                    ? "..."
-                                    : "✅ Approve"}
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    handleLeaveAction(record.id, "reject")
-                                  }
-                                  disabled={!!actionLoading}
-                                  className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-4 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer"
-                                >
-                                  {actionLoading === record.id + "reject"
-                                    ? "..."
-                                    : "❌ Reject"}
-                                </button>
-                              </div>
-                            </td>
+                                No records found
+                              </td>
+                            </tr>
                           )}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
-              </div>
+              </>
             )}
-          </>
-        )}
-      </div>
 
-      {/* REASON MODAL */}
-      {viewReason && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-5">
-          <div className="bg-[#111827] border border-white/10 rounded-4xl p-8 w-full max-w-md shadow-2xl">
-            <div className="w-16 h-16 rounded-3xl bg-blue-500/20 flex items-center justify-center text-3xl mx-auto mb-5">
-              📝
-            </div>
-            <h2 className="text-2xl text-white font-bold text-center mb-4">
-              Full Reason
-            </h2>
-            <div className="bg-slate-900/70 border border-slate-700 rounded-2xl p-4">
-              <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap wrap-break-words">
-                {viewReason}
-              </p>
-            </div>
-            <Button
-              text="Close"
-              onClick={() => setViewReason(null)}
-              className="w-full mt-6 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-2xl font-semibold transition cursor-pointer"
-            />
+            {/* ═══════════════════════════════════════════════════════════════
+            LEAVE REQUESTS TAB
+        ════════════════════════════════════════════════════════════════ */}
+            {activeTab === "leaves" && (
+              <>
+                {/* Leave filter tabs */}
+                <div className="flex  gap-2 mb-5">
+                  {(
+                    [
+                      "leave_pending",
+                      "leave_approved",
+                      "leave_rejected",
+                      "all",
+                    ] as const
+                  ).map((f) => {
+                    const labels: Record<string, string> = {
+                      leave_pending: "⏳ Pending",
+                      leave_approved: "✅ Approved",
+                      leave_rejected: "❌ Rejected",
+                      all: "📋 All",
+                    };
+                    const active = leaveFilter === f;
+                    return (
+                      <button
+                        key={f}
+                        onClick={() => setLeaveFilter(f)}
+                        className={`px-4 py-2 rounded-xl text-sm font-semibold transition cursor-pointer ${
+                          active
+                            ? f === "leave_pending"
+                              ? "bg-yellow-500 text-slate-900"
+                              : f === "leave_approved"
+                                ? "bg-green-600 text-white"
+                                : f === "leave_rejected"
+                                  ? "bg-red-600 text-white"
+                                  : "bg-slate-600 text-white"
+                            : "bg-slate-800 text-slate-400 border border-slate-700 hover:text-white"
+                        }`}
+                      >
+                        {labels[f]}
+                        {f === "leave_pending" && pendingCount > 0 && (
+                          <span className="ml-1.5 bg-red-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5">
+                            {pendingCount}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Search */}
+                <div className="mb-5">
+                  <input
+                    type="search"
+                    value={leaveSearch}
+                    onChange={(e) => setLeaveSearch(e.target.value)}
+                    placeholder="Search by name, ID, department, date..."
+                    className="w-full md:w-96 p-3 rounded-xl bg-slate-800 text-white border border-slate-700 focus:border-purple-500 outline-none"
+                  />
+                </div>
+
+                {leaveLoading ? (
+                  <div className="bg-slate-800 border border-slate-700 rounded-3xl p-12 text-center text-slate-400">
+                    Loading leave requests...
+                  </div>
+                ) : filteredLeaves.length === 0 ? (
+                  <div className="bg-slate-800 border border-slate-700 rounded-3xl p-12 text-center">
+                    <div className="text-5xl mb-4">🏖️</div>
+                    <p className="text-slate-300 text-lg font-semibold">
+                      No leave requests found
+                    </p>
+                    <p className="text-slate-500 mt-1 text-sm">
+                      {leaveFilter === "leave_pending"
+                        ? "No pending requests at this time"
+                        : "No records matching your filter"}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-slate-800 border border-slate-700 rounded-3xl overflow-hidden">
+                    <div className="p-5 border-b border-slate-700 flex items-center justify-between">
+                      <h2 className="text-xl text-white font-bold">
+                        Leave Requests
+                      </h2>
+                      <span className="text-slate-400 text-sm">
+                        {filteredLeaves.length} record
+                        {filteredLeaves.length !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-white">
+                        <thead className="bg-slate-700/50 border-b border-slate-700 text-xs text-slate-400 uppercase tracking-wider text-center">
+                          <tr>
+                            <th className="px-5 py-4">Employee</th>
+                            <th className="px-5 py-4">Department</th>
+                            <th className="px-5 py-4">Leave Date</th>
+                            <th className="px-5 py-4">Type</th>
+                            <th className="px-5 py-4">Reason</th>
+                            <th className="px-5 py-4">Status</th>
+                            {leaveFilter === "leave_pending" && (
+                              <th className="px-5 py-4">Actions</th>
+                            )}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredLeaves.map((record) => (
+                            <tr
+                              key={record.id}
+                              className="border-b border-slate-700 hover:bg-slate-700/40 transition text-center"
+                            >
+                              {/* Employee */}
+                              <td className="px-5 py-4">
+                                <div className="flex items-center gap-3 text-left">
+                                  <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-slate-700">
+                                    {record.profile_img ? (
+                                      <img
+                                        src={getMediaUrl(record.profile_img)}
+                                        alt={record.employee_name}
+                                        className="h-full w-full object-cover"
+                                      />
+                                    ) : (
+                                      <div className="flex h-full w-full items-center justify-center bg-purple-600 font-bold text-white text-sm">
+                                        {record.employee_name?.charAt(0)}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <p className="font-semibold text-sm">
+                                      {record.employee_name}
+                                    </p>
+                                    <p className="text-xs text-slate-400">
+                                      {record.employee_id}
+                                    </p>
+                                  </div>
+                                </div>
+                              </td>
+
+                              {/* Department */}
+                              <td className="px-5 py-4 text-slate-300">
+                                <p className="text-sm">
+                                  {record.department || "--"}
+                                </p>
+                                <p className="text-xs text-slate-500">
+                                  {record.designation || ""}
+                                </p>
+                              </td>
+
+                              {/* Leave Date */}
+                              <td className="px-5 py-4">
+                                <span className="bg-slate-700 text-slate-200 px-3 py-1 rounded-lg font-mono text-sm">
+                                  {record.date}
+                                </span>
+                              </td>
+
+                              {/* Type */}
+                              <td className="px-5 py-4">
+                                <span
+                                  className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${leaveTypeBadge(record.leave_type)}`}
+                                >
+                                  {leaveTypeIcon(record.leave_type)}{" "}
+                                  {record.leave_type || "casual"}
+                                </span>
+                              </td>
+
+                              {/* Reason */}
+                              <td className="px-5 py-4 max-w-50">
+                                {record.reason && record.reason !== "--" ? (
+                                  <button
+                                    onClick={() => setViewReason(record.reason)}
+                                    className="text-slate-400 truncate block w-full hover:text-blue-400 underline underline-offset-2 transition cursor-pointer text-sm text-left"
+                                    title={record.reason}
+                                  >
+                                    {record.reason}
+                                  </button>
+                                ) : (
+                                  <span className="text-slate-600">--</span>
+                                )}
+                              </td>
+
+                              {/* Status badge */}
+                              <td className="px-5 py-4">
+                                <span
+                                  className={`px-3 py-3 rounded-full font-semibold ${statusClass(record.status)}`}
+                                >
+                                  {statusLabel(record.status)}
+                                </span>
+                              </td>
+
+                              {/* Actions — only for pending tab */}
+                              {leaveFilter === "leave_pending" && (
+                                <td className="px-5 py-4">
+                                  <div className="flex items-center justify-center gap-2">
+                                    <button
+                                      onClick={() =>
+                                        handleLeaveAction(record.id, "approve")
+                                      }
+                                      disabled={!!actionLoading}
+                                      className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-4 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer"
+                                    >
+                                      {actionLoading === record.id + "approve"
+                                        ? "..."
+                                        : "✅ Approve"}
+                                    </button>
+                                    <button
+                                      onClick={() =>
+                                        handleLeaveAction(record.id, "reject")
+                                      }
+                                      disabled={!!actionLoading}
+                                      className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-4 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer"
+                                    >
+                                      {actionLoading === record.id + "reject"
+                                        ? "..."
+                                        : "❌ Reject"}
+                                    </button>
+                                  </div>
+                                </td>
+                              )}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
-      )}
-    </div>
+
+        {/* REASON MODAL */}
+        {viewReason && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-5">
+            <div className="bg-[#111827] border border-white/10 rounded-4xl p-8 w-full max-w-md shadow-2xl">
+              <div className="w-16 h-16 rounded-3xl bg-blue-500/20 flex items-center justify-center text-3xl mx-auto mb-5">
+                📝
+              </div>
+              <h2 className="text-2xl text-white font-bold text-center mb-4">
+                Full Reason
+              </h2>
+              <div className="bg-slate-900/70 border border-slate-700 rounded-2xl p-4">
+                <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap wrap-break-words">
+                  {viewReason}
+                </p>
+              </div>
+              <Button
+                text="Close"
+                onClick={() => setViewReason(null)}
+                className="w-full mt-6 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-2xl font-semibold transition cursor-pointer"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    </>
   );
 }

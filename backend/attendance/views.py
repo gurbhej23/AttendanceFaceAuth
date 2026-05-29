@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from django.http import HttpResponse
 
 import pytz
+from django.conf import settings
 from rest_framework.decorators import api_view
 from employees.face_utils import extract_and_save_embedding, verify_face_match
 from rest_framework.response import Response
@@ -30,10 +31,20 @@ def media_url(path):
     if not path:
         return ""
     normalized = path.replace("\\", "/")
+    if normalized.startswith(("http://", "https://")):
+        return normalized
     if normalized.startswith("/media/"):
+        relative_path = normalized[len("/media/") :]
+        if not (settings.MEDIA_ROOT / relative_path).exists():
+            return ""
         return normalized
     if normalized.startswith("media/"):
+        relative_path = normalized[len("media/") :]
+        if not (settings.MEDIA_ROOT / relative_path).exists():
+            return ""
         return f"/{normalized}"
+    if not (settings.MEDIA_ROOT / normalized.lstrip("/")).exists():
+        return ""
     return f"/media/{normalized.lstrip('/')}"
 
 
@@ -486,11 +497,7 @@ def attendance_report(request):
 
 
 @api_view(["GET"])
-def monthly_summary(request):
-    """
-    Returns monthly attendance summary for an employee.
-    Params: employee_id, year, month
-    """
+def monthly_summary(request): 
     try:
         employee_id = request.query_params.get("employee_id")
         year = int(request.query_params.get("year", current_ist().year))
@@ -905,11 +912,7 @@ def admin_analytics(request):
 
 
 @api_view(["GET"])
-def late_comers_report(request):
-    """
-    Returns late arrivals for a month with per-employee breakdown.
-    Params: year, month, department (optional)
-    """
+def late_comers_report(request): 
     try:
         year = int(request.query_params.get("year", current_ist().year))
         month = int(request.query_params.get("month", current_ist().month))
@@ -992,11 +995,7 @@ def late_comers_report(request):
 
 
 @api_view(["POST"])
-def request_leave(request):
-    """
-    Employee requests leave. Requires admin approval.
-    Required: employee_id, reason, leave_date (YYYY-MM-DD), leave_type
-    """
+def request_leave(request): 
     try:
         employee_id = request.data.get("employee_id", "").strip()
         reason = request.data.get("reason", "").strip()
@@ -1053,8 +1052,7 @@ def request_leave(request):
 
 
 @api_view(["GET"])
-def my_leave_requests(request):
-    """Employee's own leave requests."""
+def my_leave_requests(request): 
     try:
         employee_id = request.query_params.get("employee_id")
         if not employee_id:
@@ -1087,8 +1085,7 @@ def my_leave_requests(request):
 
 
 @api_view(["GET"])
-def admin_leave_requests(request):
-    """All pending + recent leave requests for admin."""
+def admin_leave_requests(request): 
     try:
         status_filter = request.query_params.get("status", "leave_pending")
 
@@ -1131,8 +1128,7 @@ def admin_leave_requests(request):
 
 
 @api_view(["POST"])
-def approve_leave(request):
-    """Admin approves a leave request."""
+def approve_leave(request): 
     try:
         record_id = request.data.get("record_id", "").strip()
         action = request.data.get("action", "").strip()  # "approve" or "reject"
