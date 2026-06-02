@@ -126,7 +126,7 @@ const leaveTypeIcon = (t: string) => {
 const getMediaUrl = (path?: string | null) => {
   if (!path) return "";
   if (path.startsWith("http")) return path;
-  return `https://override-jawless-boogieman.ngrok-free.dev${path.startsWith("/") ? path : `/${path}`}`;
+  return `http://localhost:8000${path.startsWith("/") ? path : `/${path}`}`;
 };
 
 export default function AdminAttendanceSheet() {
@@ -354,7 +354,7 @@ export default function AdminAttendanceSheet() {
               {
                 icon: <User />,
                 label: "Profile",
-                action: () => navigate("/profile"),
+                action: () => navigate("/admin-profile"),
                 tone: "cursor-pointer rounded-xl bg-slate-700 px-2 py-3 font-semibold text-white hover:bg-slate-600",
               },
               {

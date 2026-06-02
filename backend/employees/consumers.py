@@ -1,10 +1,18 @@
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 
 from .models import ChatMessage, Employee
+
+
+def chat_datetime_iso(value):
+    if not value:
+        return ""
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc).isoformat()
 
 
 def message_payload(message):
@@ -20,7 +28,7 @@ def message_payload(message):
         "is_edited": getattr(message, "is_edited", False),
         "is_deleted": getattr(message, "is_deleted", False),
         "reactions": getattr(message, "reactions", {}) or {},
-        "created_at": message.created_at.isoformat(),
+        "created_at": chat_datetime_iso(message.created_at),
     }
 
 
@@ -30,9 +38,9 @@ def set_presence(employee_id, is_online):
     if not employee:
         return None
     employee.is_online = is_online
-    employee.last_seen = datetime.now()
+    employee.last_seen = datetime.now(timezone.utc)
     employee.save()
-    return employee.last_seen.isoformat()
+    return chat_datetime_iso(employee.last_seen)
 
 
 @sync_to_async
@@ -49,6 +57,7 @@ def save_message(sender_id, recipient_id, text):
         recipient_id=recipient.employee_id,
         recipient_name=recipient.name,
         message=text.strip(),
+        created_at=datetime.now(timezone.utc),
     )
     message.save()
     return message_payload(message)
@@ -113,15 +122,18 @@ def mark_read(reader_id, contact_id):
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
+
         self.employee_id = self.scope["url_route"]["kwargs"]["employee_id"]
         self.group_name = f"chat_{self.employee_id}"
         await self.channel_layer.group_add(self.group_name, self.channel_name)
+        await self.channel_layer.group_add("chat_presence", self.channel_name)
         await self.accept()
         last_seen = await set_presence(self.employee_id, True)
         await self.broadcast_presence(True, last_seen)
 
     async def disconnect(self, close_code):
         await self.channel_layer.group_discard(self.group_name, self.channel_name)
+        await self.channel_layer.group_discard("chat_presence", self.channel_name)
         last_seen = await set_presence(self.employee_id, False)
         await self.broadcast_presence(False, last_seen)
 
@@ -196,7 +208,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def broadcast_message_event(self, event_type, payload):
         if not payload:
             await self.send(
-                text_data=json.dumps({"type": "error", "error": "Could not update chat"})
+                text_data=json.dumps(
+                    {"type": "error", "error": "Could not update chat"}
+                )
             )
             return
         event = {"type": "chat.event", "event_type": event_type, "message": payload}
@@ -222,7 +236,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 },
             },
         )
-        await self.channel_layer.group_add("chat_presence", self.channel_name)
 
     async def chat_event(self, event):
         await self.send(

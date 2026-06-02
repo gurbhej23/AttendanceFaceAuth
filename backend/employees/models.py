@@ -5,6 +5,10 @@ import pytz
 IST = pytz.timezone("Asia/Kolkata")
 
 
+def utc_now():
+    return datetime.now(pytz.UTC)
+
+
 class Employee(me.Document):
     name = me.StringField(required=True)
     email = me.EmailField(required=True, unique=True)
@@ -47,7 +51,7 @@ class ChatMessage(me.Document):
     is_edited = me.BooleanField(default=False)
     is_deleted = me.BooleanField(default=False)
     reactions = me.DictField(default=dict)
-    created_at = me.DateTimeField(default=datetime.now)
+    created_at = me.DateTimeField(default=utc_now)
 
     meta = {
         "collection": "chat_messages",

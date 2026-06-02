@@ -427,8 +427,8 @@ export default function AdminEmployees() {
       {viewing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur">
           <div className="w-full max-w-2xl rounded-3xl border border-slate-800 bg-slate-900 p-6">
-            <div className="flex flex-col gap-5 sm:flex-row">
-              <div className="mx-auto h-32 w-32 shrink-0 overflow-hidden rounded-3xl border border-slate-700 bg-slate-800 sm:mx-0">
+            <div className="flex flex-col gap-5 sm:flex">
+              <div className="mx-auto sm:mx-auto h-32 w-32 shrink-0 overflow-hidden rounded-full border border-slate-700 bg-slate-800 ">
                 {viewing.profile_img ? (
                   <img
                     src={getMediaUrl(viewing.profile_img)}
@@ -447,7 +447,7 @@ export default function AdminEmployees() {
                 <p className="mt-1 text-sm text-slate-400">
                   {viewing.employee_id} / {viewing.email}
                 </p>
-                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <div className="mt-5 grid gap-3 sm:grid-cols-1">
                   {[
                     ["Phone", viewing.phone || "--"],
                     ["Department", viewing.department || "--"],

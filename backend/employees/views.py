@@ -2,14 +2,18 @@ import base64
 import os
 import random
 import string
+import traceback
 import uuid
 from datetime import datetime
+
+import pytz
+import sendgrid
+from sendgrid.helpers.mail import Mail, To
 
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import AccessToken
-from django.core.mail import send_mail
 from django.conf import settings
 from django.contrib.auth.hashers import check_password, make_password
 
@@ -17,12 +21,126 @@ from .models import ChatMessage, Employee, RegistrationOTP
 from .face_utils import extract_and_save_embedding, verify_face_match
 
 CV_DIR = settings.MEDIA_ROOT / "cv_files"
-CV_DIR.mkdir(parents=True, exist_ok=True)
 PROFILE_DIR = settings.MEDIA_ROOT / "profile_images"
+CV_DIR.mkdir(parents=True, exist_ok=True)
 PROFILE_DIR.mkdir(parents=True, exist_ok=True)
+
 FACE_DUPLICATE_THRESHOLD = 0.58
 
-# ─── Helpers ───────────────────────────────────────────────────────────────────
+
+# ─── SendGrid email helper ─────────────────────────────────────────────────────
+
+
+def send_email(
+    to: str,
+    subject: str,
+    text: str,
+    html: str = "",
+) -> tuple[bool, str]:
+    """
+    Send email via SendGrid HTTP API.
+    Works on Render — uses HTTPS port 443, never SMTP.
+
+    Returns (success: bool, error_message: str)
+    """
+    api_key = getattr(settings, "SENDGRID_API_KEY", "")
+    from_email = getattr(settings, "SENDGRID_FROM_EMAIL", "")
+    from_name = getattr(settings, "SENDGRID_FROM_NAME", "Attendance System")
+
+    if not api_key:
+        msg = "SENDGRID_API_KEY not set in settings/env"
+        print(f"[Email] ❌ {msg}")
+        return False, msg
+
+    if not from_email:
+        msg = "SENDGRID_FROM_EMAIL not set in settings/env"
+        print(f"[Email] ❌ {msg}")
+        return False, msg
+
+    try:
+        sg = sendgrid.SendGridAPIClient(api_key=api_key)
+
+        mail = Mail(
+            from_email=(from_email, from_name),
+            to_emails=To(to),
+            subject=subject,
+            plain_text_content=text,
+            html_content=(
+                html if html else f"<pre style='font-family:sans-serif'>{text}</pre>"
+            ),
+        )
+
+        response = sg.send(mail)
+        success = response.status_code in (200, 201, 202)
+
+        print(
+            f"[Email] {'✅' if success else '❌'} to={to} status={response.status_code}"
+        )
+        return success, "" if success else f"SendGrid returned {response.status_code}"
+
+    except Exception as e:
+        print(f"[Email] ❌ Exception: {e}")
+        traceback.print_exc()
+        return False, str(e)
+
+
+# ─── OTP email templates ───────────────────────────────────────────────────────
+
+
+def otp_html(otp: str, title: str, subtitle: str) -> str:
+    return f"""
+    <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:32px;
+                border:1px solid #e2e8f0;border-radius:16px;background:#f8fafc;">
+        <h2 style="color:#1e293b;margin-top:0;">{title}</h2>
+        <p style="color:#475569;">{subtitle}</p>
+        <div style="text-align:center;margin:28px 0;padding:20px;
+                    background:#fff;border-radius:12px;border:1px solid #e2e8f0;">
+            <span style="font-size:44px;font-weight:bold;letter-spacing:14px;color:#3b82f6;">
+                {otp}
+            </span>
+        </div>
+        <p style="color:#94a3b8;font-size:13px;">
+            Valid for 10 minutes. If you did not request this, ignore this email.
+        </p>
+        <p style="color:#94a3b8;font-size:12px;margin-top:24px;border-top:1px solid #e2e8f0;padding-top:16px;">
+            Regards,<br/><strong>Attendance System</strong>
+        </p>
+    </div>
+    """
+
+
+def credentials_html(name: str, employee_id: str, password: str) -> str:
+    return f"""
+    <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:32px;
+                border:1px solid #e2e8f0;border-radius:16px;background:#f8fafc;">
+        <h2 style="color:#1e293b;margin-top:0;">Welcome, {name}! 🎉</h2>
+        <p style="color:#475569;">Your employee account has been created successfully.</p>
+        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;
+                    padding:20px;margin:20px 0;">
+            <p style="margin:0 0 12px;color:#64748b;font-size:12px;text-transform:uppercase;
+                      letter-spacing:1px;">Your Credentials</p>
+            <p style="margin:6px 0;font-size:15px;">
+                <strong>Employee ID:</strong>&nbsp;
+                <code style="background:#e2e8f0;padding:3px 10px;border-radius:6px;
+                             font-size:15px;">{employee_id}</code>
+            </p>
+            <p style="margin:6px 0;font-size:15px;">
+                <strong>Password:</strong>&nbsp;
+                <code style="background:#e2e8f0;padding:3px 10px;border-radius:6px;
+                             font-size:15px;">{password}</code>
+            </p>
+        </div>
+        <p style="color:#ef4444;font-size:13px;">
+            ⚠️ Please change your password after your first login.
+        </p>
+        <p style="color:#94a3b8;font-size:12px;margin-top:24px;border-top:1px solid #e2e8f0;padding-top:16px;">
+            Regards,<br/><strong>Attendance System</strong>
+        </p>
+    </div>
+    """
+
+
+# ─── Other helpers ─────────────────────────────────────────────────────────────
 
 
 def generate_otp(length: int = 6) -> str:
@@ -30,27 +148,25 @@ def generate_otp(length: int = 6) -> str:
 
 
 def generate_employee_id() -> str:
-    """Generate a unique Employee ID like EMP-2025-XXXX"""
     year = datetime.now().year
-    for _ in range(20):  # max 20 attempts to find unique ID
+    for _ in range(20):
         suffix = "".join(random.choices(string.digits, k=4))
         candidate = f"EMP-{year}-{suffix}"
         if not Employee.objects(employee_id=candidate).first():
             return candidate
-    raise ValueError("Could not generate a unique Employee ID. Please try again.")
+    raise ValueError("Could not generate a unique Employee ID.")
 
 
 def generate_password(length: int = 10) -> str:
-    """Generate a strong random password with letters, digits, and symbols"""
     chars = string.ascii_letters + string.digits + "!@#$%"
     while True:
         pwd = "".join(random.choices(chars, k=length))
-        # Ensure at least one of each type
-        has_upper = any(c.isupper() for c in pwd)
-        has_lower = any(c.islower() for c in pwd)
-        has_digit = any(c.isdigit() for c in pwd)
-        has_symbol = any(c in "!@#$%" for c in pwd)
-        if has_upper and has_lower and has_digit and has_symbol:
+        if (
+            any(c.isupper() for c in pwd)
+            and any(c.islower() for c in pwd)
+            and any(c.isdigit() for c in pwd)
+            and any(c in "!@#$%" for c in pwd)
+        ):
             return pwd
 
 
@@ -63,28 +179,12 @@ def create_access_token(employee: Employee) -> str:
     return str(token)
 
 
-def send_employee_credentials_email(name: str, email: str, employee_id: str, password: str) -> tuple[bool, str]:
-    try:
-        send_mail(
-            subject="Welcome! Your Employee Account Credentials",
-            message=(
-                f"Hello {name},\n\n"
-                f"Your employee account has been created successfully.\n\n"
-                f"Employee ID : {employee_id}\n"
-                f"Password    : {password}\n\n"
-                f"Please keep these credentials safe.\n"
-                f"We recommend changing your password after your first login.\n\n"
-                f"Regards,\n"
-                f"Attendance System"
-            ),
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[email],
-            fail_silently=False,
-        )
-        return True, ""
-    except Exception as exc:
-        print(f"Credential email failed for {email}: {exc}")
-        return False, str(exc)
+def chat_datetime_iso(value) -> str:
+    if not value:
+        return ""
+    if value.tzinfo is None:
+        value = pytz.UTC.localize(value)
+    return value.astimezone(pytz.UTC).isoformat()
 
 
 def media_url(path: str) -> str:
@@ -94,24 +194,17 @@ def media_url(path: str) -> str:
     if normalized.startswith(("http://", "https://")):
         return normalized
     if normalized.startswith("/media/"):
-        relative_path = normalized[len("/media/") :]
-        if not (settings.MEDIA_ROOT / relative_path).exists():
-            return ""
-        return normalized
+        rel = normalized[len("/media/") :]
+        return normalized if (settings.MEDIA_ROOT / rel).exists() else ""
     if normalized.startswith("media/"):
-        relative_path = normalized[len("media/") :]
-        if not (settings.MEDIA_ROOT / relative_path).exists():
-            return ""
-        return f"/{normalized}"
-    if not (settings.MEDIA_ROOT / normalized.lstrip("/")).exists():
-        return ""
+        rel = normalized[len("media/") :]
+        return f"/{normalized}" if (settings.MEDIA_ROOT / rel).exists() else ""
     return f"{settings.MEDIA_URL}{normalized.lstrip('/')}"
 
 
 def save_base64_cv(data_url: str, original_name: str = "") -> str:
     if not data_url:
         return ""
-
     raw_data = data_url
     extension = os.path.splitext(original_name or "")[1].lower()
     if "," in data_url:
@@ -123,21 +216,16 @@ def save_base64_cv(data_url: str, original_name: str = "") -> str:
                 extension = ".docx"
             elif "msword" in header:
                 extension = ".doc"
-
     if extension not in {".pdf", ".doc", ".docx"}:
         extension = ".pdf"
-
-    file_bytes = base64.b64decode(raw_data)
     filename = f"cv_{uuid.uuid4().hex}{extension}"
-    file_path = CV_DIR / filename
-    file_path.write_bytes(file_bytes)
+    (CV_DIR / filename).write_bytes(base64.b64decode(raw_data))
     return f"media/cv_files/{filename}"
 
 
 def save_base64_profile_image(data_url: str) -> str:
     if not data_url:
         return ""
-
     raw_data = data_url
     extension = ".jpg"
     if "," in data_url:
@@ -146,11 +234,8 @@ def save_base64_profile_image(data_url: str) -> str:
             extension = ".png"
         elif "webp" in header:
             extension = ".webp"
-
-    file_bytes = base64.b64decode(raw_data)
     filename = f"profile_{uuid.uuid4().hex}{extension}"
-    file_path = PROFILE_DIR / filename
-    file_path.write_bytes(file_bytes)
+    (PROFILE_DIR / filename).write_bytes(base64.b64decode(raw_data))
     return f"media/profile_images/{filename}"
 
 
@@ -165,9 +250,7 @@ def employee_payload(employee: Employee) -> dict:
         "designation": employee.designation,
         "is_active": employee.is_active,
         "is_online": getattr(employee, "is_online", False),
-        "last_seen": employee.last_seen.isoformat()
-        if getattr(employee, "last_seen", None)
-        else "",
+        "last_seen": chat_datetime_iso(getattr(employee, "last_seen", None)),
         "profile_img": media_url(employee.profile_img or employee.photo_path or ""),
         "cv_file": media_url(employee.cv_file or ""),
     }
@@ -186,7 +269,7 @@ def chat_payload(message: ChatMessage) -> dict:
         "is_edited": getattr(message, "is_edited", False),
         "is_deleted": getattr(message, "is_deleted", False),
         "reactions": getattr(message, "reactions", {}) or {},
-        "created_at": message.created_at.isoformat(),
+        "created_at": chat_datetime_iso(message.created_at),
     }
 
 
@@ -211,24 +294,18 @@ def register_employee(request):
 
         print(f"Register attempt: {email}")
 
-        # ── Validate required fields ──────────────────────────────────────────
         if not all([name, email, image]):
             return Response(
-                {
-                    "success": False,
-                    "error": "Name, email, and face image are required",
-                },
+                {"success": False, "error": "Name, email, and face image are required"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # ── Check email duplicate ─────────────────────────────────────────────
         if Employee.objects(email=email).first():
             return Response(
                 {"success": False, "error": "Email already registered"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # ── Check OTP was verified ────────────────────────────────────────────
         otp_record = RegistrationOTP.objects(email=email, verified=True).first()
         if not otp_record:
             return Response(
@@ -239,17 +316,14 @@ def register_employee(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # ── Extract face embedding ────────────────────────────────────────────
         print(f"Extracting face embedding for {email}...")
         embedding, error, photo_path = extract_and_save_embedding(image, email)
 
         if error:
-            print(f"Embedding error: {error}")
             return Response(
                 {"success": False, "error": f"Face processing failed: {error}"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
         if not embedding:
             return Response(
                 {
@@ -259,34 +333,27 @@ def register_employee(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        print(f"Embedding extracted: {len(embedding)} dimensions")
-
-        for existing_employee in Employee.objects(face_embedding__ne=[]):
-            if not getattr(existing_employee, "face_embedding", None):
+        # Check for duplicate face
+        for existing in Employee.objects(face_embedding__ne=[]):
+            if not getattr(existing, "face_embedding", None):
                 continue
             if verify_face_match(
-                embedding,
-                existing_employee.face_embedding,
-                FACE_DUPLICATE_THRESHOLD,
+                embedding, existing.face_embedding, FACE_DUPLICATE_THRESHOLD
             ):
                 return Response(
                     {
                         "success": False,
-                        "error": "This face is already registered. Please log in with your existing employee account.",
+                        "error": "This face is already registered. Please log in with your existing account.",
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-        # ── Auto-generate Employee ID and Password ────────────────────────────
         employee_id = generate_employee_id()
         raw_password = generate_password()
         hashed = make_password(raw_password)
         cv_path = save_base64_cv(cv_file, cv_file_name) if cv_file else ""
 
-        print(f"Generated Employee ID: {employee_id}")
-
-        # ── Save employee ─────────────────────────────────────────────────────
-        employee = Employee(
+        Employee(
             name=name,
             email=email,
             phone=phone,
@@ -300,42 +367,45 @@ def register_employee(request):
             designation=designation,
             role="employee",
             is_active=True,
-        )
-        employee.save()
+        ).save()
 
-        # ── Clean up OTP record ───────────────────────────────────────────────
         otp_record.delete()
 
-        email_sent, email_error = send_employee_credentials_email(
-            name, email, employee_id, raw_password
+        # Send credentials via SendGrid
+        email_ok, email_err = send_email(
+            to=email,
+            subject="Welcome! Your Employee Account Credentials",
+            text=(
+                f"Hello {name},\n\n"
+                f"Your account has been created.\n\n"
+                f"Employee ID : {employee_id}\n"
+                f"Password    : {raw_password}\n\n"
+                f"Please change your password after first login.\n\n"
+                f"Regards,\nAttendance System"
+            ),
+            html=credentials_html(name, employee_id, raw_password),
         )
 
-        print(f"Employee registered: {employee_id} | Credentials email sent: {email_sent}")
+        print(f"Employee registered: {employee_id} | email sent: {email_ok}")
 
-        response_data = {
+        response_data: dict = {
             "success": True,
-            "message": f"Registration successful! Your Employee ID and password have been sent to {email}.",
+            "message": f"Registration successful! Credentials sent to {email}.",
         }
-        if not email_sent:
+        if not email_ok:
             response_data["message"] = (
-                "Registration successful, but the credentials email could not be sent. "
-                "Please save the Employee ID and temporary password shown here."
+                "Registration successful, but credentials email failed. "
+                "Please save these credentials now."
             )
             response_data["credentials"] = {
                 "employee_id": employee_id,
                 "password": raw_password,
             }
-            response_data["email_error"] = email_error
+            response_data["email_error"] = email_err
 
-        return Response(
-            response_data,
-            status=status.HTTP_201_CREATED,
-        )
+        return Response(response_data, status=status.HTTP_201_CREATED)
 
     except Exception as e:
-        print(f"Register error: {str(e)}")
-        import traceback
-
         traceback.print_exc()
         return Response(
             {"success": False, "error": str(e)},
@@ -352,8 +422,6 @@ def login_employee(request):
         employee_id = request.data.get("employee_id", "").strip()
         password = request.data.get("password", "").strip()
 
-        print(f"Login attempt: {employee_id}")
-
         if not employee_id or not password:
             return Response(
                 {"success": False, "error": "Employee ID and password are required"},
@@ -361,7 +429,6 @@ def login_employee(request):
             )
 
         employee = Employee.objects(employee_id=employee_id, is_active=True).first()
-
         if not employee:
             return Response(
                 {"success": False, "error": "Employee not found or account inactive"},
@@ -375,32 +442,18 @@ def login_employee(request):
             )
 
         token = create_access_token(employee)
-
-        print(f"Login success: {employee_id} | role: {employee.role}")
+        print(f"Login success: {employee_id}")
 
         return Response(
             {
                 "success": True,
                 "message": f"Welcome back, {employee.name}",
                 "access": token,
-                "employee_id": employee.employee_id,
-                "name": employee.name,
-                "email": employee.email,
-                "phone": getattr(employee, "phone", "") or "",
-                "role": employee.role,
-                "department": employee.department,
-                "designation": employee.designation,
-                "profile_img": media_url(
-                    employee.profile_img or employee.photo_path or ""
-                ),
-                "cv_file": media_url(employee.cv_file or ""),
+                **employee_payload(employee),
             }
         )
 
     except Exception as e:
-        print(f"Login error: {str(e)}")
-        import traceback
-
         traceback.print_exc()
         return Response(
             {"success": False, "error": str(e)},
@@ -417,8 +470,6 @@ def admin_login(request):
         employee_id = request.data.get("employee_id", "").strip()
         password = request.data.get("password", "").strip()
 
-        print(f"Admin login attempt: {employee_id}")
-
         if not employee_id or not password:
             return Response(
                 {"success": False, "error": "Employee ID and password are required"},
@@ -426,7 +477,6 @@ def admin_login(request):
             )
 
         employee = Employee.objects(employee_id=employee_id, is_active=True).first()
-
         if not employee:
             return Response(
                 {"success": False, "error": "Account not found"},
@@ -449,32 +499,18 @@ def admin_login(request):
             )
 
         token = create_access_token(employee)
-
-        print(f"Admin login success: {employee_id} | role: {employee.role}")
+        print(f"Admin login success: {employee_id}")
 
         return Response(
             {
                 "success": True,
                 "message": f"Welcome, {employee.name}",
                 "access": token,
-                "employee_id": employee.employee_id,
-                "name": employee.name,
-                "email": employee.email,
-                "phone": getattr(employee, "phone", "") or "",
-                "role": employee.role,
-                "department": employee.department,
-                "designation": employee.designation,
-                "profile_img": media_url(
-                    employee.profile_img or employee.photo_path or ""
-                ),
-                "cv_file": media_url(employee.cv_file or ""),
+                **employee_payload(employee),
             }
         )
 
     except Exception as e:
-        print(f"Admin login error: {str(e)}")
-        import traceback
-
         traceback.print_exc()
         return Response(
             {"success": False, "error": str(e)},
@@ -482,16 +518,13 @@ def admin_login(request):
         )
 
 
-# ─── Send OTP (Password Reset) ─────────────────────────────────────────────────
+# ─── Send OTP — Password Reset ─────────────────────────────────────────────────
 
 
 @api_view(["POST"])
 def send_otp(request):
     try:
         email = request.data.get("email", "").strip().lower()
-
-        print(f"OTP request for: {email}")
-
         if not email:
             return Response(
                 {"success": False, "error": "Email is required"},
@@ -499,49 +532,37 @@ def send_otp(request):
             )
 
         employee = Employee.objects(email=email, is_active=True).first()
-
         if not employee:
-            # Don't reveal whether email exists — security best practice
             return Response(
                 {
                     "success": True,
                     "message": "If this email is registered, an OTP has been sent.",
-                },
+                }
             )
 
         otp = generate_otp()
         employee.reset_otp = otp
         employee.save()
 
-        print(f"OTP for {email}: {otp}")
-
-        send_mail(
+        send_email(
+            to=email,
             subject="Your Password Reset OTP",
-            message=(
-                f"Hello {employee.name},\n\n"
-                f"Your OTP for password reset is: {otp}\n\n"
-                f"This OTP is valid for 10 minutes.\n"
-                f"If you did not request this, please ignore this email.\n\n"
-                f"Regards,\nAttendance System"
+            text=f"Hello {employee.name},\n\nYour OTP for password reset is: {otp}\n\nValid for 10 minutes.\n\nRegards,\nAttendance System",
+            html=otp_html(
+                otp,
+                "Password Reset",
+                f"Hello {employee.name}, your OTP to reset your password:",
             ),
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[email],
-            fail_silently=False,
         )
 
-        print(f"OTP email sent to {email}")
-
         return Response(
-            {"success": True, "message": "OTP sent to your registered email"},
+            {"success": True, "message": "OTP sent to your registered email"}
         )
 
     except Exception as e:
-        print(f"Send OTP error: {str(e)}")
-        import traceback
-
         traceback.print_exc()
         return Response(
-            {"success": False, "error": "Failed to send OTP. Please try again."},
+            {"success": False, "error": "Failed to send OTP."},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
@@ -556,8 +577,6 @@ def reset_password(request):
         otp = request.data.get("otp", "").strip()
         new_password = request.data.get("new_password", "").strip()
 
-        print(f"Password reset attempt for: {email}")
-
         if not all([email, otp, new_password]):
             return Response(
                 {
@@ -566,7 +585,6 @@ def reset_password(request):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
         if len(new_password) < 6:
             return Response(
                 {"success": False, "error": "Password must be at least 6 characters"},
@@ -574,13 +592,11 @@ def reset_password(request):
             )
 
         employee = Employee.objects(email=email, is_active=True).first()
-
         if not employee:
             return Response(
                 {"success": False, "error": "Account not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
-
         if not employee.reset_otp or employee.reset_otp != otp:
             return Response(
                 {"success": False, "error": "Invalid or expired OTP"},
@@ -591,19 +607,14 @@ def reset_password(request):
         employee.reset_otp = ""
         employee.save()
 
-        print(f"Password reset success for {email}")
-
         return Response(
             {
                 "success": True,
                 "message": "Password reset successfully. You can now log in.",
-            },
+            }
         )
 
     except Exception as e:
-        print(f"Reset password error: {str(e)}")
-        import traceback
-
         traceback.print_exc()
         return Response(
             {"success": False, "error": str(e)},
@@ -618,7 +629,6 @@ def reset_password(request):
 def send_registration_otp(request):
     try:
         email = request.data.get("email", "").strip().lower()
-
         if not email:
             return Response(
                 {"success": False, "error": "Email is required"},
@@ -632,38 +642,28 @@ def send_registration_otp(request):
             )
 
         otp = generate_otp()
-
-        # Clear old OTP and create new one
         RegistrationOTP.objects(email=email).delete()
         RegistrationOTP(email=email, otp=otp).save()
 
-        send_mail(
-            subject="Your Registration OTP",
-            message=(
-                f"Hello,\n\n"
-                f"Your OTP to verify your email for registration is: {otp}\n\n"
-                f"This OTP is valid for 1 minutes.\n"
-                f"If you did not request this, please ignore this email.\n\n"
-                f"Regards,\nAttendance System"
+        ok, err = send_email(
+            to=email,
+            subject="Your Registration OTP — Attendance System",
+            text=f"Your OTP to verify your email for registration is: {otp}\n\nValid for 10 minutes.\n\nRegards,\nAttendance System",
+            html=otp_html(
+                otp, "Email Verification", "Your OTP to complete registration:"
             ),
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[email],
-            fail_silently=False,
         )
+
+        if not ok:
+            return Response(
+                {"success": False, "error": f"Failed to send OTP: {err}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
         print(f"Registration OTP for {email}: {otp}")
-
-        return Response(
-            {
-                "success": True,
-                "message": "OTP sent to your email for registration verification",
-            }
-        )
+        return Response({"success": True, "message": "OTP sent to your email"})
 
     except Exception as e:
-        print(f"Send registration OTP error: {str(e)}")
-        import traceback
-
         traceback.print_exc()
         return Response(
             {"success": False, "error": "Failed to send registration OTP"},
@@ -687,30 +687,25 @@ def verify_registration_otp(request):
             )
 
         record = RegistrationOTP.objects(email=email).first()
-
         if not record or record.otp != otp:
             return Response(
                 {"success": False, "error": "Invalid or expired OTP"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Mark as verified — register_employee will delete it after use
         record.verified = True
         record.save()
-
-        return Response(
-            {"success": True, "message": "Email verified successfully"},
-        )
+        return Response({"success": True, "message": "Email verified successfully"})
 
     except Exception as e:
-        print(f"Verify OTP error: {str(e)}")
-        import traceback
-
         traceback.print_exc()
         return Response(
             {"success": False, "error": str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+# ─── Profile views ─────────────────────────────────────────────────────────────
 
 
 @api_view(["GET"])
@@ -721,14 +716,12 @@ def get_profile(request):
             {"success": False, "error": "employee_id is required"},
             status=status.HTTP_400_BAD_REQUEST,
         )
-
     employee = find_employee(employee_id)
     if not employee:
         return Response(
             {"success": False, "error": "Employee not found"},
             status=status.HTTP_404_NOT_FOUND,
         )
-
     return Response({"success": True, "employee": employee_payload(employee)})
 
 
@@ -740,7 +733,6 @@ def update_profile(request):
             {"success": False, "error": "employee_id is required"},
             status=status.HTTP_400_BAD_REQUEST,
         )
-
     employee = find_employee(employee_id)
     if not employee:
         return Response(
@@ -748,41 +740,34 @@ def update_profile(request):
             status=status.HTTP_404_NOT_FOUND,
         )
 
-    name = request.data.get("name", "").strip()
-    phone = request.data.get("phone", "").strip()
-    department = request.data.get("department", "").strip()
-    designation = request.data.get("designation", "").strip()
-    current_password = request.data.get("current_password", "").strip()
-    new_password = request.data.get("new_password", "").strip()
-    cv_file = request.data.get("cv_file", "").strip()
-    cv_file_name = request.data.get("cv_file_name", "").strip()
-
-    if name:
+    if name := request.data.get("name", "").strip():
         employee.name = name
-    employee.phone = phone
-    if department:
-        employee.department = department
-    if designation:
-        employee.designation = designation
+    employee.phone = request.data.get("phone", "").strip()
+    if dept := request.data.get("department", "").strip():
+        employee.department = dept
+    if desig := request.data.get("designation", "").strip():
+        employee.designation = desig
 
+    new_password = request.data.get("new_password", "").strip()
     if new_password:
         if len(new_password) < 6:
             return Response(
                 {"success": False, "error": "Password must be at least 6 characters"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        if not current_password or not check_password(
-            current_password, employee.password
-        ):
+        current = request.data.get("current_password", "").strip()
+        if not current or not check_password(current, employee.password):
             return Response(
                 {"success": False, "error": "Current password is incorrect"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         employee.password = make_password(new_password)
 
-    if cv_file:
+    if cv_file := request.data.get("cv_file", "").strip():
         try:
-            employee.cv_file = save_base64_cv(cv_file, cv_file_name)
+            employee.cv_file = save_base64_cv(
+                cv_file, request.data.get("cv_file_name", "").strip()
+            )
         except Exception as exc:
             return Response(
                 {"success": False, "error": f"Could not save CV: {exc}"},
@@ -803,33 +788,29 @@ def update_profile(request):
 def update_profile_photo(request):
     employee_id = request.data.get("employee_id", "").strip()
     image = request.data.get("image", "").strip()
-
     if not employee_id or not image:
         return Response(
             {"success": False, "error": "employee_id and image are required"},
             status=status.HTTP_400_BAD_REQUEST,
         )
-
     employee = Employee.objects(employee_id=employee_id, is_active=True).first()
     if not employee:
         return Response(
             {"success": False, "error": "Employee not found"},
             status=status.HTTP_404_NOT_FOUND,
         )
-
     try:
         employee.profile_img = save_base64_profile_image(image)
         employee.save()
     except Exception as exc:
         return Response(
-            {"success": False, "error": f"Could not save profile photo: {exc}"},
+            {"success": False, "error": f"Could not save photo: {exc}"},
             status=status.HTTP_400_BAD_REQUEST,
         )
-
     return Response(
         {
             "success": True,
-            "message": "Profile photo updated successfully",
+            "message": "Profile photo updated",
             "employee": employee_payload(employee),
         }
     )
@@ -844,68 +825,133 @@ def update_face(request):
             {"success": False, "error": "employee_id and image are required"},
             status=status.HTTP_400_BAD_REQUEST,
         )
-
     employee = Employee.objects(employee_id=employee_id, is_active=True).first()
     if not employee:
         return Response(
             {"success": False, "error": "Employee not found"},
             status=status.HTTP_404_NOT_FOUND,
         )
-
     embedding, error, photo_path = extract_and_save_embedding(image, employee_id)
     if error or not embedding:
         return Response(
             {"success": False, "error": error or "Could not extract face features"},
             status=status.HTTP_400_BAD_REQUEST,
         )
-
     employee.face_embedding = embedding
     employee.photo_path = photo_path or employee.photo_path
     employee.profile_img = photo_path or employee.profile_img
     employee.save()
-
     return Response(
         {
             "success": True,
-            "message": "Face profile updated successfully",
+            "message": "Face profile updated",
             "employee": employee_payload(employee),
         }
     )
 
 
+# ─── Admin views ───────────────────────────────────────────────────────────────
+
+
 @api_view(["GET"])
 def admin_employees(request):
     search = request.query_params.get("search", "").strip().lower()
-    role = request.query_params.get("role", "").strip()
+    role_filter = request.query_params.get("role", "").strip()
     status_filter = request.query_params.get("status", "active").strip()
 
     employees = Employee.objects.order_by("employee_id")
-    if role and role != "all":
-        employees = employees.filter(role=role)
+    if role_filter and role_filter != "all":
+        employees = employees.filter(role=role_filter)
     if status_filter == "active":
         employees = employees.filter(is_active=True)
     elif status_filter == "inactive":
         employees = employees.filter(is_active=False)
 
     data = []
-    for employee in employees:
-        payload = employee_payload(employee)
-        haystack = " ".join(
-            [
-                payload["employee_id"],
-                payload["name"],
-                payload["email"],
-                payload.get("phone", ""),
-                payload.get("department", ""),
-                payload.get("designation", ""),
-                payload.get("role", ""),
-            ]
-        ).lower()
-        if search and search not in haystack:
+    for emp in employees:
+        p = employee_payload(emp)
+        if (
+            search
+            and search
+            not in " ".join(
+                [
+                    p["employee_id"],
+                    p["name"],
+                    p["email"],
+                    p.get("phone", ""),
+                    p.get("department", ""),
+                    p.get("designation", ""),
+                    p.get("role", ""),
+                ]
+            ).lower()
+        ):
             continue
-        data.append(payload)
+        data.append(p)
 
     return Response({"success": True, "employees": data, "total": len(data)})
+
+
+@api_view(["POST"])
+def admin_update_employee(request):
+    employee = find_employee(request.data.get("employee_id", "").strip())
+    if not employee:
+        return Response(
+            {"success": False, "error": "Employee not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    for field in ["name", "phone", "department", "designation", "role"]:
+        if field in request.data:
+            value = str(request.data.get(field, "")).strip()
+            if field == "role" and value not in {"employee", "admin", "hr"}:
+                continue
+            setattr(employee, field, value)
+    if "is_active" in request.data:
+        employee.is_active = bool(request.data.get("is_active"))
+    employee.save()
+    return Response(
+        {
+            "success": True,
+            "message": "Employee updated",
+            "employee": employee_payload(employee),
+        }
+    )
+
+
+@api_view(["POST"])
+def admin_reset_employee_password(request):
+    employee = find_employee(request.data.get("employee_id", "").strip())
+    if not employee:
+        return Response(
+            {"success": False, "error": "Employee not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    raw_password = generate_password()
+    employee.password = make_password(raw_password)
+    employee.save()
+
+    # Send new password via SendGrid
+    send_email(
+        to=employee.email,
+        subject="Your Password Was Reset — Attendance System",
+        text=(
+            f"Hello {employee.name},\n\nYour password was reset by an administrator.\n\n"
+            f"Employee ID: {employee.employee_id}\nNew Password: {raw_password}\n\n"
+            f"Please log in and change this password from your profile."
+        ),
+        html=credentials_html(employee.name, employee.employee_id, raw_password),
+    )
+
+    return Response(
+        {
+            "success": True,
+            "message": "Password reset successfully",
+            "temporary_password": raw_password,
+        }
+    )
+
+
+# ─── Chat views ────────────────────────────────────────────────────────────────
 
 
 @api_view(["GET"])
@@ -919,19 +965,16 @@ def chat_contacts(request):
         )
 
     if employee.role in ("admin", "hr"):
-        contacts = Employee.objects(is_active=True, employee_id__ne=employee_id).order_by(
-            "role", "name"
-        )
+        contacts = Employee.objects(
+            is_active=True, employee_id__ne=employee_id
+        ).order_by("role", "name")
     else:
         contacts = Employee.objects(is_active=True, role__in=["admin", "hr"]).order_by(
             "role", "name"
         )
 
     return Response(
-        {
-            "success": True,
-            "contacts": [employee_payload(contact) for contact in contacts],
-        }
+        {"success": True, "contacts": [employee_payload(c) for c in contacts]}
     )
 
 
@@ -957,36 +1000,66 @@ def chat_history(request):
     ChatMessage.objects(
         sender_id=contact_id, recipient_id=employee_id, is_read=False
     ).update(set__is_read=True)
+    return Response({"success": True, "messages": [chat_payload(m) for m in messages]})
 
-    return Response(
-        {
-            "success": True,
-            "messages": [chat_payload(message) for message in messages],
-        }
+
+@api_view(["POST"])
+def chat_message_send(request):
+    sender_id = request.data.get("sender_id", "").strip()
+    recipient_id = request.data.get("recipient_id", "").strip()
+    text = request.data.get("message", "").strip()
+
+    if not all([sender_id, recipient_id, text]):
+        return Response(
+            {
+                "success": False,
+                "error": "sender_id, recipient_id, and message are required",
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    sender = find_employee(sender_id)
+    recipient = find_employee(recipient_id)
+    if not sender or not recipient:
+        return Response(
+            {"success": False, "error": "Sender or recipient not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    msg = ChatMessage(
+        sender_id=sender.employee_id,
+        sender_name=sender.name,
+        sender_role=sender.role,
+        recipient_id=recipient.employee_id,
+        recipient_name=recipient.name,
+        message=text,
+        created_at=datetime.now(pytz.UTC),
     )
+    msg.save()
+    saved = ChatMessage.objects(id=msg.id).first()
+    return Response({"success": True, "message": chat_payload(saved or msg)})
 
 
 @api_view(["PATCH", "DELETE"])
 def chat_message_detail(request, message_id):
     employee_id = request.data.get("employee_id", "").strip()
-    message = ChatMessage.objects(id=message_id).first()
-    if not message:
+    msg = ChatMessage.objects(id=message_id).first()
+    if not msg:
         return Response(
             {"success": False, "error": "Message not found"},
             status=status.HTTP_404_NOT_FOUND,
         )
-
-    if message.sender_id != employee_id:
+    if msg.sender_id != employee_id:
         return Response(
             {"success": False, "error": "You can only change your own messages"},
             status=status.HTTP_403_FORBIDDEN,
         )
 
     if request.method == "DELETE":
-        message.is_deleted = True
-        message.message = "This message was deleted"
-        message.save()
-        return Response({"success": True, "message": chat_payload(message)})
+        msg.is_deleted = True
+        msg.message = "This message was deleted"
+        msg.save()
+        return Response({"success": True, "message": chat_payload(msg)})
 
     new_text = request.data.get("message", "").strip()
     if not new_text:
@@ -994,27 +1067,25 @@ def chat_message_detail(request, message_id):
             {"success": False, "error": "Message text is required"},
             status=status.HTTP_400_BAD_REQUEST,
         )
-
-    message.message = new_text
-    message.is_edited = True
-    message.save()
-    return Response({"success": True, "message": chat_payload(message)})
+    msg.message = new_text
+    msg.is_edited = True
+    msg.save()
+    return Response({"success": True, "message": chat_payload(msg)})
 
 
 @api_view(["POST"])
 def chat_message_react(request, message_id):
     employee_id = request.data.get("employee_id", "").strip()
     emoji = request.data.get("emoji", "").strip()
-    message = ChatMessage.objects(id=message_id).first()
-    if not message:
+    msg = ChatMessage.objects(id=message_id).first()
+    if not msg:
         return Response(
             {"success": False, "error": "Message not found"},
             status=status.HTTP_404_NOT_FOUND,
         )
-    if employee_id not in {message.sender_id, message.recipient_id}:
+    if employee_id not in {msg.sender_id, msg.recipient_id}:
         return Response(
-            {"success": False, "error": "Not allowed"},
-            status=status.HTTP_403_FORBIDDEN,
+            {"success": False, "error": "Not allowed"}, status=status.HTTP_403_FORBIDDEN
         )
     if not emoji:
         return Response(
@@ -1022,88 +1093,17 @@ def chat_message_react(request, message_id):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    reactions = getattr(message, "reactions", {}) or {}
+    reactions = getattr(msg, "reactions", {}) or {}
     users = list(reactions.get(emoji, []))
     if employee_id in users:
         users.remove(employee_id)
     else:
         users.append(employee_id)
-
     if users:
         reactions[emoji] = users
     elif emoji in reactions:
         del reactions[emoji]
 
-    message.reactions = reactions
-    message.save()
-    return Response({"success": True, "message": chat_payload(message)})
-
-
-@api_view(["POST"])
-def admin_update_employee(request):
-    employee_id = request.data.get("employee_id", "").strip()
-    employee = find_employee(employee_id)
-    if not employee:
-        return Response(
-            {"success": False, "error": "Employee not found"},
-            status=status.HTTP_404_NOT_FOUND,
-        )
-
-    for field in ["name", "phone", "department", "designation", "role"]:
-        if field in request.data:
-            value = str(request.data.get(field, "")).strip()
-            if field == "role" and value not in {"employee", "admin", "hr"}:
-                continue
-            setattr(employee, field, value)
-
-    if "is_active" in request.data:
-        employee.is_active = bool(request.data.get("is_active"))
-
-    employee.save()
-    return Response(
-        {
-            "success": True,
-            "message": "Employee updated successfully",
-            "employee": employee_payload(employee),
-        }
-    )
-
-
-@api_view(["POST"])
-def admin_reset_employee_password(request):
-    employee_id = request.data.get("employee_id", "").strip()
-    employee = find_employee(employee_id)
-    if not employee:
-        return Response(
-            {"success": False, "error": "Employee not found"},
-            status=status.HTTP_404_NOT_FOUND,
-        )
-
-    raw_password = generate_password()
-    employee.password = make_password(raw_password)
-    employee.save()
-
-    try:
-        send_mail(
-            subject="Your Attendance System Password Was Reset",
-            message=(
-                f"Hello {employee.name},\n\n"
-                f"Your password was reset by an administrator.\n\n"
-                f"Employee ID: {employee.employee_id}\n"
-                f"New Password: {raw_password}\n\n"
-                f"Please log in and change this password from your profile."
-            ),
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[employee.email],
-            fail_silently=True,
-        )
-    except Exception as exc:
-        print(f"Password reset email failed: {exc}")
-
-    return Response(
-        {
-            "success": True,
-            "message": "Password reset successfully",
-            "temporary_password": raw_password,
-        }
-    )
+    msg.reactions = reactions
+    msg.save()
+    return Response({"success": True, "message": chat_payload(msg)})
