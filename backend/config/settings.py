@@ -127,11 +127,8 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.AllowAny",
     ],
 }
-
-# ── SendGrid — works on Render (HTTPS API, no SMTP port needed) ────────────────
-# Get from: sendgrid.com → Settings → API Keys → Create API Key
-SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY", "")
-# Must be verified in SendGrid → Settings → Sender Authentication
+ 
+SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY", "") 
 SENDGRID_FROM_EMAIL = os.getenv("SENDGRID_FROM_EMAIL", "")
 SENDGRID_FROM_NAME = os.getenv("SENDGRID_FROM_NAME", "Attendance System")
 
