@@ -1,15 +1,25 @@
 import base64
 import os
+import tempfile
 import time
 import traceback
 from io import BytesIO
+from pathlib import Path
 
 import cv2
 import numpy as np
+from django.conf import settings
 from PIL import Image, ImageOps
 
-MEDIA_DIR = "media/faces"
-os.makedirs(MEDIA_DIR, exist_ok=True)
+os.environ.setdefault("CUDA_VISIBLE_DEVICES", "-1")
+os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
+os.environ.setdefault(
+    "DEEPFACE_HOME", os.getenv("DEEPFACE_HOME") or os.path.join(tempfile.gettempdir(), "deepface")
+)
+
+MEDIA_DIR = settings.MEDIA_ROOT / "faces"
+Path(os.environ["DEEPFACE_HOME"]).mkdir(parents=True, exist_ok=True)
+MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 
 _deepface = None
 _facenet_loaded = False
@@ -29,10 +39,17 @@ def ensure_facenet_loaded():
     if _facenet_loaded:
         return
 
-    print("Loading FaceNet model...")
-    get_deepface().build_model("Facenet")
-    _facenet_loaded = True
-    print("FaceNet model loaded")
+    try:
+        print(f"Loading FaceNet model... DEEPFACE_HOME={os.environ['DEEPFACE_HOME']}")
+        get_deepface().build_model("Facenet")
+        _facenet_loaded = True
+        print("FaceNet model loaded")
+    except Exception as exc:
+        print(f"FaceNet model load failed: {type(exc).__name__}: {exc}")
+        traceback.print_exc()
+        raise RuntimeError(
+            "Face model could not load on the server. Check Render logs for model download/cache errors."
+        ) from exc
 
 
 def extract_embedding_with_fallbacks(image_bgr: np.ndarray):
@@ -116,7 +133,7 @@ def extract_and_save_embedding(base64_image: str, employee_id: str) -> tuple:
         image_path = None
         try:
             filename = f"{employee_id}_{int(time.time())}.jpg"
-            image_path = os.path.join(MEDIA_DIR, filename)
+            image_path = str(MEDIA_DIR / filename)
             success = cv2.imwrite(image_path, image_bgr)
             if success:
                 print(f"Image saved: {image_path}")
