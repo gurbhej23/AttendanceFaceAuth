@@ -104,6 +104,7 @@ CORS_ALLOW_HEADERS = [
     "authorization",
     "content-type",
     "dnt",
+    "ngrok-skip-browser-warning",
     "origin",
     "user-agent",
     "x-csrftoken",
