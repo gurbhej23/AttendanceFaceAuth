@@ -2,8 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../services/api";
 import Button from "../components/Button";
-import Input from "../components/Input";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, ShieldUser, UserRound } from "lucide-react";
 
 export default function AdminLogin() {
   const navigate = useNavigate();
@@ -14,7 +13,7 @@ export default function AdminLogin() {
 
   const handleLogin = async () => {
     if (!formData.employee_id || !formData.password) {
-      setError("Employee ID and password required");
+      setError("Administrator ID and password required");
       return;
     }
 
@@ -63,95 +62,113 @@ export default function AdminLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] flex items-center justify-center p-6 relative overflow-hidden">
-      {/* BACKGROUND GLOW */}
-      <div className="absolute -top-30 -left-25 w-87.5 h-87.5 bg-blue-500/20 blur-3xl rounded-full"></div>
+    <div className="relative flex flex-col gap-5 min-h-screen items-center justify-center overflow-hidden bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] p-6">
+      <div className="absolute -left-45 -top-40 h-87.5 w-87.5 rounded-full bg-blue-500/20 blur-3xl" />
+      <div className="absolute -bottom-30 -right-25 h-87.5 w-87.5 rounded-full bg-cyan-500/20 blur-3xl" />
 
-      <div className="absolute -bottom-30px -right-25px w-87.5 h-87.5 bg-cyan-500/20 blur-3xl rounded-full"></div>
+      <div className="w-80 grid grid-cols-2 gap-2 rounded-2xl border border-slate-800 bg-slate-950/70 p-2">
+        <Button
+          text="Employee"
+          onClick={() => navigate("/", { replace: true })}
+          className="bg-slate-800/80 py-3 text-slate-400 hover:bg-slate-700 cursor-pointer"
+        />
 
-      {/* LOGIN CARD */}
-      <div className="relative w-full max-w-md bg-white/5 backdrop-blur-2xl border border-white/10 shadow-2xl rounded-[36px] p-5">
-        {/* LOGO */}
-        <div className="text-center mb-5">
-          <div className="mx-auto rounded-[28px] flex items-center justify-center text-2xl ">
-            🏢
+        <Button
+          text="Admin"
+          className="bg-linear-to-r from-blue-600 to-cyan-500 py-3 text-white shadow-lg shadow-cyan-500/20 cursor-pointer"
+        />
+      </div>
+
+      <div className="relative grid w-full max-w-3xl gap-5 rounded-[36px] border border-white/15 bg-white/8 p-5 shadow-2xl backdrop-blur-2xl xl:grid-cols-[250px_1.45fr]">
+        <section className="flex flex-col gap-5 justify-evenly items-center rounded-[28px] border border-white/12 bg-white/8 p-4 text-center shadow-inner">
+          <h1 className="text-3xl font-bold text-white">Attendance</h1>
+          <div className="text-white  rounded-full border border-cyan-300/30 bg-slate-950/70 shadow-xl shadow-cyan-500/10">
+            <ShieldUser size={150} strokeWidth={0.5} />
           </div>
-          <h1 className="text-4xl font-bold text-white mt-1">Admin Panel</h1>
-          <div className="flex gap-3 mt-4 bg-slate-900/60 p-2 rounded-2xl border border-white/5">
-            {/* EMPLOYEE */}
+          <h2 className="text-center text-xl font-medium text-white">
+            Admin Portal Login
+          </h2>
+        </section>
+
+        <section className="flex flex-col justify-center rounded-[28px] border border-white/12 bg-white/8 p-4 shadow-inner">
+          <form
+            className="mt-2 space-y-5"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleLogin();
+            }}
+          >
+            <div>
+              <label className="mb-2 block text-sm text-slate-200">
+                Administrator ID
+              </label>
+              <div className="relative">
+                <UserRound
+                  size={22}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <input
+                  type="text"
+                  placeholder="Enter Admin ID"
+                  value={formData.employee_id}
+                  autoComplete="username"
+                  name="username"
+                  onChange={(e) =>
+                    setFormData({ ...formData, employee_id: e.target.value })
+                  }
+                  onKeyDown={handleKeyPress}
+                  className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 p-4 pl-12 text-white outline-none transition placeholder:text-slate-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="mb-2">
+              <label className="mb-2 block text-sm text-slate-200">
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showPass ? "text" : "password"}
+                  placeholder="Enter Password"
+                  value={formData.password}
+                  autoComplete="current-password"
+                  name="password"
+                  onChange={(e) =>
+                    setFormData({ ...formData, password: e.target.value })
+                  }
+                  onKeyDown={handleKeyPress}
+                  className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 p-4 pr-14 text-white outline-none transition placeholder:text-slate-500 focus:border-blue-500"
+                />
+                <Button
+                  text={showPass ? <EyeOff size={20} /> : <Eye size={20} />}
+                  type="button"
+                  onClick={() => setShowPass(!showPass)}
+                  className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
+                />
+              </div>
+            </div>
+
+            {error && (
+              <div className="mt-5 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-center text-sm text-red-300">
+                {error}
+              </div>
+            )}
+
+            <div className="text-right">
+              <Button
+                text="Forgot Password?"
+                onClick={() => navigate("/forgot-password")}
+                className="text-sm text-blue-300 hover:text-blue-200 cursor-pointer"
+              />
+            </div>
             <Button
-              text="Employee"
-              onClick={() => navigate("/", { replace: true })}
-              className="flex-1 bg-slate-800 hover:bg-slate-900 text-slate-300 py-3 rounded-xl font-semibold transition cursor-pointer"
+              text={loading ? "Verifying..." : "Secure Login"}
+              onClick={handleLogin}
+              disabled={loading}
+              className="w-full bg-linear-to-r from-blue-600 to-cyan-500 p-4 text-lg font-bold text-white shadow-xl shadow-cyan-500/20 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             />
-
-            {/* ADMIN */}
-            <Button
-              text="Admin"
-              onClick={() => navigate("/admin-login", { replace: true })}
-              className="flex-1 bg-linear-to-r from-blue-600 to-cyan-500 text-white py-3 rounded-xl font-semibold shadow-lg shadow-blue-500/20 cursor-pointer"
-            />
-          </div>
-        </div>
-
-        {error && (
-          <div className="bg-red-500/20 border border-red-500 text-red-300 p-4 rounded-xl mb-5 text-center">
-            {error}
-          </div>
-        )}
-
-        <form
-          className="space-y-5"
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleLogin();
-          }}
-        >
-          {/* Employee ID */}
-          <div>
-            <label className="text-white text-sm mb-2 block">Employee ID</label>
-            <Input
-              type="text"
-              placeholder="Enter your employee ID"
-              value={formData.employee_id}
-              onChange={(e) =>
-                setFormData({ ...formData, employee_id: e.target.value })
-              }
-              onKeyDown={handleKeyPress}
-              className="w-full p-4 rounded-2xl bg-slate-900/70 border border-slate-700 text-white placeholder-slate-500 outline-none focus:border-blue-500 transition"
-            />
-          </div>
-
-          {/* Password */}
-          <div>
-            <label className="text-white text-sm mb-2 block">Password</label>
-            <Input
-              type={showPass ? "text" : "password"}
-              placeholder="Enter your password"
-              value={formData.password}
-              onChange={(e) =>
-                setFormData({ ...formData, password: e.target.value })
-              }
-              onKeyDown={handleKeyPress}
-              className="w-full p-4 rounded-2xl bg-slate-900/70 border border-slate-700 text-white placeholder-slate-500 outline-none focus:border-blue-500 transition"
-            />
-
-            <Button
-              text={showPass ? <EyeOff size={20} /> : <Eye size={20} />}
-              type="button"
-              onClick={() => setShowPass(!showPass)}
-              className="absolute right-9 top-90 -translate-y-1/2 text-slate-400 hover:text-white transition cursor-pointer"
-            />
-          </div>
-
-          {/* Login Button */}
-          <Button
-            text={loading ? "Verifying..." : "Login"}
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 transition p-4 rounded-2xl text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed mt-3 cursor-pointer"
-          />
-        </form>
+          </form>
+        </section>
       </div>
     </div>
   );

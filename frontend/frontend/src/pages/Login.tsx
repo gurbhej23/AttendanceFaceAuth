@@ -5,7 +5,7 @@ import { useNavigate, Link } from "react-router-dom";
 import API from "../services/api";
 import Button from "../components/Button";
 import MessageOverlay from "../components/MessageOverlay";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, UserRound } from "lucide-react";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -58,7 +58,7 @@ export default function Login() {
         localStorage.setItem("profile_img", response.data.profile_img || "");
         localStorage.setItem("cv_file", response.data.cv_file || "");
 
-        setSuccess("✅ Login successful! Redirecting to face verification...");
+        setSuccess("Login successful. Redirecting to face verification...");
 
         setOverlay({
           title: "Login successful",
@@ -81,12 +81,13 @@ export default function Login() {
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
+      e.preventDefault();
       handleLogin();
     }
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] flex items-center justify-center p-6 relative overflow-hidden">
+    <div className="relative flex flex-col min-h-screen items-center justify-center overflow-hidden bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] p-6">
       {overlay && (
         <MessageOverlay
           title={overlay.title}
@@ -95,81 +96,74 @@ export default function Login() {
           tone="info"
         />
       )}
-      {/* BACKGROUND GLOW */}
-      <div className="absolute -top-30 -left-25 w-87.5 h-87.5 bg-blue-500/20 blur-3xl rounded-full"></div>
 
-      <div className="absolute -bottom-30px -right-25px w-87.5 h-87.5 bg-cyan-500/20 blur-3xl rounded-full"></div>
+      <div className="w-80 mb-5 grid grid-cols-2 gap-3 rounded-2xl border border-slate-800 bg-slate-950/70 p-2">
+        <Button
+          text="Employee"
+          className="bg-linear-to-r from-blue-600 to-cyan-500 py-3 text-white shadow-lg shadow-blue-500/20 cursor-pointer"
+        />
 
-      {/* LOGIN CARD */}
-      <div className="relative w-full max-w-md bg-white/5 backdrop-blur-2xl border border-white/10 shadow-2xl rounded-[36px] p-5">
-        {/* LOGO */}
-        <div className="text-center mb-5">
-          <div className="mx-auto rounded-[28px] flex items-center justify-center text-2xl ">
-            🏢
-          </div>
+        <Button
+          text="Admin"
+          onClick={() => navigate("/admin-login", { replace: true })}
+          className="bg-slate-800/80 py-3 text-slate-300 hover:bg-slate-700 cursor-pointer"
+        />
+      </div>
 
-          <h1 className="text-4xl font-bold text-white mt-1">Attendance</h1>
+      <div className="absolute -left-25 -top-30 h-87.5 w-87.5 rounded-full bg-blue-500/20 blur-3xl" />
+      <div className="absolute -bottom-30 -right-25 h-87.5 w-87.5 rounded-full bg-cyan-500/20 blur-3xl" />
 
-          <p className="text-slate-400 mt-1 text-sm">
+      <div className="relative grid w-full max-w-3xl gap-5 rounded-[36px] border border-white/15 bg-white/8 p-5 shadow-2xl backdrop-blur-2xl lg:grid-cols-[270px_1fr]">
+        <section className="rounded-[28px] border border-white/12 bg-white/8 p-4 text-center shadow-inner">
+          <p className="text-lg font-semibold text-slate-100">Selected User</p>
+
+          <div className="relative mx-auto mt-5 flex h-36 w-36 items-center justify-center rounded-full border border-cyan-300/30 bg-slate-950/70 shadow-xl shadow-cyan-500/10">
+            <div className="absolute left-5 top-5 h-6 w-6 border-l-2 border-t-2 border-cyan-300" />
+            <div className="absolute right-5 top-5 h-6 w-6 border-r-2 border-t-2 border-cyan-300" />
+            <div className="absolute bottom-5 left-5 h-6 w-6 border-b-2 border-l-2 border-cyan-300" />
+            <div className="absolute bottom-5 right-5 h-6 w-6 border-b-2 border-r-2 border-cyan-300" />
+            <div className="absolute h-0.5 w-28 bg-cyan-300/80 shadow-lg shadow-cyan-300" />
+            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-linear-to-br from-slate-700 to-slate-900 text-cyan-100">
+              <UserRound size={58} strokeWidth={1.6} />
+            </div>
+          </div> 
+          <h1 className="mt-4 text-3xl font-bold text-white">Attendance</h1>
+          <p className="mt-1 text-xs text-slate-400">
             Smart Face Recognition System
           </p>
+        </section>
 
-          {/* LOGIN SWITCH */}
-          <div className="flex gap-3 mt-4 bg-slate-900/60 p-2 rounded-2xl border border-white/5">
-            {/* EMPLOYEE */}
-            <Button
-              text="Employee"
-              className="flex-1 bg-linear-to-r from-blue-600 to-cyan-500 text-white py-3 rounded-xl font-semibold shadow-lg shadow-blue-500/20 cursor-pointer"
-            />
+        <section className="rounded-[28px] border border-white/12 bg-white/8 p-5 shadow-inner">
+          <form
+            className="space-y-5"
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleLogin();
+            }}
+          >
+            <div>
+              <label className="mb-2 block text-sm text-slate-200">
+                Employee ID
+              </label>
+              <input
+                type="text"
+                placeholder="Enter employee ID"
+                value={formData.employee_id}
+                autoComplete="username"
+                name="username"
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    employee_id: e.target.value,
+                  })
+                }
+                onKeyDown={handleKeyPress}
+                className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 p-4 text-white outline-none transition placeholder:text-slate-500 focus:border-blue-500"
+              />
+            </div>
 
-            {/* ADMIN */}
-            <Button
-              text="Admin"
-              onClick={() => navigate("/admin-login", { replace: true })}
-              className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 py-3 rounded-xl font-semibold transition cursor-pointer"
-            />
-          </div>
-        </div>
-
-        {/* SUCCESS */}
-        {success && (
-          <div className="bg-green-500/10 border border-green-500/30 text-green-300 p-4 rounded-2xl mb-5 text-center text-sm">
-            {success}
-          </div>
-        )}
-
-        {/* ERROR */}
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/30 text-red-300 p-4 rounded-2xl mb-5 text-center text-sm">
-            {error}
-          </div>
-        )}
-
-        {/* FORM */}
-        <div className="space-y-5">
-          <form className="mb-0">
-            <label className="text-slate-300 text-sm mb-2 block">
-              Employee ID
-            </label>
-            <input
-              type="text"
-              placeholder="Enter employee ID"
-              value={formData.employee_id}
-              autoComplete="username"
-              name="username"
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  employee_id: e.target.value,
-                })
-              }
-              onKeyDown={handleKeyPress}
-              className="w-full p-4 mb-5 rounded-2xl bg-slate-900/70 border border-slate-700 text-white placeholder-slate-500 outline-none focus:border-blue-500 transition"
-            />
-
-            {/* PASSWORD */}
-            <div className="mb-0">
-              <label className="text-slate-300 text-sm mb-2 block">
+            <div>
+              <label className="mb-2 block text-sm text-slate-200">
                 Password
               </label>
 
@@ -187,56 +181,56 @@ export default function Login() {
                     })
                   }
                   onKeyDown={handleKeyPress}
-                  className="w-full p-4 rounded-2xl bg-slate-900/70 border border-slate-700 text-white placeholder-slate-500 outline-none focus:border-blue-500 transition pr-14"
+                  className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 p-4 pr-14 text-white outline-none transition placeholder:text-slate-500 focus:border-blue-500"
                 />
 
-                {/* SHOW PASSWORD */}
                 <Button
                   text={showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition cursor-pointer"
+                  className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
                 />
               </div>
 
-              {/* FORGOT PASSWORD */}
               <div className="flex justify-end">
                 <Button
                   text="Forgot Password?"
                   onClick={() => navigate("/forgot-password")}
-                  className="text-sm mt-2 mb-4 text-blue-400 hover:text-blue-300 transition cursor-pointer"
+                  className="mt-2 text-sm text-blue-300 hover:text-blue-200 cursor-pointer"
                 />
               </div>
             </div>
+            {success && (
+              <div className="mb-5 rounded-2xl border border-green-500/30 bg-green-500/10 p-4 text-center text-sm text-green-300">
+                {success}
+              </div>
+            )}
+
+            {error && (
+              <div className="mb-5 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-center text-sm text-red-300">
+                {error}
+              </div>
+            )}
+
+            <Button
+              text={loading ? "Verifying..." : "Login"}
+              type="submit"
+              disabled={loading}
+              className="w-full bg-linear-to-r from-blue-600 to-cyan-500 p-4 text-white font-bold hover:scale-[1.01] hover:shadow-xl hover:shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            />
           </form>
 
-          {/* LOGIN BUTTON */}
-          <Button
-            text={loading ? "Verifying..." : "Login"}
-            onClick={handleLogin}
-            disabled={loading}
-            className="w-full bg-linear-to-r from-blue-600 to-cyan-500 hover:scale-[1.02] hover:shadow-xl hover:shadow-blue-500/30 transition-all duration-300 p-4 rounded-2xl text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed mt-2 cursor-pointer"
-          />
-
-          {/* FACE VERIFY INFO */}
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4 text-center">
-            <p className="text-blue-300 text-sm">
-              ℹ️ Face verification required after login
-            </p>
-          </div>
-
-          {/* REGISTER */}
-          <div className="text-center pt-2 flex gap-2 items-center justify-center">
-            <p className="text-slate-400 text-sm">Don't have an account?</p>
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-2 text-center">
+            <p className="text-sm text-slate-400">Don't have an account?</p>
 
             <Link
               to="/register"
-              className="text-blue-400 hover:text-blue-300 font-semibold transition"
+              className="text-sm font-semibold text-blue-300 transition hover:text-blue-200"
             >
               Register Here
             </Link>
           </div>
-        </div>
+        </section>
       </div>
     </div>
   );

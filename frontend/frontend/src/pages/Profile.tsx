@@ -7,7 +7,7 @@ import {
 } from "react";
 import { useNavigate } from "react-router-dom";
 import Webcam from "react-webcam";
-import API from "../services/api";
+import API, { FACE_REQUEST_TIMEOUT_MS } from "../services/api";
 import Button from "../components/Button";
 import Input from "../components/Input";
 import ReactCrop, {
@@ -157,19 +157,10 @@ export default function Profile() {
   };
 
   const uploadCv = (file: File) => {
-    const allowedTypes = [
-      "application/pdf",
-      "application/msword",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    ];
-    const allowedExtensions = [".pdf", ".doc", ".docx"];
     const lowerName = file.name.toLowerCase();
 
-    if (
-      !allowedTypes.includes(file.type) &&
-      !allowedExtensions.some((extension) => lowerName.endsWith(extension))
-    ) {
-      showToast("Please choose a PDF, DOC, or DOCX file", false);
+    if (file.type !== "application/pdf" && !lowerName.endsWith(".pdf")) {
+      showToast("Please choose a PDF file", false);
       return;
     }
 
@@ -276,10 +267,14 @@ export default function Profile() {
     }
     try {
       setFaceSaving(true);
-      const res = await API.post("/employees/update-face/", {
-        employee_id: employeeId,
-        image: capturedImage,
-      });
+      const res = await API.post(
+        "/employees/update-face/",
+        {
+          employee_id: employeeId,
+          image: capturedImage,
+        },
+        { timeout: FACE_REQUEST_TIMEOUT_MS },
+      );
       const data = res.data.employee as EmployeeProfile;
       setProfile(data);
       localStorage.setItem("profile_img", data.profile_img || "");
@@ -449,7 +444,7 @@ export default function Profile() {
                     : "Upload / Replace CV"}
                   <Input
                     type="file"
-                    accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    accept=".pdf,application/pdf"
                     className="hidden"
                     onChange={(e) => {
                       const file = e.target.files?.[0];

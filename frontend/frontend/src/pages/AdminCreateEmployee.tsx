@@ -251,6 +251,9 @@ export default function AdminCreateEmployee() {
       reader.readAsDataURL(file);
     });
 
+  const isPdfFile = (file: File) =>
+    file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+
   // ── Submit ─────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     if (!form.name.trim()) {
@@ -548,17 +551,24 @@ export default function AdminCreateEmployee() {
             <label className="text-slate-300 text-sm mb-2 block">
               CV / Resume{" "}
               <span className="text-slate-500 text-xs">
-                (optional, PDF/DOC max 5MB)
+                (optional, PDF max 5MB)
               </span>
             </label>
             <input
               type="file"
-              accept=".pdf,.doc,.docx"
+              accept=".pdf,application/pdf"
               onChange={async (e) => {
                 const file = e.target.files?.[0];
                 if (!file) {
                   setCvFile("");
                   setCvFileName("");
+                  return;
+                }
+                if (!isPdfFile(file)) {
+                  setError("CV / Resume must be a PDF file");
+                  setCvFile("");
+                  setCvFileName("");
+                  e.target.value = "";
                   return;
                 }
                 if (file.size > 5 * 1024 * 1024) {

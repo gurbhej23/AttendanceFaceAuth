@@ -40,7 +40,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "corsheaders",
-    "employees",
+    "employees.apps.EmployeesConfig",
     "attendance",
 ]
 
@@ -143,3 +143,10 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+DEEPFACE_HOME = Path(
+    os.getenv("DEEPFACE_HOME", str(BASE_DIR / ".deepface"))
+)
+FACE_MATCH_THRESHOLD = float(os.getenv("FACE_MATCH_THRESHOLD", "0.65"))
+DATA_UPLOAD_MAX_MEMORY_SIZE = int(
+    os.getenv("DATA_UPLOAD_MAX_MEMORY_SIZE", str(15 * 1024 * 1024))
+)

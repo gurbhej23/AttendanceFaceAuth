@@ -13,16 +13,21 @@ from PIL import Image, ImageOps
 
 os.environ.setdefault("CUDA_VISIBLE_DEVICES", "-1")
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
+os.environ.setdefault("TF_ENABLE_ONEDNN_OPTS", "0")
 os.environ.setdefault(
-    "DEEPFACE_HOME", os.getenv("DEEPFACE_HOME") or os.path.join(tempfile.gettempdir(), "deepface")
+    "DEEPFACE_HOME",
+    os.getenv("DEEPFACE_HOME")
+    or str(getattr(settings, "DEEPFACE_HOME", Path(tempfile.gettempdir()) / "deepface")),
 )
 
 MEDIA_DIR = settings.MEDIA_ROOT / "faces"
+MAX_FACE_IMAGE_SIDE = int(os.getenv("MAX_FACE_IMAGE_SIDE", "960"))
 Path(os.environ["DEEPFACE_HOME"]).mkdir(parents=True, exist_ok=True)
 MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 
 _deepface = None
 _facenet_loaded = False
+_facenet_load_error = None
 
 
 def get_deepface():
@@ -35,9 +40,11 @@ def get_deepface():
 
 
 def ensure_facenet_loaded():
-    global _facenet_loaded
+    global _facenet_loaded, _facenet_load_error
     if _facenet_loaded:
         return
+    if _facenet_load_error is not None:
+        raise RuntimeError(_facenet_load_error) from _facenet_load_error
 
     try:
         print(f"Loading FaceNet model... DEEPFACE_HOME={os.environ['DEEPFACE_HOME']}")
@@ -45,6 +52,7 @@ def ensure_facenet_loaded():
         _facenet_loaded = True
         print("FaceNet model loaded")
     except Exception as exc:
+        _facenet_load_error = exc
         print(f"FaceNet model load failed: {type(exc).__name__}: {exc}")
         traceback.print_exc()
         raise RuntimeError(
@@ -52,16 +60,57 @@ def ensure_facenet_loaded():
         ) from exc
 
 
-def extract_embedding_with_fallbacks(image_bgr: np.ndarray):
-    deepface = get_deepface()
-    ensure_facenet_loaded()
+def facenet_is_ready() -> bool:
+    return _facenet_loaded
 
-    attempts = [
+
+def resize_for_face(image_bgr: np.ndarray) -> np.ndarray:
+    height, width = image_bgr.shape[:2]
+    max_side = max(height, width)
+    if max_side <= MAX_FACE_IMAGE_SIDE:
+        return image_bgr
+    scale = MAX_FACE_IMAGE_SIDE / max_side
+    new_size = (int(width * scale), int(height * scale))
+    return cv2.resize(image_bgr, new_size, interpolation=cv2.INTER_AREA)
+
+
+def get_detector_attempts():
+    configured = os.getenv("FACE_DETECTOR_BACKENDS", "").strip()
+    if configured:
+        backends = [item.strip() for item in configured.split(",") if item.strip()]
+        return [
+            {
+                "detector_backend": backend,
+                "enforce_detection": backend != "skip",
+            }
+            for backend in backends
+        ]
+
+    # Render and other small hosts: avoid heavy MTCNN/RetinaFace chains that OOM or time out.
+    if os.getenv("RENDER") or os.getenv("FACE_LIGHTWEIGHT_DETECTORS", "").lower() in (
+        "1",
+        "true",
+        "yes",
+    ):
+        return [
+            {"detector_backend": "opencv", "enforce_detection": True},
+            {"detector_backend": "skip", "enforce_detection": False},
+        ]
+
+    return [
         {"detector_backend": "opencv", "enforce_detection": True},
         {"detector_backend": "mtcnn", "enforce_detection": True},
         {"detector_backend": "retinaface", "enforce_detection": True},
         {"detector_backend": "skip", "enforce_detection": False},
     ]
+
+
+def extract_embedding_with_fallbacks(image_bgr: np.ndarray):
+    deepface = get_deepface()
+    ensure_facenet_loaded()
+    image_bgr = resize_for_face(image_bgr)
+
+    attempts = get_detector_attempts()
 
     last_error = None
     for attempt in attempts:
@@ -127,7 +176,7 @@ def extract_and_save_embedding(base64_image: str, employee_id: str) -> tuple:
             print(f"Image too small: {image_np.shape}")
             return None, "Image too small - face must be larger in frame", None
 
-        image_bgr = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
+        image_bgr = resize_for_face(cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR))
         print("Color converted to BGR")
 
         image_path = None

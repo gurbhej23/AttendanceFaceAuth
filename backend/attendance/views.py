@@ -21,7 +21,7 @@ LATE_GRACE_MINUTES = 15
 
 os.makedirs(TEMP_DIR, exist_ok=True)
 
-FACE_MATCH_THRESHOLD = 0.75
+FACE_MATCH_THRESHOLD = settings.FACE_MATCH_THRESHOLD
 OFFICE_LATITUDE = os.getenv("OFFICE_LATITUDE")
 OFFICE_LONGITUDE = os.getenv("OFFICE_LONGITUDE")
 OFFICE_RADIUS_METERS = float(os.getenv("OFFICE_RADIUS_METERS", "250"))
@@ -203,6 +203,18 @@ def verify_face(request):
                 {"success": False, "error": "Employee not found"}, status=404
             )
 
+        if not employee.face_embedding:
+            return Response(
+                {
+                    "success": False,
+                    "error": (
+                        "No face profile on file. Open Profile and use "
+                        "Face re-enrollment, or ask admin to update your face."
+                    ),
+                },
+                status=400,
+            )
+
         if is_before_attendance_start():
             return Response(
                 {"success": False, "error": attendance_start_message()}, status=403
@@ -210,7 +222,7 @@ def verify_face(request):
 
         uploaded_embedding, error, _ = extract_and_save_embedding(image, employee_id)
         if error:
-            return Response({"success": False, "error": error}, status=400)
+            return Response({"success": False, "error": error}, status=400) 
 
         is_match = verify_face_match(
             uploaded_embedding, employee.face_embedding, FACE_MATCH_THRESHOLD
@@ -219,7 +231,7 @@ def verify_face(request):
             return Response(
                 {"success": False, "error": "Face does not match. Access denied."},
                 status=401,
-            )
+            ) 
 
         return Response(
             {
@@ -234,6 +246,10 @@ def verify_face(request):
             }
         )
 
+    except RuntimeError as e:
+        if "Face model" in str(e):
+            return Response({"success": False, "error": str(e)}, status=503)
+        raise
     except Exception as e:
         import traceback
 
@@ -260,6 +276,15 @@ def check_in_face(request):
         if not employee:
             return Response(
                 {"success": False, "error": "Employee not found"}, status=404
+            )
+
+        if not employee.face_embedding:
+            return Response(
+                {
+                    "success": False,
+                    "error": "No face profile on file. Re-enroll your face from Profile first.",
+                },
+                status=400,
             )
 
         uploaded_embedding, error, check_in_image_path = extract_and_save_embedding(
@@ -368,6 +393,15 @@ def check_out_face(request):
         if not employee:
             return Response(
                 {"success": False, "error": "Employee not found"}, status=404
+            )
+
+        if not employee.face_embedding:
+            return Response(
+                {
+                    "success": False,
+                    "error": "No face profile on file. Re-enroll your face from Profile first.",
+                },
+                status=400,
             )
 
         uploaded_embedding, error, _ = extract_and_save_embedding(image, employee_id)

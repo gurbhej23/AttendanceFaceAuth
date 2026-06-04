@@ -2,10 +2,22 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Webcam from "react-webcam";
-import API from "../services/api";
+import API, { FACE_REQUEST_TIMEOUT_MS } from "../services/api";
 import Input from "../components/Input";
 import Button from "../components/Button";
 import MessageOverlay from "../components/MessageOverlay";
+import {
+  BadgeCheck,
+  BriefcaseBusiness,
+  ChevronDown,
+  FileText,
+  KeyRound,
+  Mail,
+  Phone,
+  ScanFace,
+  ShieldCheck,
+  UserRound,
+} from "lucide-react";
 
 type Step = "form" | "otp" | "face";
 type VerifyMethod = "email" | "phone";
@@ -67,6 +79,9 @@ export default function Register() {
       reader.onerror = () => reject(new Error("Failed to read file"));
       reader.readAsDataURL(file);
     });
+
+  const isPdfFile = (file: File) =>
+    file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
 
   // ── Send OTP ──────────────────────────────────────────────────────────────
   const sendOtp = async () => {
@@ -300,16 +315,20 @@ export default function Register() {
     setLoading(true);
     setError("");
     try {
-      const response = await API.post("/employees/register/", {
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        department: formData.department,
-        designation: formData.designation,
-        image: capturedImage,
-        cv_file: cvFile,
-        cv_file_name: cvFileName,
-      });
+      const response = await API.post(
+        "/employees/register/",
+        {
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          department: formData.department,
+          designation: formData.designation,
+          image: capturedImage,
+          cv_file: cvFile,
+          cv_file_name: cvFileName,
+        },
+        { timeout: FACE_REQUEST_TIMEOUT_MS },
+      );
       if (response.data.success) {
         const credentials = response.data.credentials;
         const successMessage = credentials
@@ -337,17 +356,382 @@ export default function Register() {
   };
 
   // ════════════════════════════════════════════════════════════════════════════
+  const handleRegistrationContinue = () => {
+    if (!formData.name.trim()) {
+      setError("Please enter your name");
+      return;
+    }
+    if (!formData.email.trim()) {
+      setError("Please enter your email");
+      return;
+    }
+    if (!isValidEmail(formData.email)) {
+      setError("Please enter a valid email");
+      return;
+    }
+    if (!cvFile) {
+      setError("Please upload your CV");
+      return;
+    }
+    if (verifyMethod === "phone") {
+      if (!formData.phone.trim()) {
+        setError("Please enter your phone number");
+        return;
+      }
+      if (!isValidPhone(formData.phone)) {
+        setError("Please enter a valid phone number (10-15 digits)");
+        return;
+      }
+    }
+    setError("");
+    sendOtp();
+  };
+
+  const renderFormStep = () => (
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] p-6">
+      {overlay && (
+        <MessageOverlay
+          title={overlay.title}
+          message={overlay.message}
+          tone={overlay.tone}
+          loading={overlay.loading}
+        />
+      )}
+      <div className="absolute -left-25 -top-30 h-87.5 w-87.5 rounded-full bg-blue-500/20 blur-3xl" />
+      <div className="absolute -bottom-30 -right-25 h-87.5 w-87.5 rounded-full bg-cyan-500/20 blur-3xl" />
+
+      <div className="relative grid w-full max-w-6xl gap-5 rounded-[36px] border border-white/15 bg-white/8 p-5 shadow-2xl backdrop-blur-2xl lg:grid-cols-[270px_1fr_270px]">
+        <section className="rounded-[28px] border border-white/12 bg-white/8 p-6 shadow-inner">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-white/15 bg-slate-950/70 text-blue-200">
+            <BadgeCheck size={30} />
+          </div>
+          <h1 className="mt-5 text-center text-3xl font-bold text-white">
+            Attendance
+          </h1>
+          <p className="mt-1 text-center text-xs text-slate-400">
+            Smart Face Recognition System
+          </p>
+
+          <div className="mt-8 space-y-3">
+            {[
+              ["1", "Employee details", true],
+              ["2", "Email verification", false],
+              ["3", "Face enrollment", false],
+            ].map(([number, label, active]) => (
+              <div
+                key={String(label)}
+                className={`flex items-center gap-3 rounded-2xl border p-3 text-sm ${
+                  active
+                    ? "border-blue-400/40 bg-blue-500/15 text-blue-200"
+                    : "border-slate-700 bg-slate-950/50 text-slate-400"
+                }`}
+              >
+                <span
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                    active
+                      ? "bg-linear-to-r from-blue-600 to-cyan-500 text-white"
+                      : "bg-slate-800 text-slate-400"
+                  }`}
+                >
+                  {number}
+                </span>
+                <span className="font-semibold">{label}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-8 rounded-2xl border border-cyan-400/20 bg-cyan-500/10 p-4 text-sm leading-6 text-cyan-100">
+            Account credentials are generated after verification and sent to the
+            selected contact method.
+          </div>
+        </section>
+
+        <section className="rounded-[28px] border border-white/12 bg-white/8 p-6 shadow-inner">
+          <div className="mb-4">
+            <div>
+              <h2 className="text-3xl font-bold text-white">
+                Create Employee Account
+              </h2>
+            </div>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-1">
+            <label className="block text-sm text-slate-300">
+              Full Name *
+              <div className="relative mt-2">
+                <UserRound
+                  size={20}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <Input
+                  type="text"
+                  placeholder="Enter full name"
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                  className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 p-4 pl-12 text-white outline-none transition placeholder:text-slate-500 focus:border-blue-500"
+                />
+              </div>
+            </label>
+
+            <label className="block text-sm text-slate-300">
+              Email Address *
+              <div className="relative mt-2">
+                <Mail
+                  size={20}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <Input
+                  type="email"
+                  placeholder="employee@company.com"
+                  value={formData.email}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
+                  className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 p-4 pl-12 text-white outline-none transition placeholder:text-slate-500 focus:border-blue-500"
+                />
+              </div>
+            </label>
+
+            <label className="block text-sm text-slate-300">
+              Phone Number
+              <div className="relative mt-2">
+                <Phone
+                  size={20}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <Input
+                  type="tel"
+                  placeholder="+91 9876543210"
+                  value={formData.phone}
+                  onChange={(e) =>
+                    setFormData({ ...formData, phone: e.target.value })
+                  }
+                  className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 p-4 pl-12 text-white outline-none transition placeholder:text-slate-500 focus:border-blue-500"
+                />
+              </div>
+            </label>
+
+            <label className="block text-sm text-slate-300">
+              CV / Resume *
+              <div className="relative mt-2">
+                <FileText
+                  size={20}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <input
+                  type="file"
+                  accept=".pdf,application/pdf"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) {
+                      setCvFile("");
+                      setCvFileName("");
+                      return;
+                    }
+                    if (!isPdfFile(file)) {
+                      setError("CV / Resume must be a PDF file");
+                      setCvFile("");
+                      setCvFileName("");
+                      e.target.value = "";
+                      return;
+                    }
+                    if (file.size > 5 * 1024 * 1024) {
+                      setError("CV file must be 5MB or smaller");
+                      e.target.value = "";
+                      return;
+                    }
+                    try {
+                      setCvFile(await fileToDataUrl(file));
+                      setCvFileName(file.name);
+                      setError("");
+                    } catch {
+                      setError("Could not read selected CV");
+                    }
+                  }}
+                  className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 p-4 pl-12 text-sm text-slate-300 file:mr-4 file:rounded-xl file:border-0 file:bg-blue-600 file:px-4 file:py-2 file:font-semibold file:text-white hover:file:bg-blue-700"
+                />
+              </div>
+              <span className="mt-2 block truncate text-xs text-slate-500">
+                {cvFileName || "PDF only, max 5MB"}
+              </span>
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="block text-sm text-slate-300">
+                Department *
+                <div className="relative mt-2">
+                  <BriefcaseBusiness
+                    size={20}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                  />
+                  <select
+                    value={formData.department}
+                    onChange={(e) =>
+                      setFormData({ ...formData, department: e.target.value })
+                    }
+                    className="w-full appearance-none rounded-2xl border border-slate-700 bg-slate-950/80 p-4 pl-12 pr-10 text-white outline-none transition focus:border-blue-500"
+                  >
+                    <option value="IT">IT</option>
+                    <option value="HR">HR</option>
+                    <option value="Finance">Finance</option>
+                    <option value="Operations">Operations</option>
+                    <option value="Sales">Sales</option>
+                    <option value="Marketing">Marketing</option>
+                  </select>
+                  <ChevronDown
+                    size={20}
+                    className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-300"
+                  />
+                </div>
+              </label>
+
+              <label className="block text-sm text-slate-300">
+                Job Role *
+                <div className="relative mt-2">
+                  <BriefcaseBusiness
+                    size={20}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                  />
+                  <select
+                    value={formData.designation}
+                    onChange={(e) =>
+                      setFormData({ ...formData, designation: e.target.value })
+                    }
+                    className="w-full appearance-none rounded-2xl border border-slate-700 bg-slate-950/80 p-4 pl-12 pr-10 text-white outline-none transition focus:border-blue-500"
+                  >
+                    <option value="Software Engineer">Software Engineer</option>
+                    <option value="Frontend Developer">
+                      Frontend Developer
+                    </option>
+                    <option value="Backend Developer">Backend Developer</option>
+                    <option value="QA Engineer">QA Engineer</option>
+                    <option value="HR Executive">HR Executive</option>
+                    <option value="Accountant">Accountant</option>
+                    <option value="Operations Executive">
+                      Operations Executive
+                    </option>
+                    <option value="Sales Executive">Sales Executive</option>
+                    <option value="Full Stack Developer">
+                      Full Stack Developer
+                    </option>
+                    <option value="DevOps Engineer">DevOps Engineer</option>
+                    <option value="UI/UX Designer">UI/UX Designer</option>
+                    <option value="Intern">Intern</option>
+                    <option value="Project Manager">Project Manager</option>
+                  </select>
+                  <ChevronDown
+                    size={20}
+                    className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-300"
+                  />
+                </div>
+              </label>
+            </div>
+          </div>
+          {error && (
+            <div className="mt-5 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-center text-sm text-red-300">
+              {error}
+            </div>
+          )}
+        </section>
+
+        <section className="rounded-[28px] border border-white/12 bg-white/8 p-6 shadow-inner">
+          <p className="text-lg font-semibold text-white">Verification</p>
+
+          <div className="mt-5 grid grid-cols-1 gap-3">
+            <button
+              type="button"
+              onClick={() => setVerifyMethod("email")}
+              className={`flex items-center gap-3 rounded-2xl border p-4 text-left text-sm font-semibold transition ${
+                verifyMethod === "email"
+                  ? "border-blue-400/50 bg-blue-500/15 text-blue-200"
+                  : "border-slate-700 bg-slate-950/50 text-slate-400 hover:border-slate-500"
+              }`}
+            >
+              <Mail size={20} />
+              Email OTP
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (!formData.phone) {
+                  setError(
+                    "Enter a phone number first to use SMS verification",
+                  );
+                  return;
+                }
+                setError(
+                  "SMS verification is not available yet. Please use Email OTP.",
+                );
+              }}
+              className={`flex items-center gap-3 rounded-2xl border p-4 text-left text-sm font-semibold transition ${
+                verifyMethod === "phone"
+                  ? "border-cyan-400/50 bg-cyan-500/15 text-cyan-200"
+                  : "border-slate-700 bg-slate-950/50 text-slate-400 hover:border-slate-500"
+              }`}
+            >
+              <Phone size={20} />
+              SMS OTP
+            </button>
+          </div>
+
+          <div className="mt-6 space-y-3">
+            <div className="flex items-start gap-3 rounded-2xl border border-slate-700 bg-slate-950/50 p-4">
+              <ShieldCheck className="mt-0.5 text-blue-300" size={20} />
+              <p className="text-sm leading-6 text-slate-300">
+                Email verification is required before face enrollment opens.
+              </p>
+            </div>
+            <div className="flex items-start gap-3 rounded-2xl border border-slate-700 bg-slate-950/50 p-4">
+              <ScanFace className="mt-0.5 text-cyan-300" size={20} />
+              <p className="text-sm leading-6 text-slate-300">
+                A clear face capture is used for attendance verification.
+              </p>
+            </div>
+            <div className="flex items-start gap-3 rounded-2xl border border-slate-700 bg-slate-950/50 p-4">
+              <KeyRound className="mt-0.5 text-blue-300" size={20} />
+              <p className="text-sm leading-6 text-slate-300">
+                Employee ID and password are issued after registration.
+              </p>
+            </div>
+          </div>
+
+          <Button
+            text={loading ? "Sending OTP..." : "Verify & Continue"}
+            onClick={handleRegistrationContinue}
+            disabled={loading}
+            className="mt-6 w-full bg-linear-to-r from-blue-600 to-cyan-500 p-4 text-white font-bold hover:scale-[1.01] hover:shadow-xl hover:shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          />
+
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-2 text-center">
+            <p className="text-sm text-slate-400">Already registered?</p>
+            <Link
+              to="/"
+              className="text-sm font-semibold text-blue-300 transition hover:text-blue-200"
+            >
+              Login
+            </Link>
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+
   // STEP 1 — FORM
   // ════════════════════════════════════════════════════════════════════════════
   if (step === "form") {
+    return renderFormStep();
+  }
+
+  if (false) {
     return (
       <div className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] flex items-center justify-center p-6 relative overflow-hidden">
         {overlay && (
           <MessageOverlay
-            title={overlay.title}
-            message={overlay.message}
-            tone={overlay.tone}
-            loading={overlay.loading}
+            title={overlay?.title || ""}
+            message={overlay?.message}
+            tone={overlay?.tone}
+            loading={overlay?.loading}
           />
         )}
         <div className="absolute -top-30 -left-25 w-87.5 h-87.5 bg-blue-500/20 blur-3xl rounded-full" />
@@ -361,17 +745,11 @@ export default function Register() {
             </p>
           </div>
 
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/30 text-red-300 p-4 rounded-2xl mb-5 text-center text-sm">
-              {error}
-            </div>
-          )}
-
           <div className="space-y-5">
             {/* NAME */}
             <div>
               <label className="text-slate-300 text-sm mb-2 block">
-                Full Name
+                <span>Full Name *</span>
               </label>
               <Input
                 type="text"
@@ -387,7 +765,7 @@ export default function Register() {
             {/* EMAIL */}
             <div>
               <label className="text-slate-300 text-sm mb-2 block">
-                Email Address
+                <span>Email Address *</span>
               </label>
               <Input
                 type="email"
@@ -402,16 +780,27 @@ export default function Register() {
 
             <div>
               <label className="text-slate-300 text-sm mb-2 block">
-                CV / Resume
+                <span>CV / Resume *</span>
+                <span className="text-slate-500 text-xs">
+                  {" "}
+                  (only PDF is required)
+                </span>
               </label>
               <input
                 type="file"
-                accept=".pdf,.doc,.docx"
+                accept=".pdf,application/pdf"
                 onChange={async (e) => {
                   const file = e.target.files?.[0];
                   if (!file) {
                     setCvFile("");
                     setCvFileName("");
+                    return;
+                  }
+                  if (!isPdfFile(file)) {
+                    setError("CV / Resume must be a PDF file");
+                    setCvFile("");
+                    setCvFileName("");
+                    e.target.value = "";
                     return;
                   }
                   if (file.size > 5 * 1024 * 1024) {
@@ -439,12 +828,12 @@ export default function Register() {
             {/* PHONE (optional) */}
             <div>
               <label className="text-slate-300 text-sm mb-2 block">
-                Phone Number{" "}
+                <span>Phone Number </span>
                 <span className="text-slate-500 text-xs">(optional)</span>
               </label>
               <Input
                 type="tel"
-                placeholder="+91 9876543210"
+                placeholder="+91"
                 value={formData.phone}
                 onChange={(e) =>
                   setFormData({ ...formData, phone: e.target.value })
@@ -453,56 +842,72 @@ export default function Register() {
               />
             </div>
 
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/30 text-red-300 p-4 rounded-2xl mb-5 text-center text-sm">
+                {error}
+              </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-slate-300 text-sm mb-2 block">
-                  Department
+                  <span>Department *</span>
                 </label>
-                <select
-                  value={formData.department}
-                  onChange={(e) =>
-                    setFormData({ ...formData, department: e.target.value })
-                  }
-                  className="w-full p-4 rounded-2xl bg-slate-900/70 border border-slate-700 text-white outline-none focus:border-blue-500 transition"
-                >
-                  <option value="IT">IT</option>
-                  <option value="HR">HR</option>
-                  <option value="Finance">Finance</option>
-                  <option value="Operations">Operations</option>
-                  <option value="Sales">Sales</option>
-                  <option value="Marketing">Marketing</option>
-                </select>
-              </div>
+                <div className="relative">
+                  <select
+                    value={formData.department}
+                    onChange={(e) =>
+                      setFormData({ ...formData, department: e.target.value })
+                    }
+                    className="w-full p-4 pr-10 rounded-2xl bg-slate-900/70 border border-slate-700 text-white outline-none focus:border-blue-500 transition appearance-none"
+                  >
+                    <option value="IT">IT</option>
+                    <option value="HR">HR</option>
+                    <option value="Finance">Finance</option>
+                    <option value="Operations">Operations</option>
+                    <option value="Sales">Sales</option>
+                    <option value="Marketing">Marketing</option>
+                  </select>
 
-              <div>
+                  <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-white">
+                    <ChevronDown size={20} />
+                  </div>
+                </div>
                 <label className="text-slate-300 text-sm mb-2 block">
-                  Job Role
+                  <span>Job Role *</span>
                 </label>
-                <select
-                  value={formData.designation}
-                  onChange={(e) =>
-                    setFormData({ ...formData, designation: e.target.value })
-                  }
-                  className="w-full p-4 rounded-2xl bg-slate-900/70 border border-slate-700 text-white outline-none focus:border-blue-500 transition"
-                >
-                  <option value="Software Engineer">Software Engineer</option>
-                  <option value="Frontend Developer">Frontend Developer</option>
-                  <option value="Backend Developer">Backend Developer</option>
-                  <option value="QA Engineer">QA Engineer</option>
-                  <option value="HR Executive">HR Executive</option>
-                  <option value="Accountant">Accountant</option>
-                  <option value="Operations Executive">
-                    Operations Executive
-                  </option>
-                  <option value="Sales Executive">Sales Executive</option>
-                  <option value="Full Stack Developer">
-                    Full Stack Developer
-                  </option>
-                  <option value="DevOps Engineer">DevOps Engineer</option>
-                  <option value="UI/UX Designer">UI/UX Designer</option>
-                  <option value="Intern">Intern</option>
-                  <option value="Project Manager">Project Manager</option>
-                </select>
+                <div className="relative">
+                  <select
+                    value={formData.designation}
+                    onChange={(e) =>
+                      setFormData({ ...formData, designation: e.target.value })
+                    }
+                    className="w-full p-4 rounded-2xl bg-slate-900/70 border border-slate-700 text-white outline-none focus:border-blue-500 transition appearance-none"
+                  >
+                    <option value="Software Engineer">Software Engineer</option>
+                    <option value="Frontend Developer">
+                      Frontend Developer
+                    </option>
+                    <option value="Backend Developer">Backend Developer</option>
+                    <option value="QA Engineer">QA Engineer</option>
+                    <option value="HR Executive">HR Executive</option>
+                    <option value="Accountant">Accountant</option>
+                    <option value="Operations Executive">
+                      Operations Executive
+                    </option>
+                    <option value="Sales Executive">Sales Executive</option>
+                    <option value="Full Stack Developer">
+                      Full Stack Developer
+                    </option>
+                    <option value="DevOps Engineer">DevOps Engineer</option>
+                    <option value="UI/UX Designer">UI/UX Designer</option>
+                    <option value="Intern">Intern</option>
+                    <option value="Project Manager">Project Manager</option>
+                  </select>
+                  <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-white">
+                    <ChevronDown size={20} />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -627,119 +1032,192 @@ export default function Register() {
             loading={overlay.loading}
           />
         )}
-        <div className="absolute -top-30 -left-25 w-87.5 h-87.5 bg-blue-500/20 blur-3xl rounded-full" />
-        <div className="absolute -bottom-30 -right-25 w-87.5 h-87.5 bg-cyan-500/20 blur-3xl rounded-full" />
+        <div className="absolute -left-25 -top-30 h-87.5 w-87.5 rounded-full bg-blue-500/20 blur-3xl" />
+        <div className="absolute -bottom-30 -right-25 h-87.5 w-87.5 rounded-full bg-cyan-500/20 blur-3xl" />
 
-        <div className="relative w-full max-w-md bg-white/5 backdrop-blur-2xl border border-white/10 shadow-2xl rounded-[36px] p-8">
-          <div className="text-center mb-6">
-            <div className="w-20 h-20 rounded-3xl bg-blue-500/20 flex items-center justify-center text-4xl mx-auto mb-4">
-              {verifyMethod === "email" ? "📧" : "📱"}
+        <div className="relative grid w-full max-w-6xl gap-5 rounded-[36px] border border-white/15 bg-white/8 p-5 shadow-2xl backdrop-blur-2xl lg:grid-cols-3">
+          <section className="rounded-[28px] border border-white/12 bg-white/8 p-6 shadow-inner">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-white/15 bg-slate-950/70 text-blue-200">
+              <BadgeCheck size={30} />
             </div>
-            <h1 className="text-3xl font-bold text-white">
-              Verify {methodLabel}
+            <h1 className="mt-5 text-center text-3xl font-bold text-white">
+              Attendance
             </h1>
-            <p className="text-slate-400 mt-2 text-sm">
-              We sent a 6-digit OTP to
+            <p className="mt-1 text-center text-xs text-slate-400">
+              Smart Face Recognition System
             </p>
-            <p className="text-blue-400 font-semibold mt-1">{contactDisplay}</p>
-          </div>
 
-          {otpVerified && (
-            <div className="bg-green-500/10 border border-green-500/30 text-green-300 p-4 rounded-2xl mb-5 text-center text-sm">
-              ✅ Verified! Opening camera...
-            </div>
-          )}
-
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/30 text-red-300 p-4 rounded-2xl mb-5 text-center text-sm">
-              {error}
-            </div>
-          )}
-
-          <div className="space-y-5">
-            <div>
-              <label className="text-slate-300 text-sm mb-2 block">
-                Enter OTP
-              </label>
-              <input
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                placeholder="_ _ _ _ _ _"
-                value={otp}
-                onChange={(e) => {
-                  setOtp(e.target.value.replace(/\D/g, ""));
-                  setError("");
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") verifyOtp();
-                }}
-                className="w-full p-4 rounded-2xl bg-slate-900/70 border border-slate-700 text-white placeholder-slate-500 outline-none focus:border-blue-500 transition text-center text-2xl tracking-[0.5em] font-mono"
-              />
-            </div>
-
-            <Button
-              text={loading ? "Verifying..." : "Verify OTP"}
-              onClick={verifyOtp}
-              disabled={loading || otpVerified}
-              className="w-full bg-linear-to-r from-blue-600 to-cyan-500 hover:scale-[1.02] transition-all duration-300 p-4 rounded-2xl text-white font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            />
-
-            <div className="text-center">
-              {resendCooldown > 0 ? (
-                <p className="text-slate-500 text-sm">
-                  Resend in{" "}
-                  <span className="text-blue-400 font-semibold">
-                    {resendCooldown}s
+            <div className="mt-8 space-y-3">
+              {[
+                ["1", "Employee details", false],
+                ["2", "Email verification", true],
+                ["3", "Face enrollment", false],
+              ].map(([number, label, active]) => (
+                <div
+                  key={String(label)}
+                  className={`flex items-center gap-3 rounded-2xl border p-3 text-sm ${
+                    active
+                      ? "border-blue-400/40 bg-blue-500/15 text-blue-200"
+                      : "border-slate-700 bg-slate-950/50 text-slate-400"
+                  }`}
+                >
+                  <span
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                      active
+                        ? "bg-linear-to-r from-blue-600 to-cyan-500 text-white"
+                        : "bg-slate-800 text-slate-400"
+                    }`}
+                  >
+                    {number}
                   </span>
-                </p>
-              ) : (
-                <button
-                  onClick={() => {
-                    setOtp("");
-                    setError("");
-                    sendOtp();
-                  }}
-                  disabled={loading}
-                  className="text-blue-400 hover:text-blue-300 text-sm font-semibold transition cursor-pointer disabled:opacity-50"
-                >
-                  Resend OTP
-                </button>
-              )}
+                  <span className="font-semibold">{label}</span>
+                </div>
+              ))}
             </div>
 
-            {/* Switch method */}
-            {formData.phone && (
-              <div className="text-center">
-                <button
-                  onClick={() => {
-                    setVerifyMethod(
-                      verifyMethod === "email" ? "phone" : "email",
-                    );
-                    setOtp("");
-                    setError("");
-                    setStep("form");
-                  }}
-                  className="text-slate-500 hover:text-slate-300 text-xs transition"
-                >
-                  Switch to {verifyMethod === "email" ? "SMS" : "Email"}{" "}
-                  verification
-                </button>
+            <div className="mt-8 rounded-2xl border border-cyan-400/20 bg-cyan-500/10 p-4 text-sm leading-6 text-cyan-100">
+              Account credentials are generated after verification and sent to
+              the selected contact method.
+            </div>
+          </section>
+
+          <div className="flex flex-col justify-center">
+            <div className="text-center mb-6">
+              <div className="w-20 h-20 rounded-3xl bg-blue-500/20 flex items-center justify-center text-4xl mx-auto mb-4">
+                {verifyMethod === "email" ? "📧" : "📱"}
+              </div>
+              <h1 className="text-3xl font-bold text-white">
+                Verify {methodLabel}
+              </h1>
+              <p className="text-slate-400 mt-2 text-sm">
+                We sent a 6-digit OTP to
+              </p>
+              <p className="text-blue-400 font-semibold mt-1">
+                {contactDisplay}
+              </p>
+            </div>
+
+            {otpVerified && (
+              <div className="bg-green-500/10 border border-green-500/30 text-green-300 p-4 rounded-2xl mb-5 text-center text-sm">
+                ✅ Verified! Opening camera...
               </div>
             )}
 
-            <button
-              onClick={() => {
-                setStep("form");
-                setOtp("");
-                setError("");
-                setOtpVerified(false);
-              }}
-              className="w-full text-slate-400 hover:text-white text-sm transition cursor-pointer"
-            >
-              ← Back to form
-            </button>
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/30 text-red-300 p-4 rounded-2xl mb-5 text-center text-sm">
+                {error}
+              </div>
+            )}
+
+            <div className="space-y-5">
+              <div>
+                <label className="text-slate-300 text-sm mb-2 block">
+                  Enter OTP
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="_ _ _ _ _ _"
+                  value={otp}
+                  onChange={(e) => {
+                    setOtp(e.target.value.replace(/\D/g, ""));
+                    setError("");
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") verifyOtp();
+                  }}
+                  className="w-full p-4 rounded-2xl bg-slate-900/70 border border-slate-700 text-white placeholder-slate-500 outline-none focus:border-blue-500 transition text-center text-2xl tracking-[0.5em] font-mono"
+                />
+              </div>
+
+              <Button
+                text={loading ? "Verifying..." : "Verify OTP"}
+                onClick={verifyOtp}
+                disabled={loading || otpVerified}
+                className="w-full bg-linear-to-r from-blue-600 to-cyan-500 hover:scale-[1.02] transition-all duration-300 p-4 rounded-2xl text-white font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+
+              <div className="text-center">
+                {resendCooldown > 0 ? (
+                  <p className="text-slate-500 text-sm">
+                    Resend in{" "}
+                    <span className="text-blue-400 font-semibold">
+                      {resendCooldown}s
+                    </span>
+                  </p>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setOtp("");
+                      setError("");
+                      sendOtp();
+                    }}
+                    disabled={loading}
+                    className="text-blue-400 hover:text-blue-300 text-sm font-semibold transition cursor-pointer disabled:opacity-50"
+                  >
+                    Resend OTP
+                  </button>
+                )}
+              </div>
+
+              {/* Switch method */}
+              {formData.phone && (
+                <div className="text-center">
+                  <button
+                    onClick={() => {
+                      setVerifyMethod(
+                        verifyMethod === "email" ? "phone" : "email",
+                      );
+                      setOtp("");
+                      setError("");
+                      setStep("form");
+                    }}
+                    className="text-slate-500 hover:text-slate-300 text-xs transition"
+                  >
+                    Switch to {verifyMethod === "email" ? "SMS" : "Email"}{" "}
+                    verification
+                  </button>
+                </div>
+              )}
+
+              <button
+                onClick={() => {
+                  setStep("form");
+                  setOtp("");
+                  setError("");
+                  setOtpVerified(false);
+                }}
+                className="w-full text-slate-400 hover:text-white text-sm transition cursor-pointer"
+              >
+                ← Back to form
+              </button>
+            </div>
           </div>
+          <section className="rounded-[28px] border border-white/12 bg-white/8 p-6 shadow-inner">
+            <p className="text-lg font-semibold text-white">Verification</p>
+
+            <div className="mt-6 space-y-3">
+              <div className="flex items-start gap-3 rounded-2xl border border-slate-700 bg-slate-950/50 p-4">
+                <ShieldCheck className="mt-0.5 text-blue-300" size={20} />
+                <p className="text-sm leading-6 text-slate-300">
+                  Email verification is required before face enrollment opens.
+                </p>
+              </div>
+              <div className="flex items-start gap-3 rounded-2xl border border-slate-700 bg-slate-950/50 p-4">
+                <ScanFace className="mt-0.5 text-cyan-300" size={20} />
+                <p className="text-sm leading-6 text-slate-300">
+                  A clear face capture is used for attendance verification.
+                </p>
+              </div>
+              <div className="flex items-start gap-3 rounded-2xl border border-slate-700 bg-slate-950/50 p-4">
+                <KeyRound className="mt-0.5 text-blue-300" size={20} />
+                <p className="text-sm leading-6 text-slate-300">
+                  Employee ID and password are issued after registration.
+                </p>
+              </div>
+            </div>
+          </section>
         </div>
       </div>
     );
@@ -774,7 +1252,7 @@ export default function Register() {
       </div>
 
       <div
-        className={`relative w-full max-w-xl aspect-video rounded-[32px] overflow-hidden ring-4 shadow-lg transition-all ${
+        className={`relative w-full max-w-xl aspect-video rounded-4xl overflow-hidden ring-4 shadow-lg transition-all ${
           borderStatus === "success"
             ? "ring-green-500 shadow-green-500/40"
             : borderStatus === "error"

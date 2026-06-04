@@ -45,14 +45,8 @@ const getApiRoot = () => {
 
 const getMediaUrl = (path?: string | null) => {
   if (!path) return "";
-  if (path.startsWith("http")) {
-    const url = new URL(path);
-    if (window.location.protocol === "https:" && url.protocol === "http:") {
-      return `${getApiRoot()}${url.pathname}`;
-    }
-    return path;
-  }
-  return `${getApiRoot()}${path.startsWith("/") ? path : `/${path}`}`;
+  if (path.startsWith("http")) return path;
+  return `http://localhost:8000${path.startsWith("/") ? path : `/${path}`}`;
 };
 
 const getWsUrl = (employeeId: string) => {
@@ -603,71 +597,73 @@ export default function Messages() {
         >
           {/* Sidebar */}
           {!isStaffRole && (
-          <aside className="border-b border-slate-800 lg:border-b-0 lg:border-r">
-            <div className="border-b border-slate-800 p-4">
-              <p className="text-sm font-semibold text-slate-300">
-                {role === "employee" ? "Admin / HR" : "Employees"}
-              </p>
-              {role === "employee" && (
-                <p className="mt-1 text-xs text-slate-500">
-                  {staffContacts.length} staff contact
-                  {staffContacts.length === 1 ? "" : "s"} available
+            <aside className="border-b border-slate-800 lg:border-b-0 lg:border-r">
+              <div className="border-b border-slate-800 p-4">
+                <p className="text-sm font-semibold text-slate-300">
+                  {role === "employee" ? "Admin / HR" : "Employees"}
                 </p>
-              )}
-            </div>
-            <div className="max-h-[68vh] overflow-y-auto p-3">
-              {loading ? (
-                <p className="p-4 text-sm text-slate-500">
-                  Loading contacts...
-                </p>
-              ) : contacts.length === 0 ? (
-                <p className="p-4 text-sm text-slate-500">No contacts found</p>
-              ) : (
-                contacts.map((contact) => (
-                  <button
-                    key={contact.employee_id}
-                    onClick={() => setSelected(contact)}
-                    className={`mb-2 flex w-full items-center gap-3 rounded-2xl p-3 text-left transition ${
-                      selected?.employee_id === contact.employee_id
-                        ? "bg-slate-600"
-                        : "bg-slate-950 hover:bg-slate-800"
-                    }`}
-                  >
-                    <div className="absolute top-4 left-50 h-11 w-11 shrink-0 rounded-full bg-slate-800">
-                      {contact.profile_img ? (
-                        <div className="h-full w-full overflow-hidden rounded-full">
-                          <img
-                            src={getMediaUrl(contact.profile_img)}
-                            alt={contact.name}
-                            className="h-full w-full object-cover"
-                          />
-                        </div>
-                      ) : (
-                        <div className="grid h-full w-full place-items-center overflow-hidden rounded-2xl bg-cyan-600 font-bold text-sm">
-                          {contact.name.charAt(0)}
-                        </div>
-                      )}
-                      <span
-                        className={`absolute bottom-0.5 right-0 h-2.5 w-2.5 rounded-full border border-slate-950 ${
-                          contact.is_online ? "bg-green-400" : "bg-slate-500"
-                        }`}
-                      />
-                    </div>
-                    <div className="min-w-0 flex flex-col gap-2">
-                      <p className="truncate font-semibold text-sm">
-                        {contact.name}
-                      </p>
-                      <p className="truncate text-xs text-slate-400">
-                        {contact.is_online
-                          ? "Online"
-                          : formatLastSeen(contact.last_seen)}
-                      </p>
-                    </div>
-                  </button>
-                ))
-              )}
-            </div>
-          </aside>
+                {role === "employee" && (
+                  <p className="mt-1 text-xs text-slate-500">
+                    {staffContacts.length} staff contact
+                    {staffContacts.length === 1 ? "" : "s"} available
+                  </p>
+                )}
+              </div>
+              <div className="max-h-[68vh] overflow-y-auto p-3">
+                {loading ? (
+                  <p className="p-4 text-sm text-slate-500">
+                    Loading contacts...
+                  </p>
+                ) : contacts.length === 0 ? (
+                  <p className="p-4 text-sm text-slate-500">
+                    No contacts found
+                  </p>
+                ) : (
+                  contacts.map((contact) => (
+                    <button
+                      key={contact.employee_id}
+                      onClick={() => setSelected(contact)}
+                      className={`mb-2 flex w-full items-center gap-3 rounded-2xl p-3 text-left transition ${
+                        selected?.employee_id === contact.employee_id
+                          ? "bg-slate-600"
+                          : "bg-slate-950 hover:bg-slate-800"
+                      }`}
+                    >
+                      <div className="h-11 w-11 shrink-0 rounded-full bg-slate-800">
+                        {contact.profile_img ? (
+                          <div className="h-full w-full overflow-hidden rounded-full">
+                            <img
+                              src={getMediaUrl(contact.profile_img)}
+                              alt={contact.name}
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div className="grid h-full w-full place-items-center overflow-hidden rounded-2xl bg-cyan-600 font-bold text-sm">
+                            {contact.name.charAt(0)}
+                          </div>
+                        )}
+                        <span
+                          className={`absolute bottom-0.5 right-0 h-2.5 w-2.5 rounded-full border border-slate-950 ${
+                            contact.is_online ? "bg-green-400" : "bg-slate-500"
+                          }`}
+                        />
+                      </div>
+                      <div className="min-w-0 flex flex-col gap-2">
+                        <p className="truncate font-semibold text-sm">
+                          {contact.name}
+                        </p>
+                        <p className="truncate text-xs text-slate-400">
+                          {contact.is_online
+                            ? "Online"
+                            : formatLastSeen(contact.last_seen)}
+                        </p>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </aside>
           )}
 
           {isStaffRole && (
@@ -707,7 +703,7 @@ export default function Messages() {
                       key={contact.employee_id}
                       type="button"
                       onClick={() => setSelected(contact)}
-                      className={`flex min-w-64 items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${
+                      className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${
                         selected?.employee_id === contact.employee_id
                           ? "border-blue-500 bg-blue-600/20"
                           : "border-slate-800 bg-slate-900 hover:border-slate-600 hover:bg-slate-800"
@@ -1061,7 +1057,8 @@ export default function Messages() {
                     Select a user for conversation
                   </p>
                   <p className="mt-2 text-sm text-slate-500">
-                    Choose an employee from the conversation bar to open messages.
+                    Choose an employee from the conversation bar to open
+                    messages.
                   </p>
                 </div>
               </div>

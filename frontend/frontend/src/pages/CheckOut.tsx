@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Webcam from "react-webcam";
 import { useNavigate } from "react-router-dom";
-import API from "../services/api";
+import API, { FACE_REQUEST_TIMEOUT_MS } from "../services/api";
 import MessageOverlay from "../components/MessageOverlay";
 import {
   getCurrentLocation,
@@ -77,11 +77,15 @@ export default function CheckOut() {
       }
 
       const location = await getCurrentLocation();
-      const response = await API.post("/attendance/check-out/", {
-        employee_id,
-        image: imageSrc,
-        ...location,
-      });
+      const response = await API.post(
+        "/attendance/check-out/",
+        {
+          employee_id,
+          image: imageSrc,
+          ...location,
+        },
+        { timeout: FACE_REQUEST_TIMEOUT_MS },
+      );
 
       if (response.data.success) {
         setMessage(response.data.message);

@@ -1,4 +1,5 @@
 import base64
+import binascii
 import os
 import random
 import string
@@ -209,17 +210,20 @@ def save_base64_cv(data_url: str, original_name: str = "") -> str:
     extension = os.path.splitext(original_name or "")[1].lower()
     if "," in data_url:
         header, raw_data = data_url.split(",", 1)
+        if "pdf" not in header.lower():
+            raise ValueError("CV / Resume must be a PDF file")
         if not extension:
-            if "pdf" in header:
-                extension = ".pdf"
-            elif "wordprocessingml" in header:
-                extension = ".docx"
-            elif "msword" in header:
-                extension = ".doc"
-    if extension not in {".pdf", ".doc", ".docx"}:
-        extension = ".pdf"
+            extension = ".pdf"
+    if extension != ".pdf":
+        raise ValueError("CV / Resume must be a PDF file")
+    try:
+        file_bytes = base64.b64decode(raw_data, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise ValueError("Invalid PDF file") from exc
+    if not file_bytes.startswith(b"%PDF-"):
+        raise ValueError("Invalid PDF file")
     filename = f"cv_{uuid.uuid4().hex}{extension}"
-    (CV_DIR / filename).write_bytes(base64.b64decode(raw_data))
+    (CV_DIR / filename).write_bytes(file_bytes)
     return f"media/cv_files/{filename}"
 
 
@@ -351,7 +355,13 @@ def register_employee(request):
         employee_id = generate_employee_id()
         raw_password = generate_password()
         hashed = make_password(raw_password)
-        cv_path = save_base64_cv(cv_file, cv_file_name) if cv_file else ""
+        try:
+            cv_path = save_base64_cv(cv_file, cv_file_name) if cv_file else ""
+        except ValueError as exc:
+            return Response(
+                {"success": False, "error": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         Employee(
             name=name,
