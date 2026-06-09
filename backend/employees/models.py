@@ -25,6 +25,7 @@ class Employee(me.Document):
     is_active = me.BooleanField(default=True)
     role = me.StringField(default="employee")
     reset_otp = me.StringField(default="")
+    attendance_otp = me.StringField(default="")
     is_online = me.BooleanField(default=False)
     last_seen = me.DateTimeField(default=datetime.now)
 
@@ -57,4 +58,34 @@ class ChatMessage(me.Document):
         "collection": "chat_messages",
         "indexes": ["sender_id", "recipient_id", "-created_at"],
         "ordering": ["created_at"],
+    }
+
+
+class ChatGroup(me.Document):
+    group_name = me.StringField(required=True)
+    group_img = me.StringField(default="")
+    created_by = me.StringField(required=True)
+    members = me.ListField(me.StringField(), default=list)
+    created_at = me.DateTimeField(default=utc_now)
+
+    meta = {"collection": "chat_groups"}
+
+
+class GroupMessage(me.Document):
+    group_id = me.StringField(required=True)
+
+    sender_id = me.StringField(required=True)
+    sender_name = me.StringField(default="")
+
+    message = me.StringField(required=True)
+
+    is_edited = me.BooleanField(default=False)
+    is_deleted = me.BooleanField(default=False)
+    read_by = me.ListField(me.StringField(), default=list)
+    reactions = me.DictField(default=dict)
+    created_at = me.DateTimeField(default=utc_now)
+
+    meta = {
+        "collection": "group_messages",
+        "indexes": ["group_id", "-created_at"],
     }

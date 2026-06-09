@@ -5,6 +5,8 @@ from . import views
 urlpatterns = [
     # Face
     path("verify-face/", views.verify_face, name="verify-face"),
+    path("send-verify-otp/", views.send_verify_otp, name="send-verify-otp"),
+    path("verify-otp/", views.verify_otp, name="verify-otp"),
     path("check-in/", views.check_in_face, name="check-in"),
     path("check-out/", views.check_out_face, name="check-out"),
     # Reports
@@ -17,8 +19,7 @@ urlpatterns = [
     # Mark attendance
     path("mark-present/", views.mark_present, name="mark-present"),
     path("mark-absent/", views.mark_absent, name="mark-absent"),
-    path("mark-half-day/", views.mark_half_day, name="mark-half-day"),
-    path("mark-resign/", views.resign_employee, name="mark-resign"),
+    path("mark-half-day/", views.mark_half_day, name="mark-half-day"), 
     # Leave management
     path("request-leave/", views.request_leave, name="request-leave"),
     path("my-leave-requests/", views.my_leave_requests, name="my-leave-requests"),
@@ -26,4 +27,10 @@ urlpatterns = [
         "admin-leave-requests/", views.admin_leave_requests, name="admin-leave-requests"
     ),
     path("approve-leave/", views.approve_leave, name="approve-leave"),
+    path("leave-notifications/", views.leave_notifications, name="leave-notifications"),
+    path(
+        "mark-leave-notifications-read/",
+        views.mark_leave_notifications_read,
+        name="mark-leave-notifications-read",
+    ),
 ]

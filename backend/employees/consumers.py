@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 
-from .models import ChatMessage, Employee
+from .models import ChatGroup, ChatMessage, Employee, GroupMessage
 
 
 def chat_datetime_iso(value):
@@ -246,3 +246,197 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def chat_raw(self, event):
         await self.send(text_data=json.dumps(event["payload"]))
+
+
+def group_message_payload(message, group=None):
+    read_by = list(getattr(message, "read_by", []) or [])
+    recipients = []
+    if group:
+        recipients = [m for m in group.members if m != message.sender_id]
+    read_count = len([member_id for member_id in read_by if member_id != message.sender_id])
+    total_recipients = len(recipients)
+    is_fully_read = total_recipients > 0 and all(
+        member_id in read_by for member_id in recipients
+    )
+    return {
+        "id": str(message.id),
+        "group_id": message.group_id,
+        "sender_id": message.sender_id,
+        "sender_name": message.sender_name,
+        "message": message.message,
+        "is_edited": getattr(message, "is_edited", False),
+        "is_deleted": getattr(message, "is_deleted", False),
+        "read_by": read_by,
+        "read_count": read_count,
+        "total_recipients": total_recipients,
+        "is_fully_read": is_fully_read,
+        "reactions": getattr(message, "reactions", {}) or {},
+        "created_at": chat_datetime_iso(message.created_at),
+    }
+
+
+@sync_to_async
+def can_join_group(group_id, employee_id):
+    group = ChatGroup.objects(id=group_id).first()
+    employee = Employee.objects(employee_id=employee_id).first()
+    if not group or not employee:
+        return False
+    if employee.role in ("admin", "hr"):
+        return True
+    return employee_id in group.members
+
+
+@sync_to_async
+def save_group_message(group_id, sender_id, text):
+    sender = Employee.objects(employee_id=sender_id).first()
+    group = ChatGroup.objects(id=group_id).first()
+    if not sender or not group:
+        return None
+    if sender.role not in ("admin", "hr") and sender_id not in group.members:
+        return None
+
+    message = GroupMessage(
+        group_id=group_id,
+        sender_id=sender.employee_id,
+        sender_name=sender.name,
+        message=text.strip(),
+        created_at=datetime.now(timezone.utc),
+    )
+    message.save()
+    return group_message_payload(message, group)
+
+
+@sync_to_async
+def edit_group_message(message_id, employee_id, new_text):
+    message = GroupMessage.objects(id=message_id, sender_id=employee_id).first()
+    group = ChatGroup.objects(id=message.group_id).first() if message else None
+    if not message or not group:
+        return None
+    message.message = new_text.strip()
+    message.is_edited = True
+    message.save()
+    return group_message_payload(message, group)
+
+
+@sync_to_async
+def delete_group_message(message_id, employee_id):
+    message = GroupMessage.objects(id=message_id, sender_id=employee_id).first()
+    group = ChatGroup.objects(id=message.group_id).first() if message else None
+    if not message or not group:
+        return None
+    message.message = "This message was deleted"
+    message.is_deleted = True
+    message.save()
+    return group_message_payload(message, group)
+
+
+@sync_to_async
+def mark_group_read(group_id, reader_id):
+    group = ChatGroup.objects(id=group_id).first()
+    if not group:
+        return []
+    updated = []
+    for message in GroupMessage.objects(group_id=group_id, is_deleted=False):
+        if message.sender_id == reader_id:
+            continue
+        read_by = list(getattr(message, "read_by", []) or [])
+        if reader_id not in read_by:
+            read_by.append(reader_id)
+            message.read_by = read_by
+            message.save()
+            updated.append(group_message_payload(message, group))
+    return updated
+
+
+class GroupChatConsumer(AsyncWebsocketConsumer):
+
+    async def connect(self):
+        self.group_id = self.scope["url_route"]["kwargs"]["group_id"]
+        self.employee_id = self.scope["url_route"]["kwargs"]["employee_id"]
+        allowed = await can_join_group(self.group_id, self.employee_id)
+        if not allowed:
+            await self.close()
+            return
+
+        self.room_group_name = f"group_{self.group_id}"
+        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        if hasattr(self, "room_group_name"):
+            await self.channel_layer.group_discard(
+                self.room_group_name, self.channel_name
+            )
+
+    async def receive(self, text_data=None, bytes_data=None):
+        if not text_data:
+            return
+        try:
+            data = json.loads(text_data)
+        except json.JSONDecodeError:
+            return
+
+        event_type = data.get("type", "message")
+
+        if event_type == "edit":
+            payload = await edit_group_message(
+                str(data.get("message_id", "")).strip(),
+                self.employee_id,
+                str(data.get("new_text", "")).strip(),
+            )
+            if payload:
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {"type": "group.event", "event_type": "edit", "message": payload},
+                )
+            return
+
+        if event_type == "delete":
+            payload = await delete_group_message(
+                str(data.get("message_id", "")).strip(), self.employee_id
+            )
+            if payload:
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {"type": "group.event", "event_type": "delete", "message": payload},
+                )
+            return
+
+        if event_type == "read":
+            payloads = await mark_group_read(self.group_id, self.employee_id)
+            for payload in payloads:
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {"type": "group.event", "event_type": "read", "message": payload},
+                )
+            return
+
+        text = str(data.get("message", "")).strip()
+        if not text:
+            return
+
+        payload = await save_group_message(self.group_id, self.employee_id, text)
+        if not payload:
+            await self.send(
+                text_data=json.dumps(
+                    {"type": "error", "error": "Could not send group message"}
+                )
+            )
+            return
+
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {"type": "group.event", "event_type": "message", "message": payload},
+        )
+
+    async def group_message(self, event):
+        await self.send(
+            text_data=json.dumps({"type": "message", "message": event["message"]})
+        )
+
+    async def group_event(self, event):
+        await self.send(
+            text_data=json.dumps(
+                {"type": event["event_type"], "message": event["message"]}
+            )
+        )

@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../services/api";
+import { useUnreadMessages } from "../hooks/useUnreadMessages";
 import Button from "../components/Button";
 import Input from "../components/Input";
 import Table from "../components/Table";
@@ -46,6 +47,7 @@ interface LeaveRequest {
   status: string;
   reason: string;
   leave_type: string;
+  leave_end_date?: string;
 }
 
 const getLocalDate = () => {
@@ -171,7 +173,6 @@ export default function Dashboard() {
   const [showAbsentModal, setShowAbsentModal] = useState(false);
   const [showHalfDayModal, setShowHalfDayModal] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
-  const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [showLeavesModal, setShowLeavesModal] = useState(false);
   const [showReasonModal, setShowReasonModal] = useState(false);
   const [viewReason, setViewReason] = useState<string | null>(null);
@@ -182,6 +183,7 @@ export default function Dashboard() {
   const [leaveReason, setLeaveReason] = useState("");
   const [leaveType, setLeaveType] = useState("casual");
   const [leaveDate, setLeaveDate] = useState(getLocalDate());
+  const [leaveEndDate, setLeaveEndDate] = useState(getLocalDate());
 
   const [selectedDate, setSelectedDate] = useState(getLocalDate());
   const [successMessage, setSuccessMessage] = useState("");
@@ -202,6 +204,7 @@ export default function Dashboard() {
   const employeeName = localStorage.getItem("employee_name");
   const employeeId = localStorage.getItem("employee_id");
   const profileImg = getMediaUrl(localStorage.getItem("profile_img"));
+  const { unreadCount } = useUnreadMessages(employeeId || "");
   const today = getLocalDate();
 
   const todayRecord = records.find((r) => r.date === today);
@@ -212,7 +215,6 @@ export default function Dashboard() {
     showAbsentModal ||
     showHalfDayModal ||
     showLeaveModal ||
-    showSummaryModal ||
     showLeavesModal ||
     showReasonModal;
 
@@ -389,7 +391,11 @@ export default function Dashboard() {
       return;
     }
     if (!leaveDate) {
-      showError("Please select leave date");
+      showError("Please select leave start date");
+      return;
+    }
+    if (leaveEndDate < leaveDate) {
+      showError("Leave end date cannot be before the start date");
       return;
     }
     try {
@@ -397,11 +403,14 @@ export default function Dashboard() {
         employee_id: employeeId,
         reason: leaveReason,
         leave_date: leaveDate,
+        leave_end_date: leaveEndDate,
         leave_type: leaveType,
       });
       setShowLeaveModal(false);
       setLeaveReason("");
       setLeaveType("casual");
+      setLeaveDate(getLocalDate());
+      setLeaveEndDate(getLocalDate());
       setShowAttendancePrompt(false);
       showSuccess(res.data.message || "Leave requested");
       fetchRecords();
@@ -419,7 +428,8 @@ export default function Dashboard() {
 
   // ── Render ────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] px-3 py-4 sm:px-5 lg:px-6">
+    <div className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] px-3 
+    pt-5 sm:px-5 lg:px-6">
       {/* LATE ALERT BANNER */}
       {lateAlert.show && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-500/95 text-slate-900 px-6 py-3 flex items-center justify-between shadow-xl">
@@ -497,12 +507,6 @@ export default function Dashboard() {
               tone: "bg-orange-600 hover:bg-orange-700",
             },
             {
-              icon: "SM",
-              label: "Summary",
-              action: () => setShowSummaryModal(true),
-              tone: "bg-indigo-600 hover:bg-indigo-700",
-            },
-            {
               icon: <CalendarDays />,
               label: "Leaves",
               action: () => setShowLeavesModal(true),
@@ -521,8 +525,13 @@ export default function Dashboard() {
               className={`flex h-12 w-full cursor-pointer items-center gap-3 rounded-2xl px-2 text-sm text-white transition ${item.tone}`}
               title={item.label}
             >
-              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-xl">
+              <span className="relative grid h-7 w-7 shrink-0 place-items-center rounded-xl">
                 {item.icon}
+                {item.label === "Messages" && unreadCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
               </span>
               <span className="whitespace-nowrap opacity-0 translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
                 {item.label}
@@ -548,9 +557,9 @@ export default function Dashboard() {
       <div
         className={`max-w-8xl mx-auto transition-all duration-300 lg:ml-24 ${anyModalOpen || showWelcomePrompt ? "blur-sm pointer-events-none select-none" : ""}`}
       >
-        
+
         {/* HEADER */}
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-4xl px-6 py-6 shadow-2xl mb-8">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-4xl px-6 py-6 shadow-2xl mb-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
               <div className="text-center">
@@ -562,26 +571,24 @@ export default function Dashboard() {
                 </h2>
               </div>
             </div>
-            
+
             <div className="flex justify-end lg:hidden">
               <button
                 onClick={() => setShowMenu(!showMenu)}
                 className="bg-white/10 border border-white/10 text-white px-3 flex justify-center py-3 rounded-xl backdrop-blur-lg transition-all duration-300 cursor-pointer"
               >
                 <span
-                  className={`inline-block transition-transform duration-300 ${
-                    showMenu ? "rotate-180" : "rotate-0"
-                  }`}
+                  className={`inline-block transition-transform duration-300 ${showMenu ? "rotate-180" : "rotate-0"
+                    }`}
                 >
                   <Menu />
                 </span>
               </button>
             </div>
-                    
+
             <div
-              className={`flex flex-wrap justify-center gap-3 overflow-hidden transition-all duration-500 ease-in-out lg:hidden ${
-                showMenu ? "max-h-125 opacity-100 mt-4" : "max-h-0 opacity-0"
-              }`}
+              className={`flex flex-wrap justify-center gap-3 overflow-hidden transition-all duration-500 ease-in-out lg:hidden ${showMenu ? "max-h-125 opacity-100 mt-4" : "max-h-0 opacity-0"
+                }`}
             >
               <Button
                 text="Check Out"
@@ -589,7 +596,9 @@ export default function Dashboard() {
                 className="bg-blue-600 text-white cursor-pointer p-4"
               />
               <Button
-                text={"Messages"}
+                text={
+                  unreadCount > 0 ? `Messages (${unreadCount})` : "Messages"
+                }
                 onClick={() => navigate("/messages")}
                 className="bg-cyan-600 text-white cursor-pointer p-4"
               />
@@ -597,11 +606,6 @@ export default function Dashboard() {
                 text="Half Day"
                 onClick={() => setShowHalfDayModal(true)}
                 className="bg-orange-600 text-white cursor-pointer p-4"
-              />
-              <Button
-                text="Summary"
-                onClick={() => setShowSummaryModal(true)}
-                className="bg-indigo-600 text-white p-4"
               />
               <Button
                 text="My Leaves"
@@ -623,7 +627,7 @@ export default function Dashboard() {
         </div>
 
         {/* TOP CARDS */}
-        <div className="grid grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-5 mb-8">
+        <div className="grid grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-5 mb-4">
           <div className="col-span-2 xl:col-span-1 bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-4 sm:p-5 shadow-xl">
             <p className="text-slate-400 text-sm mb-3">Selected Date</p>
             <Input
@@ -800,7 +804,73 @@ export default function Dashboard() {
               </Table>
             </div>
           )}
-        </div>
+
+
+        </div>{monthlySummary && (
+          <div className="px-6 py-5">
+            <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-white">
+                  Monthly Summary
+                </h3>
+                <p className="text-sm text-slate-400">{monthLabel}</p>
+              </div>
+              <p className="text-xs text-slate-500">
+                Attendance overview for this month
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+              {[
+                {
+                  label: "Present Days",
+                  value: monthlySummary.present_count,
+                  color: "text-green-300",
+                  bg: "bg-green-500/10 border-green-500/20",
+                },
+                {
+                  label: "Late Arrivals",
+                  value: monthlySummary.late_count,
+                  color: "text-yellow-300",
+                  bg: "bg-yellow-500/10 border-yellow-500/20",
+                },
+                {
+                  label: "Absent Days",
+                  value: monthlySummary.absent_count,
+                  color: "text-red-300",
+                  bg: "bg-red-500/10 border-red-500/20",
+                },
+                {
+                  label: "Half Days",
+                  value: monthlySummary.half_day_count,
+                  color: "text-orange-300",
+                  bg: "bg-orange-500/10 border-orange-500/20",
+                },
+                {
+                  label: "Leave Days",
+                  value: monthlySummary.leave_count,
+                  color: "text-purple-300",
+                  bg: "bg-purple-500/10 border-purple-500/20",
+                },
+                {
+                  label: "Total Hours",
+                  value: monthlySummary.total_working_hours,
+                  color: "text-blue-300",
+                  bg: "bg-blue-500/10 border-blue-500/20",
+                },
+              ].map(({ label, value, color, bg }) => (
+                <div
+                  key={label}
+                  className={`rounded-2xl border p-4 ${bg}`}
+                >
+                  <p className="text-xs text-slate-400">{label}</p>
+                  <p className={`mt-1 text-2xl font-bold ${color}`}>
+                    {value}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── WELCOME MODAL ── */}
@@ -814,7 +884,7 @@ export default function Dashboard() {
             <h2 className="text-2xl sm:text-3xl text-white font-bold mb-3">
               {employeeName}
             </h2>
-            <p className="text-slate-400 mb-8">
+            <p className="text-slate-400 mb-4">
               Mark your attendance for today
             </p>
             <div className="grid grid-cols-2 gap-3">
@@ -945,13 +1015,27 @@ export default function Dashboard() {
             </p>
 
             <label className="text-slate-400 text-sm mb-2 block">
-              Leave Date
+              Leave Start Date
             </label>
             <Input
               type="date"
               value={leaveDate}
               min={today}
-              onChange={(e) => setLeaveDate(e.target.value)}
+              onChange={(e) => {
+                setLeaveDate(e.target.value);
+                if (leaveEndDate < e.target.value) setLeaveEndDate(e.target.value);
+              }}
+              className="w-full p-4 rounded-2xl bg-slate-900/70 text-white border border-slate-700 focus:border-purple-500 outline-none mb-4"
+            />
+
+            <label className="text-slate-400 text-sm mb-2 block">
+              Leave End Date
+            </label>
+            <Input
+              type="date"
+              value={leaveEndDate}
+              min={leaveDate}
+              onChange={(e) => setLeaveEndDate(e.target.value)}
               className="w-full p-4 rounded-2xl bg-slate-900/70 text-white border border-slate-700 focus:border-purple-500 outline-none mb-4"
             />
 
@@ -999,75 +1083,6 @@ export default function Dashboard() {
                 className="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-2xl font-semibold transition cursor-pointer"
               />
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── MONTHLY SUMMARY MODAL ── */}
-      {showSummaryModal && monthlySummary && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-5">
-          <div className="bg-[#111827] border border-white/10 rounded-4xl p-8 w-full max-w-md shadow-2xl">
-            <div className="w-16 h-16 rounded-3xl bg-indigo-500/20 flex items-center justify-center text-3xl mx-auto mb-4">
-              📊
-            </div>
-            <h2 className="text-2xl text-white font-bold text-center mb-1">
-              Monthly Summary
-            </h2>
-            <p className="text-indigo-300 text-center text-sm mb-6">
-              {monthLabel}
-            </p>
-
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              {[
-                {
-                  label: "Present Days",
-                  value: monthlySummary.present_count,
-                  color: "text-green-300",
-                  bg: "bg-green-500/10 border-green-500/20",
-                },
-                {
-                  label: "Late Arrivals",
-                  value: monthlySummary.late_count,
-                  color: "text-yellow-300",
-                  bg: "bg-yellow-500/10 border-yellow-500/20",
-                },
-                {
-                  label: "Absent Days",
-                  value: monthlySummary.absent_count,
-                  color: "text-red-300",
-                  bg: "bg-red-500/10 border-red-500/20",
-                },
-                {
-                  label: "Half Days",
-                  value: monthlySummary.half_day_count,
-                  color: "text-orange-300",
-                  bg: "bg-orange-500/10 border-orange-500/20",
-                },
-                {
-                  label: "Leave Days",
-                  value: monthlySummary.leave_count,
-                  color: "text-purple-300",
-                  bg: "bg-purple-500/10 border-purple-500/20",
-                },
-                {
-                  label: "Total Hours",
-                  value: monthlySummary.total_working_hours,
-                  color: "text-blue-300",
-                  bg: "bg-blue-500/10 border-blue-500/20",
-                },
-              ].map(({ label, value, color, bg }) => (
-                <div key={label} className={`border rounded-2xl p-4 ${bg}`}>
-                  <p className="text-slate-400 text-xs mb-1">{label}</p>
-                  <p className={`text-2xl font-bold ${color}`}>{value}</p>
-                </div>
-              ))}
-            </div>
-
-            <Button
-              text="Close"
-              onClick={() => setShowSummaryModal(false)}
-              className="w-full bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-2xl font-semibold transition cursor-pointer"
-            />
           </div>
         </div>
       )}

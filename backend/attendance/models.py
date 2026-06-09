@@ -30,6 +30,7 @@ class AttendanceRecord(me.Document):
     half_day_until = me.StringField(default="")
     minutes_late = me.IntField(default=0)  # ← NEW: how many mins late
     leave_type = me.StringField(default="")  # ← NEW: casual/sick/emergency
+    leave_notification_seen = me.BooleanField(default=False)
 
     meta = {
         "collection": "attendance",

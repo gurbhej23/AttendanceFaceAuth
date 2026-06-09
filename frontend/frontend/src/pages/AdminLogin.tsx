@@ -63,8 +63,8 @@ export default function AdminLogin() {
 
   return (
     <div className="relative flex flex-col gap-5 min-h-screen items-center justify-center overflow-hidden bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] p-6">
-      <div className="absolute -left-45 -top-40 h-87.5 w-87.5 rounded-full bg-blue-500/20 blur-3xl" />
-      <div className="absolute -bottom-30 -right-25 h-87.5 w-87.5 rounded-full bg-cyan-500/20 blur-3xl" />
+      {/* <div className="absolute -left-45 -top-40 h-87.5 w-87.5 rounded-full bg-blue-500/20 blur-3xl" />
+      <div className="absolute -bottom-30 -right-25 h-87.5 w-87.5 rounded-full bg-cyan-500/20 blur-3xl" /> */}
 
       <div className="w-80 grid grid-cols-2 gap-2 rounded-2xl border border-slate-800 bg-slate-950/70 p-2">
         <Button

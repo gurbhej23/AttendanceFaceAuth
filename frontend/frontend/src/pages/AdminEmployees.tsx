@@ -297,7 +297,7 @@ export default function AdminEmployees() {
                         </span>
                       </td>
                       <td className="px-5 py-4">
-                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                           <button
                             onClick={() => setEditing(employee)}
                             className="rounded-xl bg-slate-800 px-3 py-2 text-xs font-semibold hover:bg-slate-700 cursor-pointer"
@@ -473,11 +473,11 @@ export default function AdminEmployees() {
                 </div>
               </div>
             </div>
-            <div className="mt-6 flex justify-end">
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
               <button
                 onClick={() => setViewing(null)}
                 className="rounded-2xl bg-blue-600 px-5 py-3 font-bold hover:bg-blue-700 cursor-pointer"
-              > 
+              >
                 Close
               </button>
             </div>

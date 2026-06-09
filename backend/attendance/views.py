@@ -1,7 +1,6 @@
 import csv
 import math
-import os
-from rest_framework import status
+import os 
 from employees.models import Employee
 from attendance.models import AttendanceRecord
 from datetime import datetime, timedelta
@@ -11,6 +10,7 @@ import pytz
 from django.conf import settings
 from rest_framework.decorators import api_view
 from employees.face_utils import extract_and_save_embedding, verify_face_match
+from employees.views import generate_otp, otp_html, send_email
 from rest_framework.response import Response
 
 IST = pytz.timezone("Asia/Kolkata")
@@ -250,6 +250,133 @@ def verify_face(request):
         if "Face model" in str(e):
             return Response({"success": False, "error": str(e)}, status=503)
         raise
+    except Exception as e:
+        import traceback
+
+        traceback.print_exc()
+        return Response({"success": False, "error": str(e)}, status=500)
+
+
+# ─── Email OTP Verify (attendance gate) ───────────────────────────────────────
+
+
+@api_view(["POST"])
+def send_verify_otp(request):
+    try:
+        employee_id = request.data.get("employee_id", "").strip()
+        if not employee_id:
+            return Response(
+                {"success": False, "error": "Employee ID is required"},
+                status=400,
+            )
+
+        employee = Employee.objects(employee_id=employee_id, is_active=True).first()
+        if not employee:
+            return Response(
+                {"success": False, "error": "Employee not found"},
+                status=404,
+            )
+
+        if not employee.email:
+            return Response(
+                {"success": False, "error": "No email on file for this employee"},
+                status=400,
+            )
+
+        if is_before_attendance_start():
+            return Response(
+                {"success": False, "error": attendance_start_message()}, status=403
+            )
+
+        otp = generate_otp()
+        employee.attendance_otp = otp
+        employee.save()
+
+        ok, err = send_email(
+            to=employee.email,
+            subject="Your Attendance Verification OTP",
+            text=(
+                f"Hello {employee.name},\n\n"
+                f"Your OTP for attendance verification is: {otp}\n\n"
+                f"Valid for 10 minutes.\n\nRegards,\nAttendance System"
+            ),
+            html=otp_html(
+                otp,
+                "Attendance Verification",
+                f"Hello {employee.name}, use this OTP to verify your attendance login:",
+            ),
+        )
+        if not ok:
+            return Response(
+                {"success": False, "error": err or "Failed to send OTP email"},
+                status=500,
+            )
+
+        masked = employee.email
+        if "@" in masked:
+            local, domain = masked.split("@", 1)
+            masked = f"{local[:2]}***@{domain}"
+
+        return Response(
+            {
+                "success": True,
+                "message": "OTP sent to your registered email",
+                "email_hint": masked,
+            }
+        )
+    except Exception as e:
+        import traceback
+
+        traceback.print_exc()
+        return Response({"success": False, "error": str(e)}, status=500)
+
+
+@api_view(["POST"])
+def verify_otp(request):
+    try:
+        employee_id = request.data.get("employee_id", "").strip()
+        otp = str(request.data.get("otp", "")).strip()
+
+        if not employee_id or not otp:
+            return Response(
+                {"success": False, "error": "Employee ID and OTP are required"},
+                status=400,
+            )
+
+        employee = Employee.objects(employee_id=employee_id, is_active=True).first()
+        if not employee:
+            return Response(
+                {"success": False, "error": "Employee not found"},
+                status=404,
+            )
+
+        if is_before_attendance_start():
+            return Response(
+                {"success": False, "error": attendance_start_message()}, status=403
+            )
+
+        stored_otp = getattr(employee, "attendance_otp", "") or ""
+        if not stored_otp or stored_otp != otp:
+            return Response(
+                {"success": False, "error": "Invalid or expired OTP"},
+                status=401,
+            )
+
+        employee.attendance_otp = ""
+        employee.save()
+
+        return Response(
+            {
+                "success": True,
+                "message": "Email verified",
+                "employee_id": employee_id,
+                "employee_name": employee.name,
+                "profile_img": media_url(
+                    employee.profile_img or employee.photo_path or ""
+                ),
+                "cv_file": media_url(employee.cv_file or ""),
+            }
+        )
     except Exception as e:
         import traceback
 
@@ -1189,6 +1316,7 @@ def approve_leave(request):
             )
 
         record.status = "leave_approved" if action == "approve" else "leave_rejected"
+        record.leave_notification_seen = False
         record.save()
 
         return Response(
@@ -1202,6 +1330,97 @@ def approve_leave(request):
         import traceback
 
         traceback.print_exc()
+        return Response({"success": False, "error": str(e)}, status=500)
+
+
+# ─── Leave notifications (Messages hub) ───────────────────────────────────────
+
+
+@api_view(["GET"])
+def leave_notifications(request):
+    try:
+        employee_id = request.query_params.get("employee_id", "").strip()
+        employee = Employee.objects(employee_id=employee_id, is_active=True).first()
+        if not employee:
+            return Response(
+                {"success": False, "error": "Employee not found"}, status=404
+            )
+
+        if employee.role in ("admin", "hr"):
+            records = AttendanceRecord.objects(status="leave_pending").order_by("-date")
+            notifications = [
+                {
+                    "id": str(record.id),
+                    "type": "leave_request",
+                    "title": "Advance leave request",
+                    "message": f"{record.employee_name} requested {getattr(record, 'leave_type', 'casual') or 'casual'} leave on {record.date}",
+                    "employee_id": record.employee_id,
+                    "employee_name": record.employee_name,
+                    "date": record.date,
+                    "status": record.status,
+                    "reason": record.reason or "",
+                    "leave_type": getattr(record, "leave_type", "") or "casual",
+                    "is_read": False,
+                }
+                for record in records
+            ]
+        else:
+            records = AttendanceRecord.objects(
+                employee_id=employee_id,
+                status__in=["leave_approved", "leave_rejected"],
+            ).order_by("-date")
+            notifications = []
+            for record in records:
+                if getattr(record, "leave_notification_seen", False):
+                    continue
+                approved = record.status == "leave_approved"
+                notifications.append(
+                    {
+                        "id": str(record.id),
+                        "type": "leave_update",
+                        "title": "Leave approved" if approved else "Leave rejected",
+                        "message": f"Your {getattr(record, 'leave_type', 'casual') or 'casual'} leave on {record.date} was {'approved' if approved else 'rejected'}",
+                        "employee_id": record.employee_id,
+                        "employee_name": record.employee_name,
+                        "date": record.date,
+                        "status": record.status,
+                        "reason": record.reason or "",
+                        "leave_type": getattr(record, "leave_type", "") or "casual",
+                        "is_read": False,
+                    }
+                )
+
+        return Response(
+            {
+                "success": True,
+                "notifications": notifications,
+                "unread": len(notifications),
+            }
+        )
+    except Exception as e:
+        return Response({"success": False, "error": str(e)}, status=500)
+
+
+@api_view(["POST"])
+def mark_leave_notifications_read(request):
+    try:
+        employee_id = request.data.get("employee_id", "").strip()
+        employee = Employee.objects(employee_id=employee_id, is_active=True).first()
+        if not employee:
+            return Response(
+                {"success": False, "error": "Employee not found"}, status=404
+            )
+
+        if employee.role in ("admin", "hr"):
+            return Response({"success": True, "marked": 0})
+
+        updated = AttendanceRecord.objects(
+            employee_id=employee_id,
+            status__in=["leave_approved", "leave_rejected"],
+        ).update(set__leave_notification_seen=True)
+
+        return Response({"success": True, "marked": updated})
+    except Exception as e:
         return Response({"success": False, "error": str(e)}, status=500)
 
 
@@ -1383,21 +1602,4 @@ def mark_half_day(request):
     except Exception as e:
         return Response({"success": False, "error": str(e)}, status=500)
 
-
-# ─── Resign ───────────────────────────────────────────────────────────────────
-
-
-@api_view(["POST"])
-def resign_employee(request):
-    try:
-        employee_id = request.data.get("employee_id", "").strip()
-        employee = Employee.objects(employee_id=employee_id).first()
-        if not employee:
-            return Response(
-                {"success": False, "error": "Employee not found"}, status=404
-            )
-        employee.is_active = False
-        employee.save()
-        return Response({"success": True, "message": "Employee resigned successfully"})
-    except Exception as e:
-        return Response({"success": False, "error": str(e)}, status=500)
+ 

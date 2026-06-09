@@ -19,6 +19,16 @@ from .views import (
     chat_message_send,
     chat_message_detail,
     chat_message_react,
+    list_groups,
+    create_group,
+    group_history,
+    group_message_send,
+    add_group_member,
+    remove_group_member,
+    delete_group,
+    chat_unread_count,
+    update_group,
+    group_message_detail,
 )
 
 urlpatterns = [
@@ -53,4 +63,22 @@ urlpatterns = [
         admin_reset_employee_password,
         name="admin-reset-password",
     ),
+    path("chat-groups/", list_groups, name="chat-groups"),
+    path("chat-groups/create/", create_group, name="chat-groups-create"),
+    path("chat-groups/history/", group_history, name="chat-groups-history"),
+    path("chat-groups/message/send/", group_message_send, name="chat-groups-send"),
+    path("chat-unread-count/", chat_unread_count, name="chat-unread-count"),
+    path(
+        "chat-groups/message/<str:message_id>/",
+        group_message_detail,
+        name="chat-groups-message-detail",
+    ),
+    path("chat-groups/<str:group_id>/update/", update_group, name="chat-groups-update"),
+    path("chat-groups/add-member/", add_group_member, name="chat-groups-add-member"),
+    path(
+        "chat-groups/remove-member/",
+        remove_group_member,
+        name="chat-groups-remove-member",
+    ),
+    path("chat-groups/<str:group_id>/", delete_group, name="chat-groups-delete"),
 ]

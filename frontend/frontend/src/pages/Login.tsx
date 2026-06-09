@@ -58,16 +58,16 @@ export default function Login() {
         localStorage.setItem("profile_img", response.data.profile_img || "");
         localStorage.setItem("cv_file", response.data.cv_file || "");
 
-        setSuccess("Login successful. Redirecting to face verification...");
+        setSuccess("Login successful. Choose your verification method...");
 
         setOverlay({
           title: "Login successful",
-          message: "Opening face verification now.",
+          message: "Choose face or email OTP verification.",
           loading: true,
         });
 
         setTimeout(() => {
-          navigate("/verify-face", { replace: true });
+          navigate("/verify-choice", { replace: true });
         }, 1000);
       }
     } catch (err: unknown) {
@@ -110,8 +110,8 @@ export default function Login() {
         />
       </div>
 
-      <div className="absolute -left-25 -top-30 h-87.5 w-87.5 rounded-full bg-blue-500/20 blur-3xl" />
-      <div className="absolute -bottom-30 -right-25 h-87.5 w-87.5 rounded-full bg-cyan-500/20 blur-3xl" />
+      {/* <div className="absolute -left-25 -top-30 h-87.5 w-87.5 rounded-full bg-blue-500/20 blur-3xl" />
+      <div className="absolute -bottom-30 -right-25 h-87.5 w-87.5 rounded-full bg-cyan-500/20 blur-3xl" /> */}
 
       <div className="relative grid w-full max-w-3xl gap-5 rounded-[36px] border border-white/15 bg-white/8 p-5 shadow-2xl backdrop-blur-2xl lg:grid-cols-[270px_1fr]">
         <section className="rounded-[28px] border border-white/12 bg-white/8 p-4 text-center shadow-inner">

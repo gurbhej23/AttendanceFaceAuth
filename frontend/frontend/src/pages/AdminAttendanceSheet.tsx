@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../services/api";
+import { useUnreadMessages } from "../hooks/useUnreadMessages";
 import Button from "../components/Button";
 import axios from "axios";
 import {
@@ -15,7 +16,6 @@ import {
 } from "lucide-react";
 
 interface SheetRecord {
-  serial_no: number;
   employee_id: string;
   employee_name: string;
   email: string;
@@ -131,6 +131,8 @@ const getMediaUrl = (path?: string | null) => {
 
 export default function AdminAttendanceSheet() {
   const navigate = useNavigate();
+  const adminEmployeeId = localStorage.getItem("employee_id") || "";
+  const { unreadCount } = useUnreadMessages(adminEmployeeId);
 
   // ── Tab state ──────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<ActiveTab>("attendance");
@@ -333,22 +335,21 @@ export default function AdminAttendanceSheet() {
 
   return (
     <>
-      <div className="min-h-screen bg-slate-900 p-4 sm:p-6">
+      <div className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] px-3 
+    py-5 sm:px-5 lg:px-6">
         {/* TOAST */}
         {toast && (
           <div
-            className={`fixed top-5 left-1/2 -translate-x-1/2 z-50 px-6 py-4 rounded-2xl text-sm font-semibold shadow-xl border transition-all ${
-              toast.ok
-                ? "bg-green-500/15 border-green-500/30 text-green-300"
-                : "bg-red-500/15 border-red-500/30 text-red-300"
-            }`}
+            className={`fixed top-5 left-1/2 -translate-x-1/2 z-50 px-6 py-4 rounded-2xl text-sm font-semibold shadow-xl border transition-all ${toast.ok
+              ? "bg-green-500/15 border-green-500/30 text-green-300"
+              : "bg-red-500/15 border-red-500/30 text-red-300"
+              }`}
           >
             {toast.msg}
           </div>
         )}
 
         <aside className="group hidden lg:flex fixed left-3 top-5 bottom-5 z-30 w-20 hover:w-72 flex-col rounded-[28px] border border-white/10 p-4 shadow-2xl backdrop-blur-xl transition-all duration-300 ease-out overflow-hidden">
-          <div className="mb-6 flex items-start gap-3"></div>
           <nav className="space-y-7">
             {[
               {
@@ -388,8 +389,13 @@ export default function AdminAttendanceSheet() {
                 className={`flex h-12 w-full cursor-pointer items-center gap-3 rounded-2xl px-2 text-sm text-white transition ${item.tone}`}
                 title={item.label}
               >
-                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-xl">
+                <span className="relative grid h-7 w-7 shrink-0 place-items-center rounded-xl">
                   {item.icon}
+                  {item.label === "Messages" && unreadCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
                 </span>
                 <span className="whitespace-nowrap opacity-0 translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
                   {item.label}
@@ -397,25 +403,26 @@ export default function AdminAttendanceSheet() {
               </button>
             ))}
 
-            <button
-              onClick={handleLogout}
-              className="mt-auto flex h-12 w-full cursor-pointer items-center gap-3 rounded-2xl bg-red-600 px-2 text-sm font-bold text-white transition hover:bg-red-700"
-              title="Logout"
-            >
-              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-white/15 text-[11px]">
-                <LogOut />
-              </span>
-              <span className="whitespace-nowrap opacity-0 translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
-                Logout
-              </span>
-            </button>
+
           </nav>
+          <button
+            onClick={handleLogout}
+            className="mt-auto flex h-12 w-full cursor-pointer items-center gap-3 rounded-2xl bg-red-600 px-2 text-sm font-bold text-white transition hover:bg-red-700"
+            title="Logout"
+          >
+            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-white/15 text-[11px]">
+              <LogOut />
+            </span>
+            <span className="whitespace-nowrap opacity-0 translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
+              Logout
+            </span>
+          </button>
         </aside>
 
         <div className=" max-xl mx-auto transition-all duration-300 lg:ml-24 ">
           <div>
             {/* HEADER */}
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-white/5 backdrop-blur-xl border border-white/10 rounded-4xl px-6 py-6 shadow-2xl mb-4">
               <div className="text-center">
                 <h1 className="text-3xl text-white font-bold">
                   Admin Dashboard
@@ -447,9 +454,8 @@ export default function AdminAttendanceSheet() {
                   className=" text-white rounded-xl backdrop-blur-lg transition-all duration-300 cursor-pointer"
                 >
                   <span
-                    className={`inline-block transition-transform duration-300 ${
-                      showMenu ? "rotate-180" : "rotate-0"
-                    }`}
+                    className={`inline-block transition-transform duration-300 ${showMenu ? "rotate-180" : "rotate-0"
+                      }`}
                   >
                     <Menu size={30} />
                   </span>
@@ -457,11 +463,10 @@ export default function AdminAttendanceSheet() {
               </div>
 
               <div
-                className={`space-y-7 absolute top-20 left-0 p-2 grid grid-row-3 gap-4 overflow-hidden transition-all duration-500 ease-in-out lg:hidden rounded-3xl ${
-                  showMenu
-                    ? "max-w-50 opacity-100 mt-0 backdrop-blur-xl"
-                    : "max-w-0 opacity-0 backdrop-blur-xl"
-                }`}
+                className={`space-y-7 absolute top-20 left-0 p-2 grid grid-row-3 gap-4 overflow-hidden transition-all duration-500 ease-in-out lg:hidden rounded-3xl ${showMenu
+                  ? "max-w-50 opacity-100 mt-0 backdrop-blur-xl"
+                  : "max-w-0 opacity-0 backdrop-blur-xl"
+                  }`}
               >
                 <Button
                   text={<MessageSquareText />}
@@ -495,21 +500,19 @@ export default function AdminAttendanceSheet() {
             <div className="flex justify-center gap-2 mb-6">
               <button
                 onClick={() => setActiveTab("attendance")}
-                className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition cursor-pointer ${
-                  activeTab === "attendance"
-                    ? "bg-blue-600 text-white"
-                    : "bg-slate-800 text-slate-400 hover:text-white border border-slate-700"
-                }`}
+                className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition cursor-pointer ${activeTab === "attendance"
+                  ? "bg-blue-600 text-white"
+                  : "bg-slate-800 text-slate-400 hover:text-white border border-slate-700"
+                  }`}
               >
                 📋 Attendance Sheet
               </button>
               <button
                 onClick={() => setActiveTab("leaves")}
-                className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition cursor-pointer relative ${
-                  activeTab === "leaves"
-                    ? "bg-purple-600 text-white"
-                    : "bg-slate-800 text-slate-400 hover:text-white border border-slate-700"
-                }`}
+                className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition cursor-pointer relative ${activeTab === "leaves"
+                  ? "bg-purple-600 text-white"
+                  : "bg-slate-800 text-slate-400 hover:text-white border border-slate-700"
+                  }`}
               >
                 🏖️ Leave Requests
                 {pendingCount > 0 && (
@@ -563,11 +566,10 @@ export default function AdminAttendanceSheet() {
                     <button
                       key={filter}
                       onClick={() => setStatusFilter(filter as StatusFilter)}
-                      className={`text-left bg-slate-800 border p-5 rounded-2xl transition hover:scale-[1.02] cursor-pointer ${
-                        statusFilter === filter
-                          ? color.replace("/30", "")
-                          : color
-                      }`}
+                      className={`text-left bg-slate-800 border p-5 rounded-2xl transition hover:scale-[1.02] cursor-pointer ${statusFilter === filter
+                        ? color.replace("/30", "")
+                        : color
+                        }`}
                     >
                       <p className={`text-sm ${text}`}>{label}</p>
                       <p className="text-3xl text-white font-bold mt-2">
@@ -601,7 +603,6 @@ export default function AdminAttendanceSheet() {
                       <table className="w-full text-left text-white">
                         <thead className="bg-slate-700/50 border-b border-slate-700 text-xs text-slate-400 uppercase tracking-wider text-center">
                           <tr>
-                            <th className="px-5 py-4">No.</th>
                             <th className="px-5 py-4">Photo</th>
                             <th className="px-5 py-4">Employee</th>
                             <th className="px-5 py-4">ID</th>
@@ -621,9 +622,6 @@ export default function AdminAttendanceSheet() {
                               key={record.employee_id}
                               className="border-b border-slate-700 hover:bg-slate-700/40 transition text-center"
                             >
-                              <td className="px-5 py-4 text-slate-400">
-                                {record.serial_no}
-                              </td>
                               <td className="px-5 py-4">
                                 <div className="mx-auto h-12 w-12 overflow-hidden rounded-full border border-white/10 bg-slate-700">
                                   {record.profile_img ? (
@@ -774,17 +772,16 @@ export default function AdminAttendanceSheet() {
                       <button
                         key={f}
                         onClick={() => setLeaveFilter(f)}
-                        className={`px-4 py-2 rounded-xl text-sm font-semibold transition cursor-pointer ${
-                          active
-                            ? f === "leave_pending"
-                              ? "bg-yellow-500 text-slate-900"
-                              : f === "leave_approved"
-                                ? "bg-green-600 text-white"
-                                : f === "leave_rejected"
-                                  ? "bg-red-600 text-white"
-                                  : "bg-slate-600 text-white"
-                            : "bg-slate-800 text-slate-400 border border-slate-700 hover:text-white"
-                        }`}
+                        className={`px-4 py-2 rounded-xl text-sm font-semibold transition cursor-pointer ${active
+                          ? f === "leave_pending"
+                            ? "bg-yellow-500 text-slate-900"
+                            : f === "leave_approved"
+                              ? "bg-green-600 text-white"
+                              : f === "leave_rejected"
+                                ? "bg-red-600 text-white"
+                                : "bg-slate-600 text-white"
+                          : "bg-slate-800 text-slate-400 border border-slate-700 hover:text-white"
+                          }`}
                       >
                         {labels[f]}
                         {f === "leave_pending" && pendingCount > 0 && (

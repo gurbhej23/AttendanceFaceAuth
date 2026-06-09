@@ -3,6 +3,8 @@ import { Routes, Route } from "react-router-dom";
 import Login from "./pages/Login";
 import Register from "./pages/RegisterEmployee";
 import FaceVerification from "./pages/FaceVerification";
+import VerificationChoice from "./pages/VerificationChoice";
+import EmailOtpVerification from "./pages/EmailOtpVerification";
 import Dashboard from "./pages/Dashboard";
 import CheckOut from "./pages/CheckOut";
 import AdminAttendanceSheet from "./pages/AdminAttendanceSheet";
@@ -22,7 +24,9 @@ function App() {
 
       <Route path="/register" element={<Register />} />
 
+      <Route path="/verify-choice" element={<VerificationChoice />} />
       <Route path="/verify-face" element={<FaceVerification />} />
+      <Route path="/verify-otp" element={<EmailOtpVerification />} />
 
       <Route path="/dashboard" element={<Dashboard />} />
 

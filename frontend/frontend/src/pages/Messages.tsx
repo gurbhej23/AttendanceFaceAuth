@@ -3,6 +3,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../services/api";
 import EmojiPicker from "../components/EmojiPicker";
+import GroupChatSection from "../components/GroupChatSection";
+import NotificationBadge from "../components/NotificationBadge";
+import { useUnreadMessages } from "../hooks/useUnreadMessages";
 import { ArrowBigLeft, Check, CheckCheck } from "lucide-react";
 
 interface Contact {
@@ -12,6 +15,7 @@ interface Contact {
   department: string;
   designation: string;
   profile_img: string;
+  phone?: string;
   is_online?: boolean;
   last_seen?: string;
 }
@@ -83,6 +87,24 @@ export default function Messages() {
   // state used strictly to trigger re-renders so timers increment on-screen
   const [, setTick] = useState(0);
   const [deleteMsgId, setDeleteMsgId] = useState<string | null>(null);
+  const [chatMode, setChatMode] = useState<"direct" | "group">("direct");
+  const { summary, refreshUnread } = useUnreadMessages(employeeId);
+
+  const unreadByContact = useMemo(() => {
+    const map: Record<string, number> = {};
+    summary.directContacts.forEach((c) => {
+      map[c.employee_id] = c.unread;
+    });
+    return map;
+  }, [summary.directContacts]);
+
+  const unreadByGroup = useMemo(() => {
+    const map: Record<string, number> = {};
+    summary.groupUnread.forEach((g) => {
+      map[g.group_id] = g.unread;
+    });
+    return map;
+  }, [summary.groupUnread]);
 
   useEffect(() => {
     selectedRef.current = selected;
@@ -141,6 +163,10 @@ export default function Messages() {
   useEffect(() => {
     loadHistory();
   }, [loadHistory]);
+
+  useEffect(() => {
+    refreshUnread();
+  }, [messages, chatMode, refreshUnread]);
 
   const formatMessageDate = (ds: string) => {
     const d = new Date(ds),
@@ -570,15 +596,71 @@ export default function Messages() {
         }
       `}</style>
       <div className="mx-auto max-w-7xl">
-        <header className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <button
-            onClick={() =>
-              navigate(role === "employee" ? "/dashboard" : "/attendance-sheet")
-            }
-            className="px-2 text-sm font-semibold hover:bg-slate-800 cursor-pointer"
-          >
-            {<ArrowBigLeft size={30} />}
-          </button>
+        <header className="mb-5 flex flex-col gap-3 md:flex-row">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() =>
+                navigate(role === "employee" ? "/dashboard" : "/attendance-sheet")
+              }
+              className="px-2 text-sm font-semibold hover:bg-slate-800 cursor-pointer"
+            >
+              {<ArrowBigLeft size={30} />}
+            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex rounded-2xl border border-slate-800 bg-slate-900 p-1">
+                <button
+                  type="button"
+                  onClick={() => setChatMode("direct")}
+                  className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition cursor-pointer ${
+                    chatMode === "direct"
+                      ? "bg-blue-600 text-white"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  Personal
+                  <NotificationBadge count={summary.direct} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChatMode("group")}
+                  className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition cursor-pointer ${
+                    chatMode === "group"
+                      ? "bg-violet-600 text-white"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  Groups
+                  <NotificationBadge count={summary.group} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+        {summary.total > 0 && (
+          <div className="mb-4 flex flex-wrap gap-2 rounded-2xl border border-slate-800 bg-slate-900/80 px-4 py-3">
+            <span className="text-xs font-semibold text-slate-400">Unread:</span>
+            {summary.direct > 0 && (
+              <button
+                type="button"
+                onClick={() => setChatMode("direct")}
+                className="flex items-center gap-1.5 rounded-full bg-blue-600/20 px-3 py-1 text-xs font-semibold text-blue-300 hover:bg-blue-600/30 cursor-pointer"
+              >
+                Personal
+                <NotificationBadge count={summary.direct} />
+              </button>
+            )}
+            {summary.group > 0 && (
+              <button
+                type="button"
+                onClick={() => setChatMode("group")}
+                className="flex items-center gap-1.5 rounded-full bg-violet-600/20 px-3 py-1 text-xs font-semibold text-violet-300 hover:bg-violet-600/30 cursor-pointer"
+              >
+                Groups
+                <NotificationBadge count={summary.group} />
+              </button>
+            )}
+          </div>
+        )}
           {/* <div>
             <p className="mt-1 text-sm text-slate-400">
               <span
@@ -592,9 +674,25 @@ export default function Messages() {
 
         <div
           className={`min-h-[72vh] overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 ${
-            isStaffRole ? "flex flex-col" : "grid lg:grid-cols-[300px_1fr]"
+            chatMode !== "direct"
+              ? "flex flex-col"
+              : isStaffRole
+                ? "flex flex-col"
+                : "grid lg:grid-cols-[300px_1fr]"
           }`}
         >
+          <div className={chatMode === "group" ? "flex min-h-0 flex-1 flex-col" : "hidden"}>
+            <GroupChatSection
+              employeeId={employeeId}
+              isStaffRole={isStaffRole}
+              allContacts={contacts}
+              active={chatMode === "group"}
+              unreadByGroup={unreadByGroup}
+              onUnreadChange={refreshUnread}
+            />
+          </div>
+          {chatMode === "direct" && (
+            <>
           {/* Sidebar */}
           {!isStaffRole && (
             <aside className="border-b border-slate-800 lg:border-b-0 lg:border-r">
@@ -649,10 +747,15 @@ export default function Messages() {
                           }`}
                         />
                       </div>
-                      <div className="min-w-0 flex flex-col gap-2">
-                        <p className="truncate font-semibold text-sm">
-                          {contact.name}
-                        </p>
+                      <div className="min-w-0 flex flex-1 flex-col gap-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="truncate font-semibold text-sm">
+                            {contact.name}
+                          </p>
+                          <NotificationBadge
+                            count={unreadByContact[contact.employee_id] || 0}
+                          />
+                        </div>
                         <p className="truncate text-xs text-slate-400">
                           {contact.is_online
                             ? "Online"
@@ -678,7 +781,7 @@ export default function Messages() {
                     {contacts.length === 1 ? "" : "s"}
                   </p>
                 </div>
-                <span
+                {/* <span
                   className={`rounded-full border px-3 py-1 text-xs font-semibold ${
                     connected
                       ? "border-green-500/30 bg-green-500/10 text-green-300"
@@ -686,7 +789,7 @@ export default function Messages() {
                   }`}
                 >
                   {connected ? "Connected" : "Connecting"}
-                </span>
+                </span> */}
               </div>
               <div className="flex gap-3 overflow-x-auto px-5 pb-4">
                 {loading ? (
@@ -703,7 +806,7 @@ export default function Messages() {
                       key={contact.employee_id}
                       type="button"
                       onClick={() => setSelected(contact)}
-                      className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${
+                      className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition cursor-pointer ${
                         selected?.employee_id === contact.employee_id
                           ? "border-blue-500 bg-blue-600/20"
                           : "border-slate-800 bg-slate-900 hover:border-slate-600 hover:bg-slate-800"
@@ -728,6 +831,13 @@ export default function Messages() {
                             contact.is_online ? "bg-green-400" : "bg-slate-500"
                           }`}
                         />
+                        {(unreadByContact[contact.employee_id] || 0) > 0 && (
+                          <span className="absolute -top-1 -right-1">
+                            <NotificationBadge
+                              count={unreadByContact[contact.employee_id] || 0}
+                            />
+                          </span>
+                        )}
                       </div>
                       {/* <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-slate-100">
@@ -775,15 +885,17 @@ export default function Messages() {
                       }`}
                     />
                   </div>
-                  <div>
-                    <p className="font-bold text-sm">{selected.name}</p>
-                    <p className="text-xs text-slate-400">
-                      {typingById[selected.employee_id]
-                        ? "Typing..."
-                        : selected.is_online
-                          ? "Online"
-                          : formatLastSeen(selected.last_seen)}
-                    </p>
+                  <div className="flex flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="font-bold text-sm">{selected.name}</p>
+                      <p className="text-xs text-slate-400">
+                        {typingById[selected.employee_id]
+                          ? "Typing..."
+                          : selected.is_online
+                            ? "Online"
+                            : formatLastSeen(selected.last_seen)}
+                      </p>
+                    </div>
                   </div>
                 </div>
 
@@ -1064,6 +1176,8 @@ export default function Messages() {
               </div>
             )}
           </main>
+            </>
+          )}
         </div>
       </div>
       {deleteMsgId && (

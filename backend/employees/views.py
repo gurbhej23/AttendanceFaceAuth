@@ -18,13 +18,15 @@ from rest_framework_simplejwt.tokens import AccessToken
 from django.conf import settings
 from django.contrib.auth.hashers import check_password, make_password
 
-from .models import ChatMessage, Employee, RegistrationOTP
+from .models import ChatMessage, ChatGroup, Employee, GroupMessage, RegistrationOTP
 from .face_utils import extract_and_save_embedding, verify_face_match
 
 CV_DIR = settings.MEDIA_ROOT / "cv_files"
 PROFILE_DIR = settings.MEDIA_ROOT / "profile_images"
+GROUP_IMG_DIR = settings.MEDIA_ROOT / "group_images"
 CV_DIR.mkdir(parents=True, exist_ok=True)
 PROFILE_DIR.mkdir(parents=True, exist_ok=True)
+GROUP_IMG_DIR.mkdir(parents=True, exist_ok=True)
 
 FACE_DUPLICATE_THRESHOLD = 0.58
 
@@ -38,12 +40,6 @@ def send_email(
     text: str,
     html: str = "",
 ) -> tuple[bool, str]:
-    """
-    Send email via SendGrid HTTP API.
-    Works on Render — uses HTTPS port 443, never SMTP.
-
-    Returns (success: bool, error_message: str)
-    """
     api_key = getattr(settings, "SENDGRID_API_KEY", "")
     from_email = getattr(settings, "SENDGRID_FROM_EMAIL", "")
     from_name = getattr(settings, "SENDGRID_FROM_NAME", "Attendance System")
@@ -243,6 +239,22 @@ def save_base64_profile_image(data_url: str) -> str:
     return f"media/profile_images/{filename}"
 
 
+def save_base64_group_image(data_url: str) -> str:
+    if not data_url:
+        return ""
+    raw_data = data_url
+    extension = ".jpg"
+    if "," in data_url:
+        header, raw_data = data_url.split(",", 1)
+        if "png" in header:
+            extension = ".png"
+        elif "webp" in header:
+            extension = ".webp"
+    filename = f"group_{uuid.uuid4().hex}{extension}"
+    (GROUP_IMG_DIR / filename).write_bytes(base64.b64decode(raw_data))
+    return f"media/group_images/{filename}"
+
+
 def employee_payload(employee: Employee) -> dict:
     return {
         "employee_id": employee.employee_id,
@@ -275,6 +287,131 @@ def chat_payload(message: ChatMessage) -> dict:
         "reactions": getattr(message, "reactions", {}) or {},
         "created_at": chat_datetime_iso(message.created_at),
     }
+
+
+def group_message_payload(message: GroupMessage, group: ChatGroup | None = None) -> dict:
+    read_by = list(getattr(message, "read_by", []) or [])
+    recipients = []
+    if group:
+        recipients = [m for m in group.members if m != message.sender_id]
+    read_count = len([member_id for member_id in read_by if member_id != message.sender_id])
+    total_recipients = len(recipients)
+    is_fully_read = total_recipients > 0 and all(
+        member_id in read_by for member_id in recipients
+    )
+    return {
+        "id": str(message.id),
+        "group_id": message.group_id,
+        "sender_id": message.sender_id,
+        "sender_name": message.sender_name,
+        "message": message.message,
+        "is_edited": getattr(message, "is_edited", False),
+        "is_deleted": getattr(message, "is_deleted", False),
+        "read_by": read_by,
+        "read_count": read_count,
+        "total_recipients": total_recipients,
+        "is_fully_read": is_fully_read,
+        "reactions": getattr(message, "reactions", {}) or {},
+        "created_at": chat_datetime_iso(message.created_at),
+    }
+
+
+def group_payload(group: ChatGroup) -> dict:
+    member_details = []
+    for member_id in group.members:
+        employee = Employee.objects(employee_id=member_id).first()
+        if employee:
+            member_details.append(employee_payload(employee))
+    return {
+        "id": str(group.id),
+        "group_name": group.group_name,
+        "group_img": media_url(getattr(group, "group_img", "") or ""),
+        "created_by": group.created_by,
+        "members": list(group.members),
+        "member_count": len(group.members),
+        "member_details": member_details,
+        "created_at": chat_datetime_iso(group.created_at),
+    }
+
+
+def mark_group_messages_read(group: ChatGroup, reader_id: str) -> None:
+    messages = GroupMessage.objects(group_id=str(group.id), is_deleted=False)
+    for message in messages:
+        if message.sender_id == reader_id:
+            continue
+        read_by = list(getattr(message, "read_by", []) or [])
+        if reader_id not in read_by:
+            read_by.append(reader_id)
+            message.read_by = read_by
+            message.save()
+
+
+def count_unread_messages(employee: Employee) -> dict:
+    direct_messages = ChatMessage.objects(
+        recipient_id=employee.employee_id, is_read=False, is_deleted=False
+    )
+    direct_count = direct_messages.count()
+
+    direct_by_sender: dict[str, int] = {}
+    for message in direct_messages:
+        direct_by_sender[message.sender_id] = direct_by_sender.get(message.sender_id, 0) + 1
+
+    direct_contacts = []
+    for sender_id, unread in direct_by_sender.items():
+        sender = Employee.objects(employee_id=sender_id).first()
+        if sender:
+            direct_contacts.append(
+                {
+                    "employee_id": sender_id,
+                    "name": sender.name,
+                    "unread": unread,
+                }
+            )
+    direct_contacts.sort(key=lambda item: item["unread"], reverse=True)
+
+    if employee.role in ("admin", "hr"):
+        groups = ChatGroup.objects()
+    else:
+        groups = ChatGroup.objects(members=employee.employee_id)
+
+    group_count = 0
+    group_unread = []
+    for group in groups:
+        group_id = str(group.id)
+        unread_in_group = 0
+        for message in GroupMessage.objects(group_id=group_id, is_deleted=False):
+            if message.sender_id == employee.employee_id:
+                continue
+            read_by = getattr(message, "read_by", []) or []
+            if employee.employee_id not in read_by:
+                unread_in_group += 1
+        if unread_in_group:
+            group_unread.append(
+                {
+                    "group_id": group_id,
+                    "group_name": group.group_name,
+                    "unread": unread_in_group,
+                }
+            )
+        group_count += unread_in_group
+
+    return {
+        "total": direct_count + group_count,
+        "direct": direct_count,
+        "group": group_count,
+        "direct_contacts": direct_contacts,
+        "group_unread": group_unread,
+    }
+
+
+def can_access_group(employee: Employee, group: ChatGroup) -> bool:
+    if employee.role in ("admin", "hr"):
+        return True
+    return employee.employee_id in group.members
+
+
+def can_manage_group(employee: Employee) -> bool:
+    return employee.role in ("admin", "hr")
 
 
 def find_employee(employee_id: str):
@@ -1117,3 +1254,316 @@ def chat_message_react(request, message_id):
     msg.reactions = reactions
     msg.save()
     return Response({"success": True, "message": chat_payload(msg)})
+
+
+# ─── Create Group ────────────────────────────────────────────────────────────────
+
+
+@api_view(["GET"])
+def list_groups(request):
+    employee_id = request.query_params.get("employee_id", "").strip()
+    employee = find_employee(employee_id)
+    if not employee:
+        return Response(
+            {"success": False, "error": "Employee not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if employee.role in ("admin", "hr"):
+        groups = ChatGroup.objects().order_by("-created_at")
+    else:
+        groups = ChatGroup.objects(members=employee_id).order_by("-created_at")
+
+    return Response(
+        {"success": True, "groups": [group_payload(group) for group in groups]}
+    )
+
+
+@api_view(["POST"])
+def create_group(request):
+
+    employee_id = request.data.get("employee_id")
+
+    admin = Employee.objects(employee_id=employee_id).first()
+
+    if not admin:
+        return Response({"error": "User not found"}, status=404)
+
+    if admin.role not in ["admin", "hr"]:
+        return Response({"error": "Only admin/hr can create group"}, status=403)
+
+    group_name = str(request.data.get("group_name", "")).strip()
+    if not group_name:
+        return Response(
+            {"success": False, "error": "group_name is required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    members = list(request.data.get("members", []) or [])
+    if employee_id not in members:
+        members.append(employee_id)
+
+    group = ChatGroup(group_name=group_name, created_by=employee_id, members=members)
+
+    group.save()
+
+    return Response({"success": True, "group": group_payload(group)})
+
+
+@api_view(["GET"])
+def group_history(request):
+    employee_id = request.query_params.get("employee_id", "").strip()
+    group_id = request.query_params.get("group_id", "").strip()
+
+    employee = find_employee(employee_id)
+    if not employee:
+        return Response(
+            {"success": False, "error": "Employee not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    group = ChatGroup.objects(id=group_id).first()
+    if not group:
+        return Response(
+            {"success": False, "error": "Group not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if not can_access_group(employee, group):
+        return Response(
+            {"success": False, "error": "Access denied"},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    mark_group_messages_read(group, employee_id)
+    messages = GroupMessage.objects(group_id=group_id).order_by("created_at")
+    return Response(
+        {
+            "success": True,
+            "group": group_payload(group),
+            "messages": [
+                group_message_payload(message, group) for message in messages
+            ],
+        }
+    )
+
+
+@api_view(["POST"])
+def group_message_send(request):
+    sender_id = str(request.data.get("sender_id", "")).strip()
+    group_id = str(request.data.get("group_id", "")).strip()
+    text = str(request.data.get("message", "")).strip()
+
+    if not all([sender_id, group_id, text]):
+        return Response(
+            {
+                "success": False,
+                "error": "sender_id, group_id, and message are required",
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    sender = find_employee(sender_id)
+    group = ChatGroup.objects(id=group_id).first()
+    if not sender or not group:
+        return Response(
+            {"success": False, "error": "Sender or group not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if not can_access_group(sender, group):
+        return Response(
+            {"success": False, "error": "Access denied"},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    message = GroupMessage(
+        group_id=group_id,
+        sender_id=sender.employee_id,
+        sender_name=sender.name,
+        message=text,
+        created_at=datetime.now(pytz.UTC),
+    )
+    message.save()
+    group = ChatGroup.objects(id=group_id).first()
+    return Response(
+        {"success": True, "message": group_message_payload(message, group)}
+    )
+
+
+@api_view(["GET"])
+def chat_unread_count(request):
+    employee_id = request.query_params.get("employee_id", "").strip()
+    employee = find_employee(employee_id)
+    if not employee:
+        return Response(
+            {"success": False, "error": "Employee not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    counts = count_unread_messages(employee)
+    return Response({"success": True, **counts})
+
+
+@api_view(["PATCH"])
+def update_group(request, group_id):
+    admin_id = str(request.data.get("employee_id", "")).strip()
+    admin = find_employee(admin_id)
+    if not admin or not can_manage_group(admin):
+        return Response(
+            {"success": False, "error": "Access denied"},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    group = ChatGroup.objects(id=group_id).first()
+    if not group:
+        return Response(
+            {"success": False, "error": "Group not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    group_name = request.data.get("group_name")
+    if group_name is not None:
+        cleaned = str(group_name).strip()
+        if cleaned:
+            group.group_name = cleaned
+
+    image = request.data.get("group_img", request.data.get("image", ""))
+    if image:
+        try:
+            group.group_img = save_base64_group_image(str(image).strip())
+        except Exception as exc:
+            return Response(
+                {"success": False, "error": f"Could not save group photo: {exc}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+    group.save()
+    return Response({"success": True, "group": group_payload(group)})
+
+
+@api_view(["PATCH", "DELETE"])
+def group_message_detail(request, message_id):
+    employee_id = str(request.data.get("employee_id", "")).strip()
+    employee = find_employee(employee_id)
+    if not employee:
+        return Response(
+            {"success": False, "error": "Employee not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    message = GroupMessage.objects(id=message_id).first()
+    if not message:
+        return Response(
+            {"success": False, "error": "Message not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    group = ChatGroup.objects(id=message.group_id).first()
+    if not group or not can_access_group(employee, group):
+        return Response(
+            {"success": False, "error": "Access denied"},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    if request.method == "DELETE":
+        if message.sender_id != employee_id:
+            return Response(
+                {"success": False, "error": "Only sender can delete"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        message.message = "This message was deleted"
+        message.is_deleted = True
+        message.save()
+        return Response(
+            {"success": True, "message": group_message_payload(message, group)}
+        )
+
+    if message.sender_id != employee_id:
+        return Response(
+            {"success": False, "error": "Only sender can edit"},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    new_text = str(request.data.get("message", "")).strip()
+    if not new_text:
+        return Response(
+            {"success": False, "error": "message is required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    message.message = new_text
+    message.is_edited = True
+    message.save()
+    return Response(
+        {"success": True, "message": group_message_payload(message, group)}
+    )
+
+
+@api_view(["POST"])
+def add_group_member(request):
+    admin_id = request.data.get("employee_id")
+    group_id = request.data.get("group_id")
+    member_id = request.data.get("member_id")
+
+    admin = Employee.objects(employee_id=admin_id).first()
+
+    if admin.role not in ["admin", "hr"]:
+        return Response({"error": "Access denied"}, status=403)
+
+    group = ChatGroup.objects(id=group_id).first()
+
+    if not group:
+        return Response({"error": "Group not found"}, status=404)
+
+    if member_id not in group.members:
+        group.members.append(member_id)
+        group.save()
+
+    return Response({"success": True, "group": group_payload(group)})
+
+
+@api_view(["POST"])
+def remove_group_member(request):
+
+    admin_id = request.data.get("employee_id")
+
+    group_id = request.data.get("group_id")
+
+    member_id = request.data.get("member_id")
+
+    admin = Employee.objects(employee_id=admin_id).first()
+
+    if admin.role not in ["admin", "hr"]:
+        return Response({"error": "Access denied"}, status=403)
+
+    group = ChatGroup.objects(id=group_id).first()
+
+    if not group:
+        return Response({"error": "Group not found"}, status=404)
+
+    if member_id in group.members:
+        group.members.remove(member_id)
+        group.save()
+
+    return Response({"success": True, "group": group_payload(group)})
+
+
+@api_view(["DELETE"])
+def delete_group(request, group_id):
+
+    admin_id = request.data.get("employee_id")
+
+    admin = Employee.objects(employee_id=admin_id).first()
+
+    if admin.role not in ["admin", "hr"]:
+        return Response({"error": "Access denied"}, status=403)
+
+    group = ChatGroup.objects(id=group_id).first()
+
+    if not group:
+        return Response({"error": "Group not found"}, status=404)
+
+    group.delete()
+    GroupMessage.objects(group_id=group_id).delete()
+
+    return Response({"success": True})
