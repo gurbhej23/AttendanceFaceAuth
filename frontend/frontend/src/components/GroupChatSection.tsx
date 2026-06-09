@@ -14,15 +14,7 @@ import {
   UserPlus,
   Users,
 } from "lucide-react";
-
-interface Contact {
-  employee_id: string;
-  name: string;
-  role: string;
-  department: string;
-  designation: string;
-  profile_img: string;
-}
+import type { Contact } from "../utils/chatHelpers";
 
 interface ChatGroup {
   id: string;
@@ -531,7 +523,7 @@ export default function GroupChatSection({
       ? employeePool
       : allContacts.filter((c) => c.role === "employee");
   const filteredEmployees = employeeOptions.filter((c) =>
-    `${c.name} ${c.department} ${c.designation}`
+    `${c.name} ${c.department ?? ""} ${c.designation ?? ""}`
       .toLowerCase()
       .includes(memberSearch.toLowerCase()),
   );
@@ -540,7 +532,7 @@ export default function GroupChatSection({
     : [];
   const addMemberCandidates = selectedGroup
     ? nonMembers.filter((c) =>
-        `${c.name} ${c.department} ${c.designation}`
+        `${c.name} ${c.department ?? ""} ${c.designation ?? ""}`
           .toLowerCase()
           .includes(addMemberSearch.toLowerCase()),
       )
@@ -881,7 +873,7 @@ export default function GroupChatSection({
                     }
                   }}
                   placeholder="Message the group..."
-                  // className="min-h-12 max-h-32 flex-1 resize-none rounded-2xl border border-slate-700 bg-slate-950 text-white p-3 text-sm outline-none transition focus:border-blue-500"
+                  className="min-h-12 max-h-32 flex-1 resize-none rounded-2xl border border-slate-700 bg-slate-950 text-white p-3 text-sm outline-none transition focus:border-blue-500"
                   rows={1}
                 />
                 <button
