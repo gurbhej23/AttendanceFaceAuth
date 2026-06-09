@@ -6,6 +6,7 @@ import {
   Camera,
   Check,
   CheckCheck,
+  MoreVertical,
   Pencil,
   Plus,
   Settings,
@@ -39,7 +40,14 @@ interface GroupMessage {
   read_count?: number;
   total_recipients?: number;
   is_fully_read?: boolean;
+  message_type?: "user" | "system";
   created_at: string;
+}
+
+export interface GroupChatHeaderActions {
+  openAddMembers: () => void;
+  openManage: () => void;
+  openMembers: () => void;
 }
 
 const getApiRoot = () => {
@@ -78,6 +86,7 @@ interface Props {
   initialGroupId?: string;
   unreadByGroup?: Record<string, number>;
   onUnreadChange?: () => void;
+  onRegisterHeaderActions?: (actions: GroupChatHeaderActions) => void;
 }
 
 export default function GroupChatSection({
@@ -89,6 +98,7 @@ export default function GroupChatSection({
   initialGroupId = "",
   unreadByGroup = {},
   onUnreadChange,
+  onRegisterHeaderActions,
 }: Props) {
   const socketRef = useRef<WebSocket | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -117,6 +127,7 @@ export default function GroupChatSection({
   const [actionError, setActionError] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [menuMsgId, setMenuMsgId] = useState<string | null>(null);
+  const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
   const [editGroupName, setEditGroupName] = useState("");
@@ -132,6 +143,7 @@ export default function GroupChatSection({
     const handler = () => {
       setShowInputEmoji(false);
       setMenuMsgId(null);
+      setShowHeaderMenu(false);
     };
     document.addEventListener("click", handler);
     return () => document.removeEventListener("click", handler);
@@ -455,6 +467,12 @@ export default function GroupChatSection({
         const updated = res.data.group as ChatGroup;
         setGroups((cur) => cur.map((g) => (g.id === updated.id ? updated : g)));
       }
+      if (res.data.system_message) {
+        const sys = res.data.system_message as GroupMessage;
+        setMessages((cur) =>
+          cur.some((m) => m.id === sys.id) ? cur : [...cur, sys],
+        );
+      }
     } catch (err) {
       setActionError(getError(err, "Could not add member"));
     } finally {
@@ -475,6 +493,12 @@ export default function GroupChatSection({
       if (res.data.group) {
         const updated = res.data.group as ChatGroup;
         setGroups((cur) => cur.map((g) => (g.id === updated.id ? updated : g)));
+      }
+      if (res.data.system_message) {
+        const sys = res.data.system_message as GroupMessage;
+        setMessages((cur) =>
+          cur.some((m) => m.id === sys.id) ? cur : [...cur, sys],
+        );
       }
     } catch (err) {
       setActionError(getError(err, "Could not remove member"));
@@ -505,11 +529,91 @@ export default function GroupChatSection({
     }
   };
 
-  const openAddMemberModal = () => {
+  const openAddMemberModal = useCallback(() => {
     setActionError("");
     setAddMemberSearch("");
     void loadEmployeePool();
     setShowAddMemberModal(true);
+  }, [loadEmployeePool]);
+
+  const openManageModal = useCallback(() => {
+    setActionError("");
+    setShowManageModal(true);
+  }, []);
+
+  const openMembersModal = useCallback(() => {
+    setShowMembersModal(true);
+  }, []);
+
+  useEffect(() => {
+    if (!embedded || !onRegisterHeaderActions) return;
+    onRegisterHeaderActions({
+      openAddMembers: openAddMemberModal,
+      openManage: openManageModal,
+      openMembers: openMembersModal,
+    });
+  }, [
+    embedded,
+    onRegisterHeaderActions,
+    openAddMemberModal,
+    openManageModal,
+    openMembersModal,
+  ]);
+
+  const renderHeaderMenu = () => {
+    if (!isStaffRole || !selectedGroup) return null;
+    return (
+      <div className="relative shrink-0">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowHeaderMenu((v) => !v);
+          }}
+          className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-700 text-slate-300 transition hover:bg-slate-800 hover:text-white"
+          title="Group options"
+        >
+          <MoreVertical size={18} />
+        </button>
+        {showHeaderMenu && (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="absolute right-0 top-10 z-50 w-44 overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl"
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setShowHeaderMenu(false);
+                openMembersModal();
+              }}
+              className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm hover:bg-slate-800"
+            >
+              <Users size={15} /> View members
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowHeaderMenu(false);
+                openAddMemberModal();
+              }}
+              className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-green-300 hover:bg-green-500/10"
+            >
+              <UserPlus size={15} /> Add members
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowHeaderMenu(false);
+                openManageModal();
+              }}
+              className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm hover:bg-slate-800"
+            >
+              <Settings size={15} /> Manage group
+            </button>
+          </div>
+        )}
+      </div>
+    );
   };
 
   const toggleCreateMember = (id: string) => {
@@ -650,65 +754,42 @@ export default function GroupChatSection({
                   in group
                 </button>
               </div>
-              {isStaffRole && (
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={openAddMemberModal}
-                    className="flex items-center gap-1.5 rounded-xl border border-green-500/30 bg-green-500/10 px-3 py-2 text-xs font-semibold text-green-300 transition hover:bg-green-500/20 cursor-pointer"
-                    title="Add members to group"
-                  >
-                    <UserPlus size={16} />
-                    Add Members
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActionError("");
-                      setShowManageModal(true);
-                    }}
-                    className="rounded-xl border border-slate-700 p-2 hover:bg-slate-800 transition cursor-pointer"
-                    title="Manage group"
-                  >
-                    <Settings size={18} />
-                  </button>
-                </div>
-              )}
+              {renderHeaderMenu()}
             </div>
             )}
 
-            {embedded && isStaffRole && selectedGroup && (
-              <div className="flex items-center justify-end gap-2 border-b border-slate-800 px-3 py-2">
-                <button
-                  type="button"
-                  onClick={openAddMemberModal}
-                  className="rounded-lg border border-green-500/30 bg-green-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-green-300 hover:bg-green-500/20"
-                >
-                  Add Members
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActionError("");
-                    setShowManageModal(true);
-                  }}
-                  className="rounded-lg border border-slate-700 p-1.5 hover:bg-slate-800"
-                  title="Manage group"
-                >
-                  <Settings size={14} />
-                </button>
-              </div>
-            )}
-
-            <div className={`flex-1 space-y-2 overflow-y-auto p-4 ${embedded ? "min-h-0" : ""}`}>
+            <div
+              className={`pro-chat-scroll flex-1 space-y-2 p-4 ${embedded ? "min-h-0" : ""}`}
+            >
               {messages.map((msg, index) => {
-                const mine = msg.sender_id === employeeId;
+                const isSystem =
+                  msg.message_type === "system" || msg.sender_id === "system";
+                const mine = !isSystem && msg.sender_id === employeeId;
                 const isEditing = editingMsgId === msg.id;
                 const isMenuOpen = menuMsgId === msg.id;
                 const showDate =
                   index === 0 ||
                   formatMessageDate(messages[index - 1].created_at) !==
                     formatMessageDate(msg.created_at);
+
+                if (isSystem) {
+                  return (
+                    <div key={msg.id}>
+                      {showDate && (
+                        <div className="my-3 text-center text-[10px] text-slate-500">
+                          <span className="rounded-full bg-slate-800/80 px-3 py-1">
+                            {formatMessageDate(msg.created_at)}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex justify-center px-2 py-1">
+                        <p className="max-w-[90%] rounded-full border border-violet-500/25 bg-violet-500/10 px-4 py-1.5 text-center text-xs leading-relaxed text-violet-200">
+                          {msg.message}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
 
                 return (
                   <div key={msg.id}>
@@ -723,33 +804,34 @@ export default function GroupChatSection({
                       className={`group flex items-end gap-2 ${mine ? "justify-end" : "justify-start"}`}
                     >
                       {!msg.is_deleted && mine && !isEditing && (
-                        <div className="relative opacity-0 transition group-hover:opacity-100">
+                        <div className="relative opacity-100 transition md:opacity-0 md:group-hover:opacity-100">
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               setMenuMsgId(isMenuOpen ? null : msg.id);
                             }}
-                            className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-800 hover:bg-slate-700 cursor-pointer"
+                            className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-slate-300 hover:bg-slate-700"
+                            aria-label="Message options"
                           >
-                            ⋮
+                            <MoreVertical size={16} />
                           </button>
                           {isMenuOpen && (
                             <div
                               onClick={(e) => e.stopPropagation()}
-                              className="absolute bottom-9 right-0 z-50 w-36 overflow-hidden rounded-2xl border border-slate-700 bg-slate-800 shadow-2xl"
+                              className="absolute bottom-10 right-0 z-50 w-36 overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl text-slate-300"
                             >
                               <button
                                 type="button"
                                 onClick={() => startEdit(msg)}
-                                className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm hover:bg-slate-700 cursor-pointer"
+                                className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm hover:bg-slate-800"
                               >
                                 <Pencil size={14} /> Edit
                               </button>
                               <button
                                 type="button"
                                 onClick={() => deleteMessage(msg.id)}
-                                className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-red-400 hover:bg-red-500/20 cursor-pointer"
+                                className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-red-400 hover:bg-red-500/15"
                               >
                                 <Trash2 size={14} /> Delete
                               </button>
@@ -794,7 +876,7 @@ export default function GroupChatSection({
                           </div>
                         ) : (
                           <div
-                            className={`rounded-3xl px-4 py-3 text-sm ${
+                            className={`rounded-3xl px-4 py-3 text-xs ${
                               msg.is_deleted
                                 ? "bg-slate-800/50 text-slate-500 italic"
                                 : mine
@@ -835,7 +917,7 @@ export default function GroupChatSection({
               <div ref={bottomRef} />
             </div>
 
-            <div className="border-t border-slate-800 p-4">
+            <div className="shrink-0 border-t border-slate-800 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:p-4">
               {sendError && (
                 <p className="mb-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-300">
                   {sendError}
@@ -962,7 +1044,7 @@ export default function GroupChatSection({
                           className="accent-blue-500"
                         />
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold">{emp.name}</p>
+                          <p className="truncate text-sm font-semibold text-slate-300">{emp.name}</p>
                           <p className="truncate text-xs text-slate-400">
                             {emp.department} · {emp.designation}
                           </p>
@@ -1037,7 +1119,7 @@ export default function GroupChatSection({
                           {emp.name.charAt(0)}
                         </div>
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold">{emp.name}</p>
+                          <p className="truncate text-sm font-semibold text-slate-300">{emp.name}</p>
                           <p className="truncate text-xs text-slate-400">
                             {emp.department} · {emp.designation}
                           </p>
@@ -1150,7 +1232,7 @@ export default function GroupChatSection({
                       className="flex items-center justify-between rounded-2xl border border-slate-800 bg-slate-950 p-3"
                     >
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold">{member.name}</p>
+                        <p className="truncate text-sm font-semibold text-slate-300">{member.name}</p>
                         <p className="truncate text-xs text-slate-400">
                           {member.role} · {member.department}
                         </p>
@@ -1195,7 +1277,7 @@ export default function GroupChatSection({
                         className="flex items-center justify-between rounded-2xl border border-slate-800 bg-slate-950 p-3"
                       >
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold">{emp.name}</p>
+                          <p className="truncate text-sm font-semibold text-slate-300">{emp.name}</p>
                           <p className="truncate text-xs text-slate-400">
                             {emp.department}
                           </p>
@@ -1272,7 +1354,7 @@ export default function GroupChatSection({
                     )}
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold">{member.name}</p>
+                    <p className="truncate text-sm font-semibold text-slate-300">{member.name}</p>
                     <p className="truncate text-xs text-slate-400">
                       {member.role} · {member.department}
                     </p>

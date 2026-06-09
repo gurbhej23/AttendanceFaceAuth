@@ -3,12 +3,12 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../services/api";
 import Button from "../components/Button";
+import AdminSidebar from "../components/AdminSidebar";
 import axios from "axios";
 import {
   ChartNoAxesCombined,
   Download,
   IdCardLanyard,
-  LogOut,
   Menu,
   User,
 } from "lucide-react";
@@ -156,6 +156,9 @@ export default function AdminAttendanceSheet() {
   const [showMenu, setShowMenu] = useState(false);
 
   const today = getLocalDate();
+  const adminName = localStorage.getItem("employee_name") || "Admin";
+  const adminRole = (localStorage.getItem("role") || "admin").toUpperCase();
+  const adminProfileImg = getMediaUrl(localStorage.getItem("profile_img"));
 
   // ── Toast helper ───────────────────────────────────────────────────────
   const showToast = (msg: string, ok: boolean) => {
@@ -320,19 +323,48 @@ export default function AdminAttendanceSheet() {
     window.history.pushState(null, "", "/");
   };
 
-  const exportCsv = () => {
+  const exportCsv = useCallback(() => {
     const baseUrl = API.defaults.baseURL || "http://localhost:8000/api";
     window.open(
       `${baseUrl}/attendance/export-csv/?date=${selectedDate}`,
       "_blank",
       "noopener,noreferrer",
     );
-  };
+  }, [selectedDate]);
+
+  const sidebarItems = useMemo(
+    () => [
+      {
+        icon: <User size={18} />,
+        label: "Profile",
+        onClick: () => navigate("/admin-profile"),
+        tone: "bg-slate-700/80 hover:bg-slate-600",
+      },
+      {
+        icon: <Download size={18} />,
+        label: "Download CSV",
+        onClick: exportCsv,
+        tone: "bg-green-600/90 hover:bg-green-600",
+      },
+      {
+        icon: <ChartNoAxesCombined size={18} />,
+        label: "Analytics",
+        onClick: () => navigate("/admin-analytics"),
+        tone: "bg-indigo-600/90 hover:bg-indigo-600",
+      },
+      {
+        icon: <IdCardLanyard size={18} />,
+        label: "Employees",
+        onClick: () => navigate("/admin-employees"),
+        tone: "bg-blue-600/90 hover:bg-blue-600",
+      },
+    ],
+    [navigate, exportCsv],
+  );
 
   return (
     <>
-      <div className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] px-3 
-    py-5 sm:px-5 lg:px-6">
+      <div className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] px-3 py-5 pb-24 sm:px-5 lg:px-8 lg:pb-8">
         {/* TOAST */}
         {toast && (
           <div
@@ -345,78 +377,39 @@ export default function AdminAttendanceSheet() {
           </div>
         )}
 
-        <aside className="group hidden lg:flex fixed left-3 top-5 bottom-5 z-30 w-20 hover:w-72 flex-col rounded-[28px] border border-white/10 p-4 shadow-2xl backdrop-blur-xl transition-all duration-300 ease-out overflow-hidden">
-          <nav className="space-y-7">
-            {[
-              {
-                icon: <User />,
-                label: "Profile",
-                action: () => navigate("/admin-profile"),
-                tone: "cursor-pointer rounded-xl bg-slate-700 px-2 py-3 font-semibold text-white hover:bg-slate-600",
-              },
-              {
-                icon: <Download />,
-                label: "Download",
-                action: exportCsv,
-                tone: "bg-green-600 hover:bg-green-700",
-              },
-              {
-                icon: <ChartNoAxesCombined />,
-                label: "Analytics",
-                action: () => navigate("/admin-analytics"),
-                tone: "cursor-pointer rounded-xl bg-indigo-600 px-2 py-3 font-semibold text-white hover:bg-indigo-700",
-              },
-              {
-                icon: <IdCardLanyard />,
-                label: "Admin Employees",
-                action: () => navigate("/admin-employees"),
-                tone: "cursor-pointer rounded-xl bg-blue-600 px-2 py-3 font-semibold text-white hover:bg-blue-700",
-              },
-            ].map((item) => (
-              <button
-                key={item.label}
-                onClick={item.action}
-                className={`flex h-12 w-full cursor-pointer items-center gap-3 rounded-2xl px-2 text-sm text-white transition ${item.tone}`}
-                title={item.label}
-              >
-                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-xl">
-                  {item.icon}
-                </span>
-                <span className="whitespace-nowrap opacity-0 translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
-                  {item.label}
-                </span>
-              </button>
-            ))}
+        <AdminSidebar
+          items={sidebarItems}
+          onLogout={handleLogout}
+          mobileOpen={showMenu}
+          onMobileClose={() => setShowMenu(false)}
+          adminName={adminName}
+          adminRole={adminRole}
+          profileImg={adminProfileImg}
+        />
 
-
-          </nav>
-          <button
-            onClick={handleLogout}
-            className="mt-auto flex h-12 w-full cursor-pointer items-center gap-3 rounded-2xl bg-red-600 px-2 text-sm font-bold text-white transition hover:bg-red-700"
-            title="Logout"
-          >
-            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-white/15 text-[11px]">
-              <LogOut />
-            </span>
-            <span className="whitespace-nowrap opacity-0 translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
-              Logout
-            </span>
-          </button>
-        </aside>
-
-        <div className=" max-xl mx-auto transition-all duration-300 lg:ml-24 ">
+        <div className="mx-auto max-w-[1600px] transition-all duration-500 ease-out lg:ml-[88px]">
           <div>
             {/* HEADER */}
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between bg-white/5 backdrop-blur-xl border border-white/10 rounded-4xl px-6 py-6 shadow-2xl mb-4">
-              <div className="text-center">
-                <h1 className="text-3xl text-white font-bold">
-                  Admin Dashboard
-                </h1>
-                <p className="text-slate-400 mt-1">
-                  Manage attendance and leave requests
-                </p>
+            <div className="mb-4 flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 px-4 py-5 shadow-2xl backdrop-blur-xl sm:px-6 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowMenu(true)}
+                  className="rounded-xl border border-white/10 bg-white/10 p-2.5 text-white transition hover:bg-white/15 lg:hidden"
+                  aria-label="Open menu"
+                >
+                  <Menu size={22} />
+                </button>
+                <div>
+                  <h1 className="text-2xl font-bold text-white sm:text-3xl">
+                    Admin Dashboard
+                  </h1>
+                  <p className="mt-0.5 text-sm text-slate-400">
+                    Manage attendance and leave requests
+                  </p>
+                </div>
               </div>
-              <div className="text-center">
+              <div className="flex justify-center md:justify-end">
                 {activeTab === "attendance" && (
                   <input
                     type="date"
@@ -427,71 +420,30 @@ export default function AdminAttendanceSheet() {
                         e.target.value > today ? today : e.target.value,
                       )
                     }
-                    className="rounded-xl border border-slate-700 bg-slate-800 p-3 text-white outline-none focus:border-blue-500"
+                    className="w-full max-w-xs rounded-xl border border-slate-700 bg-slate-800 p-3 text-white outline-none transition focus:border-blue-500 sm:w-auto"
                   />
                 )}
               </div>
             </div>
-            <div>
-              <div className="lg:hidden absolute top-2 left-0 p-5">
-                <button
-                  onClick={() => setShowMenu(!showMenu)}
-                  className=" text-white rounded-xl backdrop-blur-lg transition-all duration-300 cursor-pointer"
-                >
-                  <span
-                    className={`inline-block transition-transform duration-300 ${showMenu ? "rotate-180" : "rotate-0"
-                      }`}
-                  >
-                    <Menu size={30} />
-                  </span>
-                </button>
-              </div>
-
-              <div
-                className={`space-y-7 absolute top-20 left-0 p-2 grid grid-row-3 gap-4 overflow-hidden transition-all duration-500 ease-in-out lg:hidden rounded-3xl ${showMenu
-                  ? "max-w-50 opacity-100 mt-0 backdrop-blur-xl"
-                  : "max-w-0 opacity-0 backdrop-blur-xl"
-                  }`}
-              >
-                <Button
-                  text={<Download />}
-                  onClick={exportCsv}
-                  className="bg-green-600 hover:bg-green-700 px-4 py-3 text-white"
-                />{" "}
-                <Button
-                  text={<ChartNoAxesCombined />}
-                  onClick={() => navigate("/admin-analytics")}
-                  className="cursor-pointer rounded-xl bg-indigo-600 px-4 py-3 font-semibold text-white hover:bg-indigo-700"
-                />
-                <Button
-                  text={<IdCardLanyard />}
-                  onClick={() => navigate("/admin-employees")}
-                  className="cursor-pointer rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white hover:bg-blue-700"
-                />
-                <Button
-                  text={<LogOut />}
-                  onClick={handleLogout}
-                  className="px-4 py-3 cursor-pointer items-center gap-3 rounded-2xl bg-red-600 text-sm font-bold text-white transition hover:bg-red-700"
-                />
-              </div>
-            </div>
 
             {/* TABS */}
-            <div className="flex justify-center gap-2 mb-6">
+            <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
               <button
                 onClick={() => setActiveTab("attendance")}
-                className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition cursor-pointer ${activeTab === "attendance"
-                  ? "bg-blue-600 text-white"
-                  : "bg-slate-800 text-slate-400 hover:text-white border border-slate-700"
+                className={`w-full rounded-xl px-5 py-2.5 text-sm font-semibold transition sm:w-auto ${
+                  activeTab === "attendance"
+                  ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
+                  : "border border-slate-700 bg-slate-800 text-slate-400 hover:text-white"
                   }`}
               >
                 📋 Attendance Sheet
               </button>
               <button
                 onClick={() => setActiveTab("leaves")}
-                className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition cursor-pointer relative ${activeTab === "leaves"
-                  ? "bg-purple-600 text-white"
-                  : "bg-slate-800 text-slate-400 hover:text-white border border-slate-700"
+                className={`relative w-full rounded-xl px-5 py-2.5 text-sm font-semibold transition sm:w-auto ${
+                  activeTab === "leaves"
+                  ? "bg-purple-600 text-white shadow-lg shadow-purple-600/20"
+                  : "border border-slate-700 bg-slate-800 text-slate-400 hover:text-white"
                   }`}
               >
                 🏖️ Leave Requests

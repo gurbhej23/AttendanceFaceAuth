@@ -307,6 +307,7 @@ def group_message_payload(message: GroupMessage, group: ChatGroup | None = None)
         "message": message.message,
         "is_edited": getattr(message, "is_edited", False),
         "is_deleted": getattr(message, "is_deleted", False),
+        "message_type": getattr(message, "message_type", "user") or "user",
         "read_by": read_by,
         "read_count": read_count,
         "total_recipients": total_recipients,
@@ -412,6 +413,39 @@ def can_access_group(employee: Employee, group: ChatGroup) -> bool:
 
 def can_manage_group(employee: Employee) -> bool:
     return employee.role in ("admin", "hr")
+
+
+def broadcast_group_event(group_id: str, event_type: str, message_payload: dict) -> None:
+    try:
+        from asgiref.sync import async_to_sync
+        from channels.layers import get_channel_layer
+
+        channel_layer = get_channel_layer()
+        if not channel_layer:
+            return
+        async_to_sync(channel_layer.group_send)(
+            f"group_{group_id}",
+            {
+                "type": "group.event",
+                "event_type": event_type,
+                "message": message_payload,
+            },
+        )
+    except Exception:
+        pass
+
+
+def create_system_group_message(group_id: str, text: str) -> GroupMessage:
+    message = GroupMessage(
+        group_id=group_id,
+        sender_id="system",
+        sender_name="System",
+        message=text.strip(),
+        message_type="system",
+        created_at=datetime.now(pytz.UTC),
+    )
+    message.save()
+    return message
 
 
 def find_employee(employee_id: str):
@@ -1515,11 +1549,27 @@ def add_group_member(request):
     if not group:
         return Response({"error": "Group not found"}, status=404)
 
+    system_message = None
     if member_id not in group.members:
         group.members.append(member_id)
         group.save()
+        member = Employee.objects(employee_id=member_id).first()
+        member_name = member.name if member else member_id
+        sys_msg = create_system_group_message(
+            str(group.id),
+            f"{admin.name} added {member_name} to the group",
+        )
+        group = ChatGroup.objects(id=group_id).first()
+        system_message = group_message_payload(sys_msg, group)
+        broadcast_group_event(str(group.id), "message", system_message)
 
-    return Response({"success": True, "group": group_payload(group)})
+    return Response(
+        {
+            "success": True,
+            "group": group_payload(group),
+            "system_message": system_message,
+        }
+    )
 
 
 @api_view(["POST"])
@@ -1541,11 +1591,27 @@ def remove_group_member(request):
     if not group:
         return Response({"error": "Group not found"}, status=404)
 
+    system_message = None
     if member_id in group.members:
         group.members.remove(member_id)
         group.save()
+        member = Employee.objects(employee_id=member_id).first()
+        member_name = member.name if member else member_id
+        sys_msg = create_system_group_message(
+            str(group.id),
+            f"{admin.name} removed {member_name} from the group",
+        )
+        group = ChatGroup.objects(id=group_id).first()
+        system_message = group_message_payload(sys_msg, group)
+        broadcast_group_event(str(group.id), "message", system_message)
 
-    return Response({"success": True, "group": group_payload(group)})
+    return Response(
+        {
+            "success": True,
+            "group": group_payload(group),
+            "system_message": system_message,
+        }
+    )
 
 
 @api_view(["DELETE"])

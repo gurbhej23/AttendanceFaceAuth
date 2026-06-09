@@ -425,7 +425,7 @@ export default function Dashboard() {
 
   // ── Render ────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] px-3 
+    <div className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] px-4 
     pt-5 sm:px-5 lg:px-6">
       {/* LATE ALERT BANNER */}
       {lateAlert.show && (
@@ -786,7 +786,7 @@ export default function Dashboard() {
 
 
         </div>{monthlySummary && (
-          <div className="px-6 py-5">
+          <div className="px-3 pt-5 pb-18">
             <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h3 className="text-lg font-bold text-white">
@@ -794,11 +794,11 @@ export default function Dashboard() {
                 </h3>
                 <p className="text-sm text-slate-400">{monthLabel}</p>
               </div>
-              <p className="text-xs text-slate-500">
+              {/* <p className="text-xs text-slate-500">
                 Attendance overview for this month
-              </p>
+              </p> */}
             </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 lg:w-full lg:max-w-325">
               {[
                 {
                   label: "Present Days",

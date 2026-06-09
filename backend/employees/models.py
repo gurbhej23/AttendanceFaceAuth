@@ -78,6 +78,7 @@ class GroupMessage(me.Document):
     sender_name = me.StringField(default="")
 
     message = me.StringField(required=True)
+    message_type = me.StringField(default="user")  # user | system
 
     is_edited = me.BooleanField(default=False)
     is_deleted = me.BooleanField(default=False)

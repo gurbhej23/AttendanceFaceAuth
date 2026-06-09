@@ -18,3 +18,28 @@ textarea {
   transition-timing-function: ease;
 }
 
+.pro-chat-scroll {
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: #475569 #0f172a;
+}
+
+.pro-chat-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.pro-chat-scroll::-webkit-scrollbar-track {
+  background: #0f172a;
+  border-radius: 999px;
+}
+
+.pro-chat-scroll::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 999px;
+}
+
+.pro-chat-scroll::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+

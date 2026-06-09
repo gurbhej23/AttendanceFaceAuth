@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Check, CheckCheck, Minus, X } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  CheckCheck,
+  Minus,
+  MoreVertical,
+  Pencil,
+  Trash2,
+  X,
+} from "lucide-react";
 import API from "../services/api";
 import EmojiPicker from "./EmojiPicker";
 import type { ChatMessage, Contact } from "../utils/chatHelpers";
@@ -17,6 +26,7 @@ interface Props {
   onClose: () => void;
   onMinimize: () => void;
   minimized: boolean;
+  fullScreen?: boolean;
   refreshUnread: () => void;
   typing: boolean;
 }
@@ -29,6 +39,7 @@ export default function DirectChatPopup({
   onClose,
   onMinimize,
   minimized,
+  fullScreen = false,
   refreshUnread,
   typing,
 }: Props) {
@@ -274,8 +285,24 @@ export default function DirectChatPopup({
 
   return (
     <>
-      <div className="flex h-[min(70vh,480px)] w-[min(calc(100vw-2rem),340px)] flex-col overflow-hidden rounded-t-2xl border border-b-0 border-slate-700/80 bg-slate-900 shadow-2xl shadow-black/50">
-        <div className="flex items-center gap-3 border-b border-slate-800 px-4 py-3">
+      <div
+        className={`flex flex-col overflow-hidden bg-slate-900 ${
+          fullScreen
+            ? "h-[100dvh] w-full"
+            : "h-[min(70vh,480px)] w-[min(calc(100vw-1.5rem),340px)] rounded-2xl border border-b-0 border-slate-700/80 shadow-2xl shadow-black/50 sm:rounded-t-2xl"
+        }`}
+      >
+        <div className="flex shrink-0 items-center gap-3 border-b border-slate-800 px-4 py-3">
+          {fullScreen && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="-ml-1 rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
+              title="Back"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+          )}
           {contact.profile_img ? (
             <img
               src={getMediaUrl(contact.profile_img)}
@@ -297,25 +324,30 @@ export default function DirectChatPopup({
                   : formatLastSeen(contact.last_seen)}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={onMinimize}
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
-            title="Minimize"
-          >
-            <Minus className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
-            title="Close"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          {!fullScreen && (
+            <>
+              <button
+                type="button"
+                onClick={onMinimize}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
+                title="Minimize"
+              >
+                <Minus className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
+                title="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </>
+          )}
         </div>
 
-        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
+
+        <div className="pro-chat-scroll min-h-0 flex-1 space-y-2 p-3 pb-2">
           {messages.map((msg, index) => {
             const mine = msg.sender_id === employeeId;
             const showDate =
@@ -338,43 +370,49 @@ export default function DirectChatPopup({
                   className={`group flex items-end gap-1 ${mine ? "justify-end" : "justify-start"}`}
                 >
                   {mine && !msg.is_deleted && !isEditing && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setMenuMsgId(isMenuOpen ? null : msg.id);
-                      }}
-                      className="mb-1 hidden h-6 w-6 items-center justify-center rounded-full bg-slate-800 text-xs group-hover:flex"
-                    >
-                      ⋮
-                    </button>
+                    <div className="relative mb-1 opacity-100 md:opacity-0 md:group-hover:opacity-100">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMenuMsgId(isMenuOpen ? null : msg.id);
+                        }}
+                        className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-slate-300 hover:bg-slate-700"
+                        aria-label="Message options"
+                      >
+                        <MoreVertical size={16} />
+                      </button>
+                      {isMenuOpen && (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className="absolute bottom-10 right-0 z-10 w-32 overflow-hidden rounded-xl border border-slate-700 bg-slate-900 shadow-xl"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMenuMsgId(null);
+                              setEditingMsgId(msg.id);
+                              setEditDraft(msg.message);
+                            }}
+                            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs hover:bg-slate-800"
+                          >
+                            <Pencil size={13} /> Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMenuMsgId(null);
+                              setDeleteMsgId(msg.id);
+                            }}
+                            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs text-red-400 hover:bg-red-500/15"
+                          >
+                            <Trash2 size={13} /> Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   )}
                   <div className="relative max-w-[82%]">
-                    {isMenuOpen && (
-                      <div className="absolute bottom-full right-0 z-10 mb-1 w-28 overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-xl">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setMenuMsgId(null);
-                            setEditingMsgId(msg.id);
-                            setEditDraft(msg.message);
-                          }}
-                          className="block w-full px-3 py-2 text-left text-xs hover:bg-slate-700"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setMenuMsgId(null);
-                            setDeleteMsgId(msg.id);
-                          }}
-                          className="block w-full px-3 py-2 text-left text-xs text-red-400 hover:bg-red-500/20"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    )}
                     {isEditing ? (
                       <div className="space-y-2">
                         <textarea
@@ -444,7 +482,7 @@ export default function DirectChatPopup({
           <div ref={bottomRef} />
         </div>
 
-        <div className="border-t border-slate-800 p-3">
+        <div className="shrink-0 border-t border-slate-800 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           {sendError && (
             <p className="mb-2 text-xs text-red-300">{sendError}</p>
           )}

@@ -266,6 +266,7 @@ def group_message_payload(message, group=None):
         "message": message.message,
         "is_edited": getattr(message, "is_edited", False),
         "is_deleted": getattr(message, "is_deleted", False),
+        "message_type": getattr(message, "message_type", "user") or "user",
         "read_by": read_by,
         "read_count": read_count,
         "total_recipients": total_recipients,
