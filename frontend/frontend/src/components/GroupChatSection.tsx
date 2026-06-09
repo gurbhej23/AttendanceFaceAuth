@@ -82,6 +82,8 @@ interface Props {
   isStaffRole: boolean;
   allContacts: Contact[];
   active: boolean;
+  embedded?: boolean;
+  initialGroupId?: string;
   unreadByGroup?: Record<string, number>;
   onUnreadChange?: () => void;
 }
@@ -91,6 +93,8 @@ export default function GroupChatSection({
   isStaffRole,
   allContacts,
   active,
+  embedded = false,
+  initialGroupId = "",
   unreadByGroup = {},
   onUnreadChange,
 }: Props) {
@@ -159,6 +163,13 @@ export default function GroupChatSection({
         if (current && next.some((g: ChatGroup) => g.id === current)) {
           return current;
         }
+        if (
+          initialGroupId &&
+          next.some((g: ChatGroup) => g.id === initialGroupId)
+        ) {
+          initialGroupPick.current = true;
+          return initialGroupId;
+        }
         if (!initialGroupPick.current && next.length > 0) {
           initialGroupPick.current = true;
           return next[0].id;
@@ -170,7 +181,7 @@ export default function GroupChatSection({
     } finally {
       setLoading(false);
     }
-  }, [employeeId]);
+  }, [employeeId, initialGroupId]);
 
   useEffect(() => {
     loadGroups();
@@ -536,7 +547,8 @@ export default function GroupChatSection({
     : [];
 
   return (
-    <div className="flex min-h-[72vh] flex-col">
+    <div className={`flex flex-col ${embedded ? "h-full min-h-0" : "min-h-[72vh]"}`}>
+      {!embedded && (
       <section className="border-b border-slate-800 bg-slate-950/40">
         <div className="flex items-center justify-between gap-4 px-5 py-4">
           <div>
@@ -612,10 +624,12 @@ export default function GroupChatSection({
           )}
         </div>
       </section>
+      )}
 
-      <main className="flex min-h-[60vh] flex-1 flex-col">
+      <main className={`flex flex-1 flex-col ${embedded ? "min-h-0" : "min-h-[60vh]"}`}>
         {selectedGroup ? (
           <>
+            {!embedded && (
             <div className="flex items-center gap-3 border-b border-slate-800 p-4">
               <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-violet-600">
                 {selectedGroup.group_img ? (
@@ -669,8 +683,32 @@ export default function GroupChatSection({
                 </div>
               )}
             </div>
+            )}
 
-            <div className="flex-1 space-y-2 overflow-y-auto p-4">
+            {embedded && isStaffRole && selectedGroup && (
+              <div className="flex items-center justify-end gap-2 border-b border-slate-800 px-3 py-2">
+                <button
+                  type="button"
+                  onClick={openAddMemberModal}
+                  className="rounded-lg border border-green-500/30 bg-green-500/10 px-2.5 py-1.5 text-[11px] font-semibold text-green-300 hover:bg-green-500/20"
+                >
+                  Add Members
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActionError("");
+                    setShowManageModal(true);
+                  }}
+                  className="rounded-lg border border-slate-700 p-1.5 hover:bg-slate-800"
+                  title="Manage group"
+                >
+                  <Settings size={14} />
+                </button>
+              </div>
+            )}
+
+            <div className={`flex-1 space-y-2 overflow-y-auto p-4 ${embedded ? "min-h-0" : ""}`}>
               {messages.map((msg, index) => {
                 const mine = msg.sender_id === employeeId;
                 const isEditing = editingMsgId === msg.id;
@@ -843,7 +881,7 @@ export default function GroupChatSection({
                     }
                   }}
                   placeholder="Message the group..."
-                  className="min-h-12 max-h-32 flex-1 resize-none rounded-2xl border border-slate-700 bg-slate-950 p-3 text-sm outline-none transition focus:border-blue-500"
+                  // className="min-h-12 max-h-32 flex-1 resize-none rounded-2xl border border-slate-700 bg-slate-950 text-white p-3 text-sm outline-none transition focus:border-blue-500"
                   rows={1}
                 />
                 <button

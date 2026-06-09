@@ -2,7 +2,6 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../services/api";
-import { useUnreadMessages } from "../hooks/useUnreadMessages";
 import Button from "../components/Button";
 import axios from "axios";
 import {
@@ -11,7 +10,6 @@ import {
   IdCardLanyard,
   LogOut,
   Menu,
-  MessageSquareText,
   User,
 } from "lucide-react";
 
@@ -131,8 +129,6 @@ const getMediaUrl = (path?: string | null) => {
 
 export default function AdminAttendanceSheet() {
   const navigate = useNavigate();
-  const adminEmployeeId = localStorage.getItem("employee_id") || "";
-  const { unreadCount } = useUnreadMessages(adminEmployeeId);
 
   // ── Tab state ──────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<ActiveTab>("attendance");
@@ -359,12 +355,6 @@ export default function AdminAttendanceSheet() {
                 tone: "cursor-pointer rounded-xl bg-slate-700 px-2 py-3 font-semibold text-white hover:bg-slate-600",
               },
               {
-                icon: <MessageSquareText />,
-                label: "Messages",
-                action: () => navigate("/messages"),
-                tone: "cursor-pointer rounded-xl bg-cyan-600 px-2 py-3 font-semibold text-white hover:bg-cyan-700",
-              },
-              {
                 icon: <Download />,
                 label: "Download",
                 action: exportCsv,
@@ -389,13 +379,8 @@ export default function AdminAttendanceSheet() {
                 className={`flex h-12 w-full cursor-pointer items-center gap-3 rounded-2xl px-2 text-sm text-white transition ${item.tone}`}
                 title={item.label}
               >
-                <span className="relative grid h-7 w-7 shrink-0 place-items-center rounded-xl">
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-xl">
                   {item.icon}
-                  {item.label === "Messages" && unreadCount > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">
-                      {unreadCount > 99 ? "99+" : unreadCount}
-                    </span>
-                  )}
                 </span>
                 <span className="whitespace-nowrap opacity-0 translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
                   {item.label}
@@ -468,11 +453,6 @@ export default function AdminAttendanceSheet() {
                   : "max-w-0 opacity-0 backdrop-blur-xl"
                   }`}
               >
-                <Button
-                  text={<MessageSquareText />}
-                  onClick={() => navigate("/messages")}
-                  className="cursor-pointer rounded-xl bg-cyan-600 px-4 py-2 font-semibold text-white hover:bg-cyan-700"
-                />
                 <Button
                   text={<Download />}
                   onClick={exportCsv}

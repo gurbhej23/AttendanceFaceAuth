@@ -132,12 +132,6 @@ export default function AdminEmployees() {
           </div>
           <div className="flex md:flex-wrap justify-center gap-3">
             <button
-              onClick={() => navigate("/messages")}
-              className="rounded-xl bg-cyan-600 px-4 py-2 text-sm font-semibold hover:bg-cyan-700 cursor-pointer"
-            >
-              Messages
-            </button>
-            <button
               onClick={() => navigate("/attendance-sheet")}
               className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold hover:bg-slate-800 cursor-pointer"
             >

@@ -1,5 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 
+import MessagingDrawer from "./components/MessagingDrawer";
 import Login from "./pages/Login";
 import Register from "./pages/RegisterEmployee";
 import FaceVerification from "./pages/FaceVerification";
@@ -14,11 +15,11 @@ import Profile from "./pages/Profile";
 import AdminEmployees from "./pages/AdminEmployees";
 import AdminCreateEmployee from "./pages/AdminCreateEmployee";
 import AdminAnalytics from "./pages/AdminAnalytics";
-import Messages from "./pages/Messages";
 import AdminProfile from "./pages/AdminProfile";
 
 function App() {
   return (
+    <>
     <Routes>
       <Route path="/" element={<Login />} />
 
@@ -40,9 +41,10 @@ function App() {
       <Route path="/admin-employees" element={<AdminEmployees />} />
       <Route path="/admin-create-employee" element={<AdminCreateEmployee/>}/>
       <Route path="/admin-analytics" element={<AdminAnalytics />} />
-      <Route path="/messages" element={<Messages />} />
       <Route path="/admin-profile" element={<AdminProfile />} />
     </Routes>
+    <MessagingDrawer />
+    </>
   );
 }
 

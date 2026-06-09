@@ -2,7 +2,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../services/api";
-import { useUnreadMessages } from "../hooks/useUnreadMessages";
 import Button from "../components/Button";
 import Input from "../components/Input";
 import Table from "../components/Table";
@@ -11,7 +10,6 @@ import {
   CalendarDays,
   LogOut,
   Menu,
-  MessageSquareText,
   ScanLine,
   TimerOff,
   TriangleAlert,
@@ -204,7 +202,6 @@ export default function Dashboard() {
   const employeeName = localStorage.getItem("employee_name");
   const employeeId = localStorage.getItem("employee_id");
   const profileImg = getMediaUrl(localStorage.getItem("profile_img"));
-  const { unreadCount } = useUnreadMessages(employeeId || "");
   const today = getLocalDate();
 
   const todayRecord = records.find((r) => r.date === today);
@@ -495,12 +492,6 @@ export default function Dashboard() {
               tone: "bg-blue-600 hover:bg-blue-700",
             },
             {
-              icon: <MessageSquareText />,
-              label: "Messages",
-              action: () => navigate("/messages"),
-              tone: "bg-cyan-600 hover:bg-cyan-700",
-            },
-            {
               icon: <TimerOff />,
               label: "Half Day",
               action: () => setShowHalfDayModal(true),
@@ -525,13 +516,8 @@ export default function Dashboard() {
               className={`flex h-12 w-full cursor-pointer items-center gap-3 rounded-2xl px-2 text-sm text-white transition ${item.tone}`}
               title={item.label}
             >
-              <span className="relative grid h-7 w-7 shrink-0 place-items-center rounded-xl">
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-xl">
                 {item.icon}
-                {item.label === "Messages" && unreadCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white">
-                    {unreadCount > 99 ? "99+" : unreadCount}
-                  </span>
-                )}
               </span>
               <span className="whitespace-nowrap opacity-0 translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
                 {item.label}
@@ -594,13 +580,6 @@ export default function Dashboard() {
                 text="Check Out"
                 onClick={() => navigate("/check-out")}
                 className="bg-blue-600 text-white cursor-pointer p-4"
-              />
-              <Button
-                text={
-                  unreadCount > 0 ? `Messages (${unreadCount})` : "Messages"
-                }
-                onClick={() => navigate("/messages")}
-                className="bg-cyan-600 text-white cursor-pointer p-4"
               />
               <Button
                 text="Half Day"

@@ -91,7 +91,7 @@ export default function EmojiPicker({ onSelect, onClose, position = "top", align
     <div
       onClick={(e) => e.stopPropagation()}
       className={`absolute z-50 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-72 overflow-hidden
-        ${position === "top" ? "-bottom-25" : "top-10"}
+        ${position === "top" ? "-bottom-2" : "top-0"}
         ${align === "right" ? "right-0" : "left-0"}
       `}
     >
