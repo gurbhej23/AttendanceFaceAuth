@@ -110,11 +110,14 @@ export default function GroupChatSection({
   const [showInputEmoji, setShowInputEmoji] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showManageModal, setShowManageModal] = useState(false);
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [showMembersModal, setShowMembersModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [memberSearch, setMemberSearch] = useState("");
+  const [addMemberSearch, setAddMemberSearch] = useState("");
+  const [employeePool, setEmployeePool] = useState<Contact[]>([]);
   const [actionError, setActionError] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [menuMsgId, setMenuMsgId] = useState<string | null>(null);
@@ -172,6 +175,22 @@ export default function GroupChatSection({
   useEffect(() => {
     loadGroups();
   }, [loadGroups]);
+
+  const loadEmployeePool = useCallback(async () => {
+    if (!isStaffRole) return;
+    try {
+      const res = await API.get("/employees/admin-employees/", {
+        params: { status: "active", role: "employee" },
+      });
+      setEmployeePool(res.data.employees || []);
+    } catch {
+      setEmployeePool(allContacts.filter((c) => c.role === "employee"));
+    }
+  }, [isStaffRole, allContacts]);
+
+  useEffect(() => {
+    if (isStaffRole) loadEmployeePool();
+  }, [isStaffRole, loadEmployeePool]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -409,7 +428,8 @@ export default function GroupChatSection({
         setShowCreateModal(false);
         setNewGroupName("");
         setSelectedMemberIds([]);
-        setShowManageModal(true);
+        setAddMemberSearch("");
+        setShowAddMemberModal(true);
       }
     } catch (err) {
       setActionError(getError(err, "Could not create group"));
@@ -482,13 +502,23 @@ export default function GroupChatSection({
     }
   };
 
+  const openAddMemberModal = () => {
+    setActionError("");
+    setAddMemberSearch("");
+    void loadEmployeePool();
+    setShowAddMemberModal(true);
+  };
+
   const toggleCreateMember = (id: string) => {
     setSelectedMemberIds((cur) =>
       cur.includes(id) ? cur.filter((m) => m !== id) : [...cur, id],
     );
   };
 
-  const employeeOptions = allContacts.filter((c) => c.role === "employee");
+  const employeeOptions =
+    employeePool.length > 0
+      ? employeePool
+      : allContacts.filter((c) => c.role === "employee");
   const filteredEmployees = employeeOptions.filter((c) =>
     `${c.name} ${c.department} ${c.designation}`
       .toLowerCase()
@@ -496,6 +526,13 @@ export default function GroupChatSection({
   );
   const nonMembers = selectedGroup
     ? employeeOptions.filter((c) => !selectedGroup.members.includes(c.employee_id))
+    : [];
+  const addMemberCandidates = selectedGroup
+    ? nonMembers.filter((c) =>
+        `${c.name} ${c.department} ${c.designation}`
+          .toLowerCase()
+          .includes(addMemberSearch.toLowerCase()),
+      )
     : [];
 
   return (
@@ -608,17 +645,28 @@ export default function GroupChatSection({
                 </button>
               </div>
               {isStaffRole && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActionError("");
-                    setShowManageModal(true);
-                  }}
-                  className="rounded-xl border border-slate-700 p-2 hover:bg-slate-800 transition cursor-pointer"
-                  title="Manage group"
-                >
-                  <Settings size={18} />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={openAddMemberModal}
+                    className="flex items-center gap-1.5 rounded-xl border border-green-500/30 bg-green-500/10 px-3 py-2 text-xs font-semibold text-green-300 transition hover:bg-green-500/20 cursor-pointer"
+                    title="Add members to group"
+                  >
+                    <UserPlus size={16} />
+                    Add Members
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActionError("");
+                      setShowManageModal(true);
+                    }}
+                    className="rounded-xl border border-slate-700 p-2 hover:bg-slate-800 transition cursor-pointer"
+                    title="Manage group"
+                  >
+                    <Settings size={18} />
+                  </button>
+                </div>
               )}
             </div>
 
@@ -839,7 +887,8 @@ export default function GroupChatSection({
             <div className="border-b border-slate-800 p-5">
               <h3 className="text-lg font-semibold">Create Group</h3>
               <p className="mt-1 text-sm text-slate-400">
-                Add employees to a new group chat.
+                Set a group name. Members are optional — you can add employees
+                after the group is created.
               </p>
             </div>
             <div className="max-h-[60vh] space-y-4 overflow-y-auto p-5">
@@ -856,7 +905,7 @@ export default function GroupChatSection({
               </div>
               <div>
                 <label className="mb-2 block text-sm text-slate-300">
-                  Add members
+                  Add members now (optional)
                 </label>
                 <input
                   value={memberSearch}
@@ -912,6 +961,83 @@ export default function GroupChatSection({
                 className="rounded-xl bg-blue-600 px-4 py-2 hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
               >
                 {actionLoading ? "Creating..." : "Create Group"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddMemberModal && selectedGroup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="max-h-[90vh] w-full max-w-lg overflow-hidden rounded-3xl border border-slate-700 bg-slate-900">
+            <div className="border-b border-slate-800 p-5">
+              <h3 className="text-lg font-semibold">Add Members</h3>
+              <p className="mt-1 text-sm text-slate-400">
+                Add employees to <strong>{selectedGroup.group_name}</strong>
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                {selectedGroup.member_details.length} member
+                {selectedGroup.member_details.length === 1 ? "" : "s"} currently
+                in this group
+              </p>
+            </div>
+            <div className="max-h-[55vh] space-y-4 overflow-y-auto p-5">
+              <input
+                value={addMemberSearch}
+                onChange={(e) => setAddMemberSearch(e.target.value)}
+                placeholder="Search employees by name, department..."
+                className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm outline-none focus:border-green-500"
+              />
+
+              {addMemberCandidates.length === 0 ? (
+                <div className="rounded-2xl border border-slate-800 bg-slate-950 p-6 text-center text-sm text-slate-500">
+                  {nonMembers.length === 0
+                    ? "All employees are already in this group."
+                    : "No employees match your search."}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {addMemberCandidates.map((emp) => (
+                    <div
+                      key={emp.employee_id}
+                      className="flex items-center justify-between rounded-2xl border border-slate-800 bg-slate-950 p-3"
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-cyan-600 text-sm font-bold">
+                          {emp.name.charAt(0)}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold">{emp.name}</p>
+                          <p className="truncate text-xs text-slate-400">
+                            {emp.department} · {emp.designation}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => addMember(emp.employee_id)}
+                        disabled={actionLoading}
+                        className="flex items-center gap-1.5 rounded-xl bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50 cursor-pointer"
+                      >
+                        <UserPlus size={14} />
+                        Add
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {actionError && (
+                <p className="text-sm text-red-400">{actionError}</p>
+              )}
+            </div>
+            <div className="flex justify-end gap-3 border-t border-slate-800 p-5">
+              <button
+                type="button"
+                onClick={() => setShowAddMemberModal(false)}
+                className="rounded-xl bg-slate-700 px-4 py-2 hover:bg-slate-600 cursor-pointer"
+              >
+                Done
               </button>
             </div>
           </div>
@@ -1017,9 +1143,21 @@ export default function GroupChatSection({
 
               {nonMembers.length > 0 && (
                 <div>
-                  <p className="mb-3 text-sm font-semibold text-slate-300">
-                    Add employees
-                  </p>
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-slate-300">
+                      Add employees ({nonMembers.length} available)
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowManageModal(false);
+                        openAddMemberModal();
+                      }}
+                      className="text-xs font-semibold text-green-400 hover:text-green-300 cursor-pointer"
+                    >
+                      Open add members
+                    </button>
+                  </div>
                   <div className="max-h-40 space-y-2 overflow-y-auto">
                     {nonMembers.map((emp) => (
                       <div
@@ -1113,6 +1251,18 @@ export default function GroupChatSection({
               ))}
             </div>
             <div className="flex justify-end gap-3 border-t border-slate-800 p-5">
+              {isStaffRole && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMembersModal(false);
+                    openAddMemberModal();
+                  }}
+                  className="rounded-xl bg-green-600 px-4 py-2 text-sm hover:bg-green-700 cursor-pointer"
+                >
+                  Add Members
+                </button>
+              )}
               {isStaffRole && (
                 <button
                   type="button"

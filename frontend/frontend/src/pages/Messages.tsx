@@ -74,7 +74,6 @@ export default function Messages() {
   const [selected, setSelected] = useState<Contact | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
-  const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [menuMsgId, setMenuMsgId] = useState<string | null>(null);
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
@@ -251,16 +250,13 @@ export default function Messages() {
       socket = new WebSocket(getWsUrl(employeeId));
       socketRef.current = socket;
       socket.onopen = () => {
-        setConnected(true);
         loadContacts();
       };
       socket.onclose = () => {
         if (!active) return;
-        setConnected(false);
         reconnectTimerRef.current = window.setTimeout(connectSocket, 2000);
       };
       socket.onerror = () => {
-        setConnected(false);
         socket?.close();
       };
       socket.onmessage = (event) => {
@@ -636,7 +632,7 @@ export default function Messages() {
             </div>
           </div>
 
-        {summary.total > 0 && (
+        {/* {summary.total > 0 && (
           <div className="mb-4 flex flex-wrap gap-2 rounded-2xl border border-slate-800 bg-slate-900/80 px-4 py-3">
             <span className="text-xs font-semibold text-slate-400">Unread:</span>
             {summary.direct > 0 && (
@@ -660,7 +656,7 @@ export default function Messages() {
               </button>
             )}
           </div>
-        )}
+        )} */}
           {/* <div>
             <p className="mt-1 text-sm text-slate-400">
               <span
