@@ -18,7 +18,14 @@ from rest_framework_simplejwt.tokens import AccessToken
 from django.conf import settings
 from django.contrib.auth.hashers import check_password, make_password
 
-from .models import ChatMessage, ChatGroup, Employee, GroupMessage, RegistrationOTP
+from .models import (
+    ChatClearState,
+    ChatMessage,
+    ChatGroup,
+    Employee,
+    GroupMessage,
+    RegistrationOTP,
+)
 from .face_utils import extract_and_save_embedding, verify_face_match
 
 CV_DIR = settings.MEDIA_ROOT / "cv_files"
@@ -347,14 +354,36 @@ def mark_group_messages_read(group: ChatGroup, reader_id: str) -> None:
             message.save()
 
 
+def get_chat_cleared_at(employee_id: str, contact_id: str):
+    state = ChatClearState.objects(
+        employee_id=employee_id, contact_id=contact_id
+    ).first()
+    return state.cleared_at if state else None
+
+
+def is_message_visible_to_reader(message: ChatMessage, reader_id: str) -> bool:
+    contact_id = (
+        message.sender_id
+        if message.recipient_id == reader_id
+        else message.recipient_id
+    )
+    cleared_at = get_chat_cleared_at(reader_id, contact_id)
+    if not cleared_at:
+        return True
+    return message.created_at > cleared_at
+
+
 def count_unread_messages(employee: Employee) -> dict:
     direct_messages = ChatMessage.objects(
         recipient_id=employee.employee_id, is_read=False, is_deleted=False
     )
-    direct_count = direct_messages.count()
 
     direct_by_sender: dict[str, int] = {}
+    direct_count = 0
     for message in direct_messages:
+        if not is_message_visible_to_reader(message, employee.employee_id):
+            continue
+        direct_count += 1
         direct_by_sender[message.sender_id] = direct_by_sender.get(message.sender_id, 0) + 1
 
     direct_contacts = []
@@ -430,6 +459,29 @@ def broadcast_group_event(group_id: str, event_type: str, message_payload: dict)
                 "event_type": event_type,
                 "message": message_payload,
             },
+        )
+    except Exception:
+        pass
+
+
+def broadcast_direct_chat_event(event_type: str, message_payload: dict) -> None:
+    try:
+        from asgiref.sync import async_to_sync
+        from channels.layers import get_channel_layer
+
+        channel_layer = get_channel_layer()
+        if not channel_layer or not message_payload:
+            return
+        event = {
+            "type": "chat.event",
+            "event_type": event_type,
+            "message": message_payload,
+        }
+        async_to_sync(channel_layer.group_send)(
+            f"chat_{message_payload['recipient_id']}", event
+        )
+        async_to_sync(channel_layer.group_send)(
+            f"chat_{message_payload['sender_id']}", event
         )
     except Exception:
         pass
@@ -1177,11 +1229,48 @@ def chat_history(request):
             ]
         }
     ).order_by("created_at")
+    cleared_at = get_chat_cleared_at(employee_id, contact_id)
+    if cleared_at:
+        messages = [message for message in messages if message.created_at > cleared_at]
 
     ChatMessage.objects(
         sender_id=contact_id, recipient_id=employee_id, is_read=False
     ).update(set__is_read=True)
     return Response({"success": True, "messages": [chat_payload(m) for m in messages]})
+
+
+@api_view(["DELETE"])
+def chat_history_clear(request):
+    employee_id = request.data.get("employee_id", "").strip()
+    contact_id = request.data.get("contact_id", "").strip()
+    if not employee_id or not contact_id:
+        return Response(
+            {"success": False, "error": "employee_id and contact_id are required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    employee = find_employee(employee_id)
+    contact = find_employee(contact_id)
+    if not employee or not contact:
+        return Response(
+            {"success": False, "error": "Employee or contact not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    now = datetime.now(pytz.UTC)
+    existing = ChatClearState.objects(
+        employee_id=employee_id, contact_id=contact_id
+    ).first()
+    if existing:
+        existing.cleared_at = now
+        existing.save()
+    else:
+        ChatClearState(
+            employee_id=employee_id,
+            contact_id=contact_id,
+            cleared_at=now,
+        ).save()
+    return Response({"success": True})
 
 
 @api_view(["POST"])
@@ -1218,7 +1307,9 @@ def chat_message_send(request):
     )
     msg.save()
     saved = ChatMessage.objects(id=msg.id).first()
-    return Response({"success": True, "message": chat_payload(saved or msg)})
+    payload = chat_payload(saved or msg)
+    broadcast_direct_chat_event("message", payload)
+    return Response({"success": True, "message": payload})
 
 
 @api_view(["PATCH", "DELETE"])
@@ -1420,9 +1511,9 @@ def group_message_send(request):
     )
     message.save()
     group = ChatGroup.objects(id=group_id).first()
-    return Response(
-        {"success": True, "message": group_message_payload(message, group)}
-    )
+    payload = group_message_payload(message, group)
+    broadcast_group_event(group_id, "message", payload)
+    return Response({"success": True, "message": payload})
 
 
 @api_view(["GET"])

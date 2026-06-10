@@ -16,6 +16,13 @@ import {
   Users,
 } from "lucide-react";
 import type { Contact } from "../utils/chatHelpers";
+import {
+  formatGroupOnlineLabel,
+  formatGroupTypingLabel,
+  formatMemberLabel,
+} from "../utils/chatHelpers";
+import { isCallLogMessage } from "../utils/callHelpers";
+import Button from "./Button";
 
 interface ChatGroup {
   id: string;
@@ -48,6 +55,13 @@ export interface GroupChatHeaderActions {
   openAddMembers: () => void;
   openManage: () => void;
   openMembers: () => void;
+}
+
+export interface GroupChatHeaderStatus {
+  typingLabel: string | null;
+  onlineLabel: string;
+  onlineCount: number;
+  memberCount: number;
 }
 
 const getApiRoot = () => {
@@ -87,6 +101,7 @@ interface Props {
   unreadByGroup?: Record<string, number>;
   onUnreadChange?: () => void;
   onRegisterHeaderActions?: (actions: GroupChatHeaderActions) => void;
+  onHeaderStatusChange?: (status: GroupChatHeaderStatus) => void;
 }
 
 export default function GroupChatSection({
@@ -99,12 +114,15 @@ export default function GroupChatSection({
   unreadByGroup = {},
   onUnreadChange,
   onRegisterHeaderActions,
+  onHeaderStatusChange,
 }: Props) {
   const socketRef = useRef<WebSocket | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const initialGroupPick = useRef(false);
   const sessionRef = useRef(0);
+  const typingTimersRef = useRef<Record<string, number>>({});
+  const typingStopTimer = useRef<number | null>(null);
 
   const [groups, setGroups] = useState<ChatGroup[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState("");
@@ -133,11 +151,111 @@ export default function GroupChatSection({
   const [editGroupName, setEditGroupName] = useState("");
   const [editGroupImage, setEditGroupImage] = useState("");
   const groupImageInputRef = useRef<HTMLInputElement>(null);
+  const [typingById, setTypingById] = useState<Record<string, boolean>>({});
 
   const selectedGroup = useMemo(
     () => groups.find((g) => g.id === selectedGroupId) ?? null,
     [groups, selectedGroupId],
   );
+
+  const resolveMemberPresence = useCallback(
+    (member: Contact): Contact => {
+      const live = allContacts.find((c) => c.employee_id === member.employee_id);
+      return {
+        ...member,
+        is_online: live?.is_online ?? member.is_online,
+      };
+    },
+    [allContacts],
+  );
+
+  const onlineMembers = useMemo(() => {
+    if (!selectedGroup) return [] as Contact[];
+    return selectedGroup.member_details
+      .filter((member) => member.employee_id !== employeeId)
+      .map(resolveMemberPresence)
+      .filter((member) => member.is_online);
+  }, [employeeId, resolveMemberPresence, selectedGroup]);
+
+  const typingMembers = useMemo(() => {
+    if (!selectedGroup) return [] as Contact[];
+    return Object.entries(typingById)
+      .filter(([memberId, isTyping]) => isTyping && memberId !== employeeId)
+      .map(([memberId]) => {
+        const fromGroup = selectedGroup.member_details.find(
+          (member) => member.employee_id === memberId,
+        );
+        const fromContacts = allContacts.find(
+          (contact) => contact.employee_id === memberId,
+        );
+        return fromGroup || fromContacts || null;
+      })
+      .filter((member): member is Contact => Boolean(member));
+  }, [allContacts, employeeId, selectedGroup, typingById]);
+
+  const headerStatus = useMemo<GroupChatHeaderStatus>(() => {
+    const memberCount =
+      selectedGroup?.member_count ?? selectedGroup?.members.length ?? 0;
+    const typingLabel =
+      typingMembers.length > 0 ? formatGroupTypingLabel(typingMembers) : null;
+    const onlineLabel = formatGroupOnlineLabel(onlineMembers, memberCount);
+    return {
+      typingLabel,
+      onlineLabel,
+      onlineCount: onlineMembers.length,
+      memberCount,
+    };
+  }, [onlineMembers, selectedGroup, typingMembers]);
+
+  useEffect(() => {
+    onHeaderStatusChange?.(headerStatus);
+  }, [headerStatus, onHeaderStatusChange]);
+
+  const setMemberTyping = useCallback((memberId: string, isTyping: boolean) => {
+    setTypingById((cur) => ({ ...cur, [memberId]: isTyping }));
+    if (typingTimersRef.current[memberId]) {
+      window.clearTimeout(typingTimersRef.current[memberId]);
+      delete typingTimersRef.current[memberId];
+    }
+    if (isTyping) {
+      typingTimersRef.current[memberId] = window.setTimeout(() => {
+        setTypingById((cur) => ({ ...cur, [memberId]: false }));
+        delete typingTimersRef.current[memberId];
+      }, 3000);
+    }
+  }, []);
+
+  const sendGroupTyping = useCallback(
+    (isTyping: boolean) => {
+      const socket = socketRef.current;
+      if (socket?.readyState !== WebSocket.OPEN) return;
+      const me =
+        allContacts.find((contact) => contact.employee_id === employeeId) ??
+        selectedGroup?.member_details.find(
+          (member) => member.employee_id === employeeId,
+        );
+      socket.send(
+        JSON.stringify({
+          type: "typing",
+          is_typing: isTyping,
+          sender_name:
+            me?.name || localStorage.getItem("employee_name") || "Someone",
+          sender_role: me?.role || localStorage.getItem("role") || "",
+        }),
+      );
+    },
+    [allContacts, employeeId, selectedGroup],
+  );
+
+  const handleDraftChange = (value: string) => {
+    setDraft(value);
+    sendGroupTyping(Boolean(value.trim()));
+    if (typingStopTimer.current) window.clearTimeout(typingStopTimer.current);
+    typingStopTimer.current = window.setTimeout(
+      () => sendGroupTyping(false),
+      1200,
+    );
+  };
 
   useEffect(() => {
     const handler = () => {
@@ -219,6 +337,11 @@ export default function GroupChatSection({
         socketRef.current.close();
         socketRef.current = null;
       }
+      setTypingById({});
+      Object.values(typingTimersRef.current).forEach((timerId) =>
+        window.clearTimeout(timerId),
+      );
+      typingTimersRef.current = {};
       if (!selectedGroupId) setMessages([]);
       return;
     }
@@ -246,8 +369,23 @@ export default function GroupChatSection({
     };
 
     socket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (session !== sessionRef.current || !data.message) return;
+      let data: Record<string, unknown>;
+      try {
+        data = JSON.parse(event.data) as Record<string, unknown>;
+      } catch {
+        return;
+      }
+      if (session !== sessionRef.current) return;
+
+      if (data.type === "typing") {
+        if (String(data.group_id) !== selectedGroupId) return;
+        const senderId = String(data.sender_id);
+        if (senderId === employeeId) return;
+        setMemberTyping(senderId, Boolean(data.is_typing));
+        return;
+      }
+
+      if (!data.message) return;
       const incoming = data.message as GroupMessage;
       if (incoming.group_id !== selectedGroupId) return;
 
@@ -258,7 +396,7 @@ export default function GroupChatSection({
         return;
       }
 
-      if (["edit", "delete", "read"].includes(data.type)) {
+      if (["edit", "delete", "read"].includes(String(data.type))) {
         setMessages((cur) =>
           cur.map((m) => (m.id === incoming.id ? { ...m, ...incoming } : m)),
         );
@@ -271,8 +409,19 @@ export default function GroupChatSection({
       socket.onclose = null;
       if (socket.readyState === WebSocket.OPEN) socket.close();
       if (socketRef.current === socket) socketRef.current = null;
+      setTypingById({});
+      Object.values(typingTimersRef.current).forEach((timerId) =>
+        window.clearTimeout(timerId),
+      );
+      typingTimersRef.current = {};
     };
-  }, [active, employeeId, onUnreadChange, selectedGroupId]);
+  }, [
+    active,
+    employeeId,
+    onUnreadChange,
+    selectedGroupId,
+    setMemberTyping,
+  ]);
 
   const formatMessageDate = (ds: string) => {
     const d = new Date(ds);
@@ -298,6 +447,7 @@ export default function GroupChatSection({
     if (socket?.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify({ message: text }));
       setDraft("");
+      sendGroupTyping(false);
       setSending(false);
       inputRef.current?.focus();
       return;
@@ -636,126 +786,137 @@ export default function GroupChatSection({
     : [];
   const addMemberCandidates = selectedGroup
     ? nonMembers.filter((c) =>
-        `${c.name} ${c.department ?? ""} ${c.designation ?? ""}`
-          .toLowerCase()
-          .includes(addMemberSearch.toLowerCase()),
-      )
+      `${c.name} ${c.department ?? ""} ${c.designation ?? ""}`
+        .toLowerCase()
+        .includes(addMemberSearch.toLowerCase()),
+    )
     : [];
 
   return (
     <div className={`flex flex-col ${embedded ? "h-full min-h-0" : "min-h-[72vh]"}`}>
       {!embedded && (
-      <section className="border-b border-slate-800 bg-slate-950/40">
-        <div className="flex items-center justify-between gap-4 px-5 py-4">
-          <div>
-            <p className="text-sm font-semibold text-slate-100">Group Chats</p>
-            <p className="text-xs text-slate-500">
-              {groups.length} group{groups.length === 1 ? "" : "s"}
-            </p>
-          </div>
-          {isStaffRole && (
-            <button
-              type="button"
-              onClick={() => {
-                setActionError("");
-                setShowCreateModal(true);
-              }}
-              className="flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold hover:bg-blue-700 transition cursor-pointer"
-            >
-              <Plus size={16} />
-              New Group
-            </button>
-          )}
-        </div>
-        <div className="flex gap-3 overflow-x-auto px-5 pb-4">
-          {loading ? (
-            <div className="rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-slate-500">
-              Loading groups...
+        <section className="border-b border-slate-800 bg-slate-950/40">
+          <div className="flex items-center justify-between gap-4 px-5 py-4">
+            <div>
+              <p className="text-sm font-semibold text-slate-100">Group Chats</p>
+              <p className="text-xs text-slate-500">
+                {groups.length} group{groups.length === 1 ? "" : "s"}
+              </p>
             </div>
-          ) : groups.length === 0 ? (
-            <div className="rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-slate-500">
-              {isStaffRole
-                ? "No groups yet. Create one to get started."
-                : "You are not in any group yet."}
-            </div>
-          ) : (
-            groups.map((group) => (
+            {isStaffRole && (
               <button
-                key={group.id}
                 type="button"
-                onClick={() => setSelectedGroupId(group.id)}
-                className={`flex min-w-[180px] items-center gap-3 rounded-2xl border px-4 py-3 text-left transition cursor-pointer ${
-                  selectedGroup?.id === group.id
+                onClick={() => {
+                  setActionError("");
+                  setShowCreateModal(true);
+                }}
+                className="flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold hover:bg-blue-700 transition cursor-pointer"
+              >
+                <Plus size={16} />
+                New Group
+              </button>
+            )}
+          </div>
+          <div className="flex gap-3 overflow-x-auto px-5 pb-4">
+            {loading ? (
+              <div className="rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-slate-500">
+                Loading groups...
+              </div>
+            ) : groups.length === 0 ? (
+              <div className="rounded-2xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-slate-500">
+                {isStaffRole
+                  ? "No groups yet. Create one to get started."
+                  : "You are not in any group yet."}
+              </div>
+            ) : (
+              groups.map((group) => (
+                <button
+                  key={group.id}
+                  type="button"
+                  onClick={() => setSelectedGroupId(group.id)}
+                  className={`flex min-w-[180px] items-center gap-3 rounded-2xl border px-4 py-3 text-left transition cursor-pointer ${selectedGroup?.id === group.id
                     ? "border-blue-500 bg-blue-600/20"
                     : "border-slate-800 bg-slate-900 hover:border-slate-600 hover:bg-slate-800"
-                }`}
-              >
-                <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full bg-violet-600">
-                  {group.group_img ? (
-                    <img
-                      src={getMediaUrl(group.group_img)}
-                      alt={group.group_name}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="grid h-full w-full place-items-center text-sm font-bold">
-                      <Users size={18} />
-                    </div>
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="truncate text-sm font-semibold text-slate-100">
-                      {group.group_name}
-                    </p>
-                    <NotificationBadge count={unreadByGroup[group.id] || 0} />
+                    }`}
+                >
+                  <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full bg-violet-600">
+                    {group.group_img ? (
+                      <img
+                        src={getMediaUrl(group.group_img)}
+                        alt={group.group_name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="grid h-full w-full place-items-center text-sm font-bold">
+                        <Users size={18} />
+                      </div>
+                    )}
                   </div>
-                  <p className="truncate text-xs text-slate-400">
-                    {group.members.length} member
-                    {group.members.length === 1 ? "" : "s"}
-                  </p>
-                </div>
-              </button>
-            ))
-          )}
-        </div>
-      </section>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate text-sm font-semibold text-slate-100">
+                        {group.group_name}
+                      </p>
+                      <NotificationBadge count={unreadByGroup[group.id] || 0} />
+                    </div>
+                    <p className="truncate text-xs text-slate-400">
+                      {group.members.length} member
+                      {group.members.length === 1 ? "" : "s"}
+                    </p>
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        </section>
       )}
 
       <main className={`flex flex-1 flex-col ${embedded ? "min-h-0" : "min-h-[60vh]"}`}>
         {selectedGroup ? (
           <>
             {!embedded && (
-            <div className="flex items-center gap-3 border-b border-slate-800 p-4">
-              <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-violet-600">
-                {selectedGroup.group_img ? (
-                  <img
-                    src={getMediaUrl(selectedGroup.group_img)}
-                    alt={selectedGroup.group_name}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="grid h-full w-full place-items-center">
-                    <Users size={18} />
-                  </div>
-                )}
+              <div className="flex items-center gap-3 border-b border-slate-800 p-4">
+                <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-violet-600">
+                  {selectedGroup.group_img ? (
+                    <img
+                      src={getMediaUrl(selectedGroup.group_img)}
+                      alt={selectedGroup.group_name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="grid h-full w-full place-items-center">
+                      <Users size={18} />
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-bold text-sm">{selectedGroup.group_name}</p>
+                  <button
+                    type="button"
+                    onClick={() => setShowMembersModal(true)}
+                    className="max-w-full truncate text-left text-xs hover:text-violet-300 cursor-pointer"
+                  >
+                    {headerStatus.typingLabel ? (
+                      <span className="flex items-center gap-1.5 text-cyan-400">
+                        <span className="inline-flex items-end gap-0.5 pb-0.5">
+                          <span className="h-1 w-1 animate-bounce rounded-full bg-cyan-400 [animation-delay:-0.25s]" />
+                          <span className="h-1 w-1 animate-bounce rounded-full bg-cyan-400 [animation-delay:-0.12s]" />
+                          <span className="h-1 w-1 animate-bounce rounded-full bg-cyan-400" />
+                        </span>
+                        {headerStatus.typingLabel}
+                      </span>
+                    ) : headerStatus.onlineCount > 0 ? (
+                      <span className="flex items-center gap-1.5 text-emerald-400">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_4px_rgba(52,211,153,0.5)]" />
+                        {headerStatus.onlineLabel}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">{headerStatus.onlineLabel}</span>
+                    )}
+                  </button>
+                </div>
+                {renderHeaderMenu()}
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-bold text-sm">{selectedGroup.group_name}</p>
-                <button
-                  type="button"
-                  onClick={() => setShowMembersModal(true)}
-                  className="truncate text-xs text-slate-400 hover:text-violet-300 cursor-pointer"
-                >
-                  {selectedGroup.member_count ?? selectedGroup.members.length} employee
-                  {(selectedGroup.member_count ?? selectedGroup.members.length) === 1
-                    ? ""
-                    : "s"}{" "}
-                  in group
-                </button>
-              </div>
-              {renderHeaderMenu()}
-            </div>
             )}
 
             <div
@@ -764,15 +925,16 @@ export default function GroupChatSection({
               {messages.map((msg, index) => {
                 const isSystem =
                   msg.message_type === "system" || msg.sender_id === "system";
-                const mine = !isSystem && msg.sender_id === employeeId;
+                const isCallLog = isCallLogMessage(msg.message);
+                const mine = !isSystem && !isCallLog && msg.sender_id === employeeId;
                 const isEditing = editingMsgId === msg.id;
                 const isMenuOpen = menuMsgId === msg.id;
                 const showDate =
                   index === 0 ||
                   formatMessageDate(messages[index - 1].created_at) !==
-                    formatMessageDate(msg.created_at);
+                  formatMessageDate(msg.created_at);
 
-                if (isSystem) {
+                if (isSystem || isCallLog) {
                   return (
                     <div key={msg.id}>
                       {showDate && (
@@ -783,7 +945,13 @@ export default function GroupChatSection({
                         </div>
                       )}
                       <div className="flex justify-center px-2 py-1">
-                        <p className="max-w-[90%] rounded-full border border-violet-500/25 bg-violet-500/10 px-4 py-1.5 text-center text-xs leading-relaxed text-violet-200">
+                        <p
+                          className={`max-w-[90%] rounded-full border px-4 py-1.5 text-center text-xs leading-relaxed ${
+                            isCallLog
+                              ? "border-slate-700/80 bg-slate-800/90 text-slate-300"
+                              : "border-violet-500/25 bg-violet-500/10 text-violet-200"
+                          }`}
+                        >
                           {msg.message}
                         </p>
                       </div>
@@ -876,13 +1044,12 @@ export default function GroupChatSection({
                           </div>
                         ) : (
                           <div
-                            className={`rounded-3xl px-4 py-3 text-xs ${
-                              msg.is_deleted
-                                ? "bg-slate-800/50 text-slate-500 italic"
-                                : mine
-                                  ? "bg-blue-600 text-white"
-                                  : "bg-slate-800 text-slate-100"
-                            }`}
+                            className={`rounded-3xl px-4 py-3 text-xs ${msg.is_deleted
+                              ? "bg-slate-800/50 text-slate-500 italic"
+                              : mine
+                                ? "bg-blue-600 text-white"
+                                : "bg-slate-800 text-slate-100"
+                              }`}
                           >
                             <p className="whitespace-pre-wrap wrap-break-words">
                               {msg.message}
@@ -937,7 +1104,13 @@ export default function GroupChatSection({
                   </button>
                   {showInputEmoji && (
                     <EmojiPicker
-                      onSelect={(emoji) => setDraft((d) => d + emoji)}
+                      onSelect={(emoji) =>
+                        setDraft((current) => {
+                          const next = current + emoji;
+                          sendGroupTyping(Boolean(next.trim()));
+                          return next;
+                        })
+                      }
                       onClose={() => setShowInputEmoji(false)}
                       position="top"
                       align="left"
@@ -947,7 +1120,7 @@ export default function GroupChatSection({
                 <textarea
                   ref={inputRef}
                   value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
+                  onChange={(e) => handleDraftChange(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
@@ -982,7 +1155,7 @@ export default function GroupChatSection({
               <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-slate-800 bg-slate-950 text-2xl text-violet-300">
                 <Users size={28} />
               </div>
-              <p className="text-lg font-semibold text-slate-100">
+              <p className="text-lg font-semibold text-slate-300">
                 Select a group
               </p>
               <p className="mt-2 text-sm text-slate-500">
@@ -997,7 +1170,7 @@ export default function GroupChatSection({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="max-h-[90vh] w-full max-w-lg overflow-hidden rounded-3xl border border-slate-700 bg-slate-900">
             <div className="border-b border-slate-800 p-5">
-              <h3 className="text-lg font-semibold">Create Group</h3>
+              <h3 className="text-lg font-semibold text-slate-300">Create Group</h3>
               <p className="mt-1 text-sm text-slate-400">
                 Set a group name. Members are optional — you can add employees
                 after the group is created.
@@ -1031,11 +1204,10 @@ export default function GroupChatSection({
                     return (
                       <label
                         key={emp.employee_id}
-                        className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-3 transition ${
-                          checked
-                            ? "border-blue-500 bg-blue-600/10"
-                            : "border-slate-800 bg-slate-950 hover:bg-slate-800"
-                        }`}
+                        className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-3 transition ${checked
+                          ? "border-blue-500 bg-blue-600/10"
+                          : "border-slate-800 bg-slate-950 hover:bg-slate-800"
+                          }`}
                       >
                         <input
                           type="checkbox"
@@ -1080,14 +1252,14 @@ export default function GroupChatSection({
       )}
 
       {showAddMemberModal && selectedGroup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <div className="max-h-[90vh] w-full max-w-lg overflow-hidden rounded-3xl border border-slate-700 bg-slate-900">
             <div className="border-b border-slate-800 p-5">
-              <h3 className="text-lg font-semibold">Add Members</h3>
-              <p className="mt-1 text-sm text-slate-400">
+              <h3 className="text-lg font-semibold text-slate-400">Add Members</h3>
+              <p className="mt-1 text-sm text-slate-100">
                 Add employees to <strong>{selectedGroup.group_name}</strong>
               </p>
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-slate-100">
                 {selectedGroup.member_details.length} member
                 {selectedGroup.member_details.length === 1 ? "" : "s"} currently
                 in this group
@@ -1102,7 +1274,7 @@ export default function GroupChatSection({
               />
 
               {addMemberCandidates.length === 0 ? (
-                <div className="rounded-2xl border border-slate-800 bg-slate-950 p-6 text-center text-sm text-slate-500">
+                <div className="rounded-2xl border border-slate-800 bg-slate-950 p-6 text-center text-sm text-white">
                   {nonMembers.length === 0
                     ? "All employees are already in this group."
                     : "No employees match your search."}
@@ -1125,15 +1297,18 @@ export default function GroupChatSection({
                           </p>
                         </div>
                       </div>
-                      <button
+                      <Button
+                        text={
+                          <>
+                            <UserPlus size={14} />
+                            Add
+                          </>
+                        }
                         type="button"
                         onClick={() => addMember(emp.employee_id)}
                         disabled={actionLoading}
                         className="flex items-center gap-1.5 rounded-xl bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50 cursor-pointer"
-                      >
-                        <UserPlus size={14} />
-                        Add
-                      </button>
+                      />
                     </div>
                   ))}
                 </div>
@@ -1144,23 +1319,22 @@ export default function GroupChatSection({
               )}
             </div>
             <div className="flex justify-end gap-3 border-t border-slate-800 p-5">
-              <button
+              <Button
+                text="Done"
                 type="button"
                 onClick={() => setShowAddMemberModal(false)}
-                className="rounded-xl bg-slate-700 px-4 py-2 hover:bg-slate-600 cursor-pointer"
-              >
-                Done
-              </button>
+                className="rounded-xl bg-slate-700 text-white px-4 py-2 hover:bg-slate-600 cursor-pointer"
+              />
             </div>
           </div>
         </div>
       )}
 
       {showManageModal && selectedGroup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <div className="max-h-[90vh] w-full max-w-lg overflow-hidden rounded-3xl border border-slate-700 bg-slate-900">
             <div className="border-b border-slate-800 p-5">
-              <h3 className="text-lg font-semibold">Manage Group</h3>
+              <h3 className="text-lg font-semibold text-slate-300">Manage Group</h3>
               <p className="mt-1 text-sm text-slate-400">{selectedGroup.group_name}</p>
             </div>
             <div className="max-h-[60vh] space-y-5 overflow-y-auto p-5">
@@ -1226,30 +1400,58 @@ export default function GroupChatSection({
                   Employees in group ({selectedGroup.member_details.length})
                 </p>
                 <div className="space-y-2">
-                  {selectedGroup.member_details.map((member) => (
-                    <div
-                      key={member.employee_id}
-                      className="flex items-center justify-between rounded-2xl border border-slate-800 bg-slate-950 p-3"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-slate-300">{member.name}</p>
-                        <p className="truncate text-xs text-slate-400">
-                          {member.role} · {member.department}
-                        </p>
+                  {selectedGroup.member_details.map((member) => {
+                    const liveMember = resolveMemberPresence(member);
+                    return (
+                      <div
+                        key={member.employee_id}
+                        className="flex items-center justify-between rounded-2xl border border-slate-800 bg-slate-950 p-3"
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full bg-slate-800">
+                            {member.profile_img ? (
+                              <img
+                                src={getMediaUrl(member.profile_img)}
+                                alt={member.name}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="grid h-full w-full place-items-center bg-cyan-600 text-xs font-bold">
+                                {member.name.charAt(0)}
+                              </div>
+                            )}
+                            {liveMember.is_online && (
+                              <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full border-2 border-slate-950 bg-emerald-400" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-slate-300">
+                              {formatMemberLabel(member)}
+                            </p>
+                            <p className="truncate text-xs text-slate-400">
+                              {liveMember.is_online ? (
+                                <span className="text-emerald-400">Online</span>
+                              ) : (
+                                "Offline"
+                              )}
+                              {member.department ? ` · ${member.department}` : ""}
+                            </p>
+                          </div>
+                        </div>
+                        {member.employee_id !== employeeId && (
+                          <button
+                            type="button"
+                            onClick={() => removeMember(member.employee_id)}
+                            disabled={actionLoading}
+                            className="rounded-xl p-2 text-red-400 hover:bg-red-500/10 cursor-pointer"
+                            title="Remove member"
+                          >
+                            <UserMinus size={16} />
+                          </button>
+                        )}
                       </div>
-                      {member.employee_id !== employeeId && (
-                        <button
-                          type="button"
-                          onClick={() => removeMember(member.employee_id)}
-                          disabled={actionLoading}
-                          className="rounded-xl p-2 text-red-400 hover:bg-red-500/10 cursor-pointer"
-                          title="Remove member"
-                        >
-                          <UserMinus size={16} />
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
@@ -1324,43 +1526,65 @@ export default function GroupChatSection({
       )}
 
       {showMembersModal && selectedGroup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <div className="max-h-[80vh] w-full max-w-md overflow-hidden rounded-3xl border border-slate-700 bg-slate-900">
             <div className="border-b border-slate-800 p-5">
-              <h3 className="text-lg font-semibold">Group Members</h3>
-              <p className="mt-1 text-sm text-slate-400">
-                {selectedGroup.member_details.length} employee
+              <h3 className="text-lg font-semibold text-slate-400">Group Members</h3>
+              <p className="mt-1 text-sm text-slate-200">
+                {onlineMembers.length > 0
+                  ? `${onlineMembers.map((m) => formatMemberLabel(m)).join(", ")} online · `
+                  : ""}
+                {selectedGroup.member_details.length} member
                 {selectedGroup.member_details.length === 1 ? "" : "s"} in{" "}
                 {selectedGroup.group_name}
               </p>
             </div>
             <div className="max-h-[50vh] space-y-2 overflow-y-auto p-5">
-              {selectedGroup.member_details.map((member) => (
-                <div
-                  key={member.employee_id}
-                  className="flex items-center gap-3 rounded-2xl border border-slate-800 bg-slate-950 p-3"
-                >
-                  <div className="h-10 w-10 overflow-hidden rounded-full bg-slate-800">
-                    {member.profile_img ? (
-                      <img
-                        src={getMediaUrl(member.profile_img)}
-                        alt={member.name}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <div className="grid h-full w-full place-items-center bg-cyan-600 text-sm font-bold">
-                        {member.name.charAt(0)}
-                      </div>
-                    )}
+              {selectedGroup.member_details.map((member) => {
+                const liveMember = resolveMemberPresence(member);
+                const isMe = member.employee_id === employeeId;
+                return (
+                  <div
+                    key={member.employee_id}
+                    className="flex items-center gap-3 rounded-2xl border border-slate-800 bg-slate-950 p-3"
+                  >
+                    <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-slate-800">
+                      {member.profile_img ? (
+                        <img
+                          src={getMediaUrl(member.profile_img)}
+                          alt={member.name}
+                          className={`h-full w-full object-cover ${liveMember.is_online ? "ring-2 ring-emerald-500/70" : ""
+                            }`}
+                        />
+                      ) : (
+                        <div
+                          className={`grid h-full w-full place-items-center bg-cyan-600 text-sm font-bold ${liveMember.is_online ? "ring-2 ring-emerald-500/70" : ""
+                            }`}
+                        >
+                          {member.name.charAt(0)}
+                        </div>
+                      )}
+                      {liveMember.is_online && (
+                        <span className="absolute z-999 bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-slate-950 bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-slate-300">
+                        {formatMemberLabel(member)}
+                        {isMe ? " (You)" : ""}
+                      </p>
+                      <p className="truncate text-xs text-slate-400">
+                        {liveMember.is_online ? (
+                          <span className="text-emerald-400">Online</span>
+                        ) : (
+                          "Offline"
+                        )}
+                        {member.department ? ` · ${member.department}` : ""}
+                      </p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-slate-300">{member.name}</p>
-                    <p className="truncate text-xs text-slate-400">
-                      {member.role} · {member.department}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
             <div className="flex justify-end gap-3 border-t border-slate-800 p-5">
               {isStaffRole && (
@@ -1370,7 +1594,7 @@ export default function GroupChatSection({
                     setShowMembersModal(false);
                     openAddMemberModal();
                   }}
-                  className="rounded-xl bg-green-600 px-4 py-2 text-sm hover:bg-green-700 cursor-pointer"
+                  className="rounded-xl bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700 cursor-pointer"
                 >
                   Add Members
                 </button>
@@ -1382,7 +1606,7 @@ export default function GroupChatSection({
                     setShowMembersModal(false);
                     setShowManageModal(true);
                   }}
-                  className="rounded-xl bg-blue-600 px-4 py-2 text-sm hover:bg-blue-700 cursor-pointer"
+                  className="rounded-xl bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 cursor-pointer"
                 >
                   Manage group
                 </button>
@@ -1390,7 +1614,7 @@ export default function GroupChatSection({
               <button
                 type="button"
                 onClick={() => setShowMembersModal(false)}
-                className="rounded-xl bg-slate-700 px-4 py-2 hover:bg-slate-600 cursor-pointer"
+                className="rounded-xl bg-slate-700 px-4 py-2 text-white hover:bg-slate-600 cursor-pointer"
               >
                 Close
               </button>
@@ -1402,7 +1626,7 @@ export default function GroupChatSection({
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
           <div className="w-full max-w-sm rounded-3xl border border-slate-700 bg-slate-900 p-6">
-            <h3 className="text-lg font-semibold">Delete Group?</h3>
+            <h3 className="text-lg font-semibold text-slate-300">Delete Group?</h3>
             <p className="mt-2 text-sm text-slate-400">
               This will permanently delete the group and all its messages.
             </p>

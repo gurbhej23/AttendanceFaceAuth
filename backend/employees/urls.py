@@ -16,6 +16,7 @@ from .views import (
     admin_reset_employee_password,
     chat_contacts,
     chat_history,
+    chat_history_clear,
     chat_message_send,
     chat_message_detail,
     chat_message_react,
@@ -50,6 +51,7 @@ urlpatterns = [
     path("admin-employees/", admin_employees, name="admin-employees"),
     path("chat-contacts/", chat_contacts, name="chat-contacts"),
     path("chat-history/", chat_history, name="chat-history"),
+    path("chat-history/clear/", chat_history_clear, name="chat-history-clear"),
     path("chat-message/send/", chat_message_send, name="chat-message-send"),
     path("chat-message/<str:message_id>/", chat_message_detail, name="chat-message"),
     path(

@@ -387,7 +387,7 @@ export default function AdminAttendanceSheet() {
           profileImg={adminProfileImg}
         />
 
-        <div className="mx-auto max-w-[1600px] transition-all duration-500 ease-out lg:ml-[88px]">
+        <div className="mx-auto max-w-400 transition-all duration-500 ease-out lg:ml-22">
           <div>
             {/* HEADER */}
             <div className="mb-4 flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 px-4 py-5 shadow-2xl backdrop-blur-xl sm:px-6 md:flex-row md:items-center md:justify-between">

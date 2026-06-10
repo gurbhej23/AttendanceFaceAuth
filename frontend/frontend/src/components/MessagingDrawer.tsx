@@ -1,13 +1,36 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { MessageSquare, Search, Users } from "lucide-react";
+import {
+  MessageSquare,
+  Search,
+  Users,
+  ChevronUp,
+} from "lucide-react";
 import API from "../services/api";
 import DirectChatPopup from "./DirectChatPopup";
 import GroupChatPopup from "./GroupChatPopup";
+import IncomingCallModal from "./IncomingCallModal";
+import VideoCallWindow, {
+  type ActiveCall,
+  type CallParticipant,
+} from "./VideoCallWindow";
 import NotificationBadge from "./NotificationBadge";
 import { useUnreadMessages } from "../hooks/useUnreadMessages";
-import type { ChatGroup, Contact, OpenChat } from "../utils/chatHelpers";
+import {
+  clearCallSession,
+  loadCallSession,
+  missedCallMessage,
+  endedCallMessage,
+  saveCallSession,
+  type CallMode,
+} from "../utils/callHelpers";
+import type { ChatGroup, ChatMessage, Contact, OpenChat } from "../utils/chatHelpers";
 import { chatKey, getMediaUrl, getWsUrl } from "../utils/chatHelpers";
+import {
+  playCallEndSound,
+  startIncomingRingtone,
+  stopIncomingRingtone,
+} from "../utils/callSounds";
 import Button from "./Button";
 import Input from "./Input";
 
@@ -50,6 +73,7 @@ export default function MessagingDrawer() {
 
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<number | null>(null);
+  const typingTimersRef = useRef<Record<string, number>>({});
   const wsHandlers = useRef(new Set<(data: Record<string, unknown>) => void>());
 
   const [expanded, setExpanded] = useState(false);
@@ -59,8 +83,56 @@ export default function MessagingDrawer() {
   const [groups, setGroups] = useState<ChatGroup[]>([]);
   const [loading, setLoading] = useState(false);
   const [openChats, setOpenChats] = useState<OpenChat[]>([]);
-  const [minimizedChats, setMinimizedChats] = useState<Record<string, boolean>>({});
+  const [minimizedChats, setMinimizedChats] = useState<Record<string, boolean>>(
+    {},
+  );
   const [typingById, setTypingById] = useState<Record<string, boolean>>({});
+  const [activeCall, setActiveCallState] = useState<ActiveCall | null>(() => {
+    const saved = loadCallSession(employeeId);
+    if (!saved) return null;
+    return { ...saved, restored: true };
+  });
+  const [incomingCall, setIncomingCall] = useState<ActiveCall | null>(null);
+  const activeCallRef = useRef<ActiveCall | null>(null);
+  const incomingCallRef = useRef<ActiveCall | null>(null);
+  const openCallChatRef = useRef<(call: ActiveCall) => void>(() => undefined);
+
+  const setActiveCall = useCallback(
+    (call: ActiveCall | null) => {
+      setActiveCallState(call);
+      if (call) {
+        saveCallSession(employeeId, call);
+      } else {
+        clearCallSession(employeeId);
+      }
+    },
+    [employeeId],
+  );
+
+  const updateCallSession = useCallback(
+    (call: ActiveCall) => {
+      saveCallSession(employeeId, call);
+      setActiveCallState(call);
+    },
+    [employeeId],
+  );
+
+  useEffect(() => {
+    activeCallRef.current = activeCall;
+  }, [activeCall]);
+
+  useEffect(() => {
+    incomingCallRef.current = incomingCall;
+  }, [incomingCall]);
+
+  useEffect(() => {
+    if (incomingCall && !activeCall) {
+      startIncomingRingtone();
+      return () => stopIncomingRingtone();
+    }
+    stopIncomingRingtone();
+    return undefined;
+  }, [incomingCall, activeCall]);
 
   const { summary, refreshUnread } = useUnreadMessages(employeeId, 15000);
   const isMobile = useIsMobile();
@@ -69,9 +141,17 @@ export default function MessagingDrawer() {
   const activeChat = openChats[openChats.length - 1] ?? null;
   const activeChatKey = activeChat ? chatKey(activeChat) : "";
   const showMobileChat =
-    isMobile &&
-    activeChat &&
-    !minimizedChats[activeChatKey];
+    isMobile && activeChat && !minimizedChats[activeChatKey];
+
+  const meParticipant = useMemo<CallParticipant>(
+    () => ({
+      employee_id: employeeId,
+      name: employeeName,
+      role,
+      profile_img: localStorage.getItem("profile_img") || "",
+    }),
+    [employeeId, employeeName, role],
+  );
 
   const registerHandler = useCallback(
     (handler: (data: Record<string, unknown>) => void) => {
@@ -84,6 +164,16 @@ export default function MessagingDrawer() {
   const broadcastWs = useCallback((data: Record<string, unknown>) => {
     wsHandlers.current.forEach((handler) => handler(data));
   }, []);
+
+  const sendCallEvent = useCallback(
+    (payload: Record<string, unknown>) => {
+      const socket = socketRef.current;
+      if (socket?.readyState !== WebSocket.OPEN) return false;
+      socket.send(JSON.stringify(payload));
+      return true;
+    },
+    [],
+  );
 
   const loadContacts = useCallback(async () => {
     const res = await API.get("/employees/chat-contacts/", {
@@ -150,28 +240,90 @@ export default function MessagingDrawer() {
       };
       socket.onerror = () => socket?.close();
       socket.onmessage = (event) => {
-        const data = JSON.parse(event.data) as Record<string, unknown>;
+        let data: Record<string, unknown>;
+        try {
+          data = JSON.parse(event.data) as Record<string, unknown>;
+        } catch {
+          return;
+        }
         broadcastWs(data);
 
         if (data.type === "typing") {
-          setTypingById((cur) => ({
-            ...cur,
-            [String(data.sender_id)]: Boolean(data.is_typing),
-          }));
+          const senderId = String(data.sender_id);
+          const isTyping = Boolean(data.is_typing);
+          setTypingById((cur) => ({ ...cur, [senderId]: isTyping }));
+          if (typingTimersRef.current[senderId]) {
+            window.clearTimeout(typingTimersRef.current[senderId]);
+            delete typingTimersRef.current[senderId];
+          }
+          if (isTyping) {
+            typingTimersRef.current[senderId] = window.setTimeout(() => {
+              setTypingById((cur) => ({ ...cur, [senderId]: false }));
+              delete typingTimersRef.current[senderId];
+            }, 3000);
+          }
         } else if (data.type === "presence") {
           setContacts((cur) =>
             cur.map((contact) =>
               contact.employee_id === data.employee_id
                 ? {
-                  ...contact,
-                  is_online: Boolean(data.is_online),
-                  last_seen: (data.last_seen as string) || contact.last_seen,
-                }
+                    ...contact,
+                    is_online: Boolean(data.is_online),
+                    last_seen: (data.last_seen as string) || contact.last_seen,
+                  }
                 : contact,
             ),
           );
         } else if (data.type === "message" || data.type === "read") {
           refreshUnread();
+        } else if (data.type === "call_invite") {
+          const caller = data.caller as CallParticipant | undefined;
+          const callerId = String(data.sender_id || caller?.employee_id || "");
+          const callId = String(data.call_id || "");
+          if (!callerId || !callId || callerId === employeeId) return;
+          if (activeCallRef.current) {
+            sendCallEvent({
+              type: "call_decline",
+              call_id: callId,
+              call_type: data.call_type,
+              call_mode: data.call_mode,
+              group_id: data.group_id,
+              group_name: data.group_name,
+              target_id: callerId,
+              reason: "busy",
+            });
+            return;
+          }
+
+          const callType = data.call_type === "group" ? "group" : "direct";
+          const callMode = data.call_mode === "audio" ? "audio" : "video";
+          setIncomingCall({
+            callId,
+            callType,
+            callMode,
+            title:
+              callType === "group"
+                ? String(data.group_name || "Group call")
+                : caller?.name || String(data.caller_name || "Video call"),
+            callerId,
+            callerName: caller?.name || String(data.caller_name || callerId),
+            groupId: data.group_id ? String(data.group_id) : undefined,
+            groupName: data.group_name ? String(data.group_name) : undefined,
+            peerIds: [callerId],
+            participants: [meParticipant, caller || { employee_id: callerId, name: callerId }],
+            startedByMe: false,
+          });
+        } else if (data.type === "call_end") {
+          const callId = String(data.call_id || "");
+          const incoming = incomingCallRef.current;
+          if (incoming && incoming.callId === callId) {
+            stopIncomingRingtone();
+            playCallEndSound();
+            setIncomingCall(null);
+            openCallChatRef.current({ ...incoming, startedByMe: false });
+          }
+        } else if (data.type === "call_error") {
+          setActiveCall(null);
         }
       };
     };
@@ -181,6 +333,10 @@ export default function MessagingDrawer() {
       active = false;
       window.clearTimeout(timer);
       clearReconnectTimer();
+      Object.values(typingTimersRef.current).forEach((timerId) =>
+        window.clearTimeout(timerId),
+      );
+      typingTimersRef.current = {};
       if (socket) {
         socket.onopen = null;
         socket.onclose = null;
@@ -190,7 +346,7 @@ export default function MessagingDrawer() {
       }
       socketRef.current = null;
     };
-  }, [broadcastWs, employeeId, loadContacts, refreshUnread, visible]);
+  }, [broadcastWs, employeeId, loadContacts, refreshUnread, sendCallEvent, visible]);
 
   const unreadByContact = useMemo(() => {
     const map: Record<string, number> = {};
@@ -212,10 +368,10 @@ export default function MessagingDrawer() {
     const q = search.trim().toLowerCase();
     const list = q
       ? contacts.filter(
-        (c) =>
-          c.name.toLowerCase().includes(q) ||
-          c.employee_id.toLowerCase().includes(q),
-      )
+          (c) =>
+            c.name.toLowerCase().includes(q) ||
+            c.employee_id.toLowerCase().includes(q),
+        )
       : [...contacts];
     return list.sort((a, b) => {
       const diff =
@@ -289,6 +445,273 @@ export default function MessagingDrawer() {
     return map;
   }, [groups]);
 
+  const startDirectCall = useCallback(
+    (contact: Contact, callMode: CallMode) => {
+      if (activeCall) return;
+      const callId = `direct-${employeeId}-${contact.employee_id}-${Date.now()}`;
+      const nextCall: ActiveCall = {
+        callId,
+        callType: "direct",
+        callMode,
+        title: contact.name,
+        callerId: employeeId,
+        callerName: employeeName,
+        peerIds: [contact.employee_id],
+        participants: [meParticipant, contact],
+        startedByMe: true,
+      };
+      setActiveCall(nextCall);
+      sendCallEvent({
+        type: "call_invite",
+        call_id: callId,
+        call_type: "direct",
+        call_mode: callMode,
+        recipient_id: contact.employee_id,
+        caller_name: employeeName,
+        title: employeeName,
+      });
+    },
+    [activeCall, employeeId, employeeName, meParticipant, sendCallEvent],
+  );
+
+  const startDirectVideoCall = useCallback(
+    (contact: Contact) => startDirectCall(contact, "video"),
+    [startDirectCall],
+  );
+
+  const startDirectVoiceCall = useCallback(
+    (contact: Contact) => startDirectCall(contact, "audio"),
+    [startDirectCall],
+  );
+
+  const startGroupCall = useCallback(
+    (group: ChatGroup, callMode: CallMode) => {
+      if (activeCall) return;
+      const members = group.member_details || [];
+      const callId = `group-${group.id}-${employeeId}-${Date.now()}`;
+      const nextCall: ActiveCall = {
+        callId,
+        callType: "group",
+        callMode,
+        title: group.group_name,
+        callerId: employeeId,
+        callerName: employeeName,
+        groupId: group.id,
+        groupName: group.group_name,
+        peerIds: [],
+        participants: [meParticipant, ...members],
+        startedByMe: true,
+      };
+      setActiveCall(nextCall);
+      sendCallEvent({
+        type: "call_invite",
+        call_id: callId,
+        call_type: "group",
+        call_mode: callMode,
+        group_id: group.id,
+        group_name: group.group_name,
+        caller_name: employeeName,
+        title: group.group_name,
+      });
+    },
+    [activeCall, employeeId, employeeName, meParticipant, sendCallEvent],
+  );
+
+  const startGroupVideoCall = useCallback(
+    (group: ChatGroup) => startGroupCall(group, "video"),
+    [startGroupCall],
+  );
+
+  const startGroupVoiceCall = useCallback(
+    (group: ChatGroup) => startGroupCall(group, "audio"),
+    [startGroupCall],
+  );
+
+  const openCallChat = useCallback((call: ActiveCall) => {
+    if (call.callType !== "direct") return;
+    const contactId = call.startedByMe ? call.peerIds[0] : call.callerId;
+    if (!contactId) return;
+    openChat({ type: "direct", id: contactId });
+  }, []);
+
+  useEffect(() => {
+    openCallChatRef.current = openCallChat;
+  }, [openCallChat]);
+
+  const postDirectCallMessage = useCallback(
+    async (recipientId: string, message: string) => {
+      if (!recipientId) return null;
+      try {
+        const res = await API.post("/employees/chat-message/send/", {
+          sender_id: employeeId,
+          recipient_id: recipientId,
+          message,
+        });
+        if (res.data.success && res.data.message) {
+          broadcastWs({ type: "message", message: res.data.message });
+          refreshUnread();
+          return res.data.message as ChatMessage;
+        }
+      } catch {
+        /* silent */
+      }
+      return null;
+    },
+    [broadcastWs, employeeId, refreshUnread],
+  );
+
+  const sendDirectCallMessage = useCallback(
+    async (
+      call: ActiveCall,
+      targetId?: string,
+      reason: "missed" | "declined" = "missed",
+    ) => {
+      if (call.callType !== "direct") return;
+      const recipientId = targetId || call.peerIds[0];
+      if (!recipientId) return;
+      const mode = call.callMode || "video";
+      await postDirectCallMessage(recipientId, missedCallMessage(mode, reason));
+      openCallChat(call);
+    },
+    [openCallChat, postDirectCallMessage],
+  );
+
+  const sendDirectCallEndedMessage = useCallback(
+    async (call: ActiveCall, durationSeconds: number) => {
+      if (call.callType !== "direct") return;
+      const recipientId = call.peerIds[0];
+      if (!recipientId) return;
+      const mode = call.callMode || "video";
+      const duration =
+        durationSeconds >= 60
+          ? `${Math.floor(durationSeconds / 60)}m ${durationSeconds % 60}s`
+          : `${durationSeconds}s`;
+      await postDirectCallMessage(
+        recipientId,
+        `${endedCallMessage(mode)} · ${duration}`,
+      );
+      openCallChat(call);
+    },
+    [openCallChat, postDirectCallMessage],
+  );
+
+  const sendGroupCallMessage = useCallback(
+    async (call: ActiveCall, reason: "missed" | "declined" | "ended" = "missed") => {
+      if (call.callType !== "group" || !call.groupId) return;
+      const mode = call.callMode || "video";
+      const label =
+        reason === "ended"
+          ? endedCallMessage(mode)
+          : reason === "missed"
+            ? mode === "audio"
+              ? "Missed group voice call"
+              : "Missed group video call"
+            : mode === "audio"
+              ? "Group voice call declined"
+              : "Group video call declined";
+      try {
+        const res = await API.post("/employees/chat-groups/message/send/", {
+          sender_id: employeeId,
+          group_id: call.groupId,
+          message: label,
+        });
+        if (res.data.success) {
+          refreshUnread();
+        }
+      } catch {
+        /* silent */
+      }
+    },
+    [employeeId, refreshUnread],
+  );
+
+  const handleUnansweredCall = useCallback(
+    async (call: ActiveCall) => {
+      if (call.callType === "direct") {
+        await sendDirectCallMessage(call, call.peerIds[0], "missed");
+      } else {
+        await sendGroupCallMessage(call, "missed");
+      }
+    },
+    [sendDirectCallMessage, sendGroupCallMessage],
+  );
+
+  const handleCallEnded = useCallback(
+    (call: ActiveCall, durationSeconds: number) => {
+      if (call.callType === "direct") {
+        void sendDirectCallEndedMessage(call, durationSeconds);
+      } else {
+        void sendGroupCallMessage(call, "ended");
+      }
+    },
+    [sendDirectCallEndedMessage, sendGroupCallMessage],
+  );
+
+  const handleMissedCall = useCallback(
+    async (
+      call: ActiveCall,
+      targetId?: string,
+      reason: "missed" | "declined" = "missed",
+    ) => {
+      if (call.callType === "direct") {
+        await sendDirectCallMessage(call, targetId, reason);
+      }
+    },
+    [sendDirectCallMessage],
+  );
+
+  const acceptIncomingCall = () => {
+    if (!incomingCall || activeCall) return;
+    stopIncomingRingtone();
+    const call = incomingCall;
+    sendCallEvent({
+      type: "call_accept",
+      call_id: call.callId,
+      call_type: call.callType,
+      call_mode: call.callMode,
+      group_id: call.groupId,
+      group_name: call.groupName,
+      target_id: call.callerId,
+      caller_id: call.callerId,
+      participant: {
+        employee_id: employeeId,
+        name: employeeName,
+      },
+    });
+    setActiveCall({ ...call, startedByMe: false });
+    setIncomingCall(null);
+  };
+
+  const declineIncomingCall = useCallback(
+    async (reason: "declined" | "missed" | "busy" = "declined") => {
+      if (!incomingCall) return;
+      stopIncomingRingtone();
+      playCallEndSound();
+      const call = incomingCall;
+      sendCallEvent({
+        type: "call_decline",
+        call_id: call.callId,
+        call_type: call.callType,
+        call_mode: call.callMode,
+        group_id: call.groupId,
+        group_name: call.groupName,
+        target_id: call.callerId,
+        reason,
+      });
+      setIncomingCall(null);
+      if (reason === "missed" && call.callType === "direct") {
+        openCallChat({ ...call, startedByMe: false });
+      }
+    },
+    [incomingCall, openCallChat, sendCallEvent],
+  );
+
+  useEffect(() => {
+    if (!incomingCall) return;
+    const timer = window.setTimeout(() => declineIncomingCall("missed"), 30000);
+    return () => window.clearTimeout(timer);
+  }, [declineIncomingCall, incomingCall]);
+
   const renderChatPopup = (chat: OpenChat, fullScreen: boolean) => {
     const key = chatKey(chat);
     const minimized = Boolean(minimizedChats[key]);
@@ -310,6 +733,9 @@ export default function MessagingDrawer() {
           fullScreen={fullScreen}
           refreshUnread={refreshUnread}
           typing={Boolean(typingById[chat.id])}
+          onStartVideoCall={startDirectVideoCall}
+          onStartVoiceCall={startDirectVoiceCall}
+          canStartVideoCall={!activeCall}
         />
       );
     }
@@ -329,28 +755,21 @@ export default function MessagingDrawer() {
         fullScreen={fullScreen}
         refreshUnread={refreshUnread}
         unreadByGroup={unreadByGroup}
+        onStartGroupVideoCall={startGroupVideoCall}
+        onStartGroupVoiceCall={startGroupVoiceCall}
+        canStartGroupCall={!activeCall}
       />
     );
   };
 
   const drawerPanel = (
     <div
-      className={`flex flex-col overflow-hidden border border-slate-700/60 bg-slate-900/98 shadow-2xl backdrop-blur-xl ${isMobile
-        ? "max-h-[min(85dvh,640px)] w-full rounded-t-3xl border-b-0"
-        : "max-h-[min(75vh,520px)] w-full rounded-t-2xl border-b-0"
-        }`}
+      className={`flex flex-col overflow-hidden border border-slate-700/60 bg-slate-900/98 shadow-2xl backdrop-blur-xl ${
+        isMobile
+          ? "max-h-[min(85dvh,640px)] w-full border-b-0"
+          : "max-h-[min(75vh,520px)] w-full border-b-0"
+      }`}
     >
-      <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
-        <p className="text-sm font-bold text-white">Messages</p>
-        {isMobile && (
-          <Button
-            text="Close"
-            type="button"
-            onClick={() => setExpanded(false)}
-            className="rounded-lg px-2 py-1 text-xs font-semibold text-slate-400 hover:bg-slate-800 hover:text-white cursor-pointer"
-          />
-        )}
-      </div>
       <div className="border-b border-slate-800 p-3">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
@@ -369,28 +788,31 @@ export default function MessagingDrawer() {
           text={
             <>
               Personal
-              <NotificationBadge count={summary.direct} /> </>
+              <NotificationBadge count={summary.direct} />{" "}
+            </>
           }
           type="button"
           onClick={() => setTab("direct")}
-          className={`flex flex-1 items-center justify-center gap-2 border-b-2 py-3 text-sm font-semibold transition cursor-pointer ${tab === "direct"
-            ? "border-cyan-500 text-cyan-300"
-            : "border-transparent text-slate-500 hover:text-slate-300"
-            }`}
+          className={`flex flex-1 items-center justify-center gap-2 border-b-2 py-3 text-sm font-semibold transition cursor-pointer ${
+            tab === "direct"
+              ? "border-cyan-500 text-cyan-300"
+              : "border-transparent text-slate-500 hover:text-slate-300"
+          }`}
         />
         <Button
           text={
             <>
               Groups
-              <NotificationBadge count={summary.group} /> 
-              </>
+              <NotificationBadge count={summary.group} />
+            </>
           }
           type="button"
           onClick={() => setTab("group")}
-          className={`flex flex-1 items-center justify-center gap-2 border-b-2 py-3 text-sm font-semibold transition cursor-pointer ${tab === "group"
-            ? "border-violet-500 text-violet-300"
-            : "border-transparent text-slate-500 hover:text-slate-300"
-            }`}
+          className={`flex flex-1 items-center justify-center gap-2 border-b-2 py-3 text-sm font-semibold transition cursor-pointer ${
+            tab === "group"
+              ? "border-violet-500 text-violet-300"
+              : "border-transparent text-slate-500 hover:text-slate-300"
+          }`}
         />
       </div>
 
@@ -426,10 +848,9 @@ export default function MessagingDrawer() {
                       {contact.name.charAt(0)}
                     </div>
                   )}
-                  <span
-                    className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-slate-900 ${contact.is_online ? "bg-green-400" : "bg-slate-500"
-                      }`}
-                  />
+                  {contact.is_online && (
+                    <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-slate-900 bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]" />
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
@@ -441,13 +862,15 @@ export default function MessagingDrawer() {
                     />
                   </div>
                   <p className="truncate text-xs text-slate-500">
-                    {contact.is_online
-                      ? "Online"
-                      : contact.role === "hr"
-                        ? "HR"
-                        : contact.role === "admin"
-                          ? "Admin"
-                          : contact.department || "Employee"}
+                    {typingById[contact.employee_id]
+                      ? "Typing..."
+                      : contact.is_online
+                        ? "Online"
+                        : contact.role === "hr"
+                          ? "HR"
+                          : contact.role === "admin"
+                            ? "Admin"
+                            : contact.department || "Employee"}
                   </p>
                 </div>
               </button>
@@ -499,41 +922,75 @@ export default function MessagingDrawer() {
   );
 
   const fabButton = (
-    <button
-      type="button"
-      onClick={() => setExpanded((v) => !v)}
-      className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full md:rounded-none border border-cyan-500/40 bg-slate-900/95 text-cyan-400 shadow-xl shadow-cyan-950/40 backdrop-blur-xl transition hover:scale-105 hover:border-cyan-400 active:scale-95 md:h-12 md:w-full md:max-w-none md:justify-start md:gap-3 md:border-b-1 md:px-4 md:py-0 md:hover:scale-100 cursor-pointer"
-      aria-label={expanded ? "Close messages" : "Open messages"}
-    >
-      <MessageSquare className="h-6 w-6 md:hidden" />
-      <div className="relative hidden md:block">
-        {profileImg ? (
-          <img
-            src={profileImg}
-            alt={employeeName}
-            className="h-8 w-8 rounded-full object-cover"
-          />
-        ) : (
-          <div className="grid h-8 w-8 place-items-center rounded-full bg-cyan-700 text-xs font-bold text-white">
-            {employeeName.charAt(0)}
+    <>
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full md:rounded-none border border-cyan-800 bg-slate-900/95 shadow-xl shadow-cyan-950/40 backdrop-blur-xl text-cyan-500 transition hover:scale-105 active:scale-95 md:border-slate-800 md:h-12 md:w-full md:max-w-none md:justify-start md:gap-3 md:px-4 md:py-0 md:hover:scale-100 cursor-pointer"
+        aria-label={expanded ? "Close messages" : "Open messages"}
+      >
+        <div className="relative flex items-center gap-3">
+          <MessageSquare className="h-6 w-6 md:hidden" />
+          <div className="relative hidden md:block">
+            {profileImg ? (
+              <img
+                src={profileImg}
+                alt={employeeName}
+                className="h-8 w-8 rounded-full object-cover"
+              />
+            ) : (
+              <div className="grid h-8 w-8 place-items-center rounded-full bg-cyan-700 text-xs font-bold text-white">
+                {employeeName.charAt(0)}
+              </div>
+            )}
           </div>
-        )}
-      </div>
-      <span className="hidden text-sm font-semibold text-white md:inline">
-        Messages
-      </span>
-      {summary.total > 0 && (
-        <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-bold text-white ring-2 ring-slate-900">
-          {summary.total > 99 ? "99+" : summary.total}
-        </span>
-      )}
-    </button>
+          <span className="hidden text-sm font-semibold text-white md:inline">
+            Messages
+          </span>
+          {summary.total > 0 && (
+            <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-bold text-white ring-2 ring-slate-900">
+              {summary.total > 99 ? "99+" : summary.total}
+            </span>
+          )}
+        </div>
+        <div className="absolute right-5 top-4">
+          <ChevronUp
+            className={`h-5 w-5 transition-transform duration-400 hidden md:block ${
+              expanded ? "rotate-180" : ""
+            }`}
+          /> 
+        </div>
+      </button>
+    </>
   );
 
   if (!visible) return null;
 
   return (
     <>
+      {incomingCall && (
+        <IncomingCallModal
+          call={incomingCall}
+          onAccept={acceptIncomingCall}
+          onDecline={() => declineIncomingCall("declined")}
+        />
+      )}
+
+      {activeCall && (
+        <VideoCallWindow
+          call={activeCall}
+          employeeId={employeeId}
+          employeeName={employeeName}
+          socketRef={socketRef}
+          registerHandler={registerHandler}
+          onClose={() => setActiveCall(null)}
+          onMissedCall={handleMissedCall}
+          onUnanswered={handleUnansweredCall}
+          onCallEnded={handleCallEnded}
+          onCallSessionUpdate={updateCallSession}
+        />
+      )}
+
       {/* Mobile: backdrop when list open */}
       {isMobile && expanded && !showMobileChat && (
         <button
@@ -546,21 +1003,21 @@ export default function MessagingDrawer() {
 
       {/* Mobile: full-screen chat */}
       {showMobileChat && activeChat && (
-        <div className="pointer-events-auto fixed inset-0 z-[60] md:hidden">
+        <div className="pointer-events-auto fixed inset-0 z-60 md:hidden">
           {renderChatPopup(activeChat, true)}
         </div>
       )}
 
       {/* Desktop: floating chat windows */}
-      <div className="fixed bottom-0 right-0 z-50 hidden items-end gap-2 p-4 md:flex">
+      <div className="fixed bottom-0 right-0 z-50 hidden items-end gap-2 md:flex">
         {openChats.map((chat) => (
           <div key={chatKey(chat)} className="pointer-events-auto shrink-0">
             {renderChatPopup(chat, false)}
           </div>
         ))}
-        <div className="pointer-events-auto flex w-[min(calc(100vw-2rem),360px)] flex-col">
-          {expanded && drawerPanel}
+        <div className="pointer-events-auto flex w-[min(calc(100vw-2rem),460px)] flex-col">
           {fabButton}
+          {expanded && drawerPanel}
         </div>
       </div>
 
@@ -568,9 +1025,7 @@ export default function MessagingDrawer() {
       {!showMobileChat && (
         <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex flex-col items-end p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden">
           {expanded && (
-            <div className="pointer-events-auto mb-3 w-full">
-              {drawerPanel}
-            </div>
+            <div className="pointer-events-auto mb-3 w-full">{drawerPanel}</div>
           )}
           <div className="pointer-events-auto">{fabButton}</div>
         </div>

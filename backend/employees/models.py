@@ -61,6 +61,21 @@ class ChatMessage(me.Document):
     }
 
 
+class ChatClearState(me.Document):
+    """Per-user clear: hides chat history for one side only."""
+
+    employee_id = me.StringField(required=True)
+    contact_id = me.StringField(required=True)
+    cleared_at = me.DateTimeField(required=True)
+
+    meta = {
+        "collection": "chat_clear_states",
+        "indexes": [
+            {"fields": ("employee_id", "contact_id"), "unique": True},
+        ],
+    }
+
+
 class ChatGroup(me.Document):
     group_name = me.StringField(required=True)
     group_img = me.StringField(default="")

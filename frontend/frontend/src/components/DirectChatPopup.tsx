@@ -7,16 +7,91 @@ import {
   MoreVertical,
   Pencil,
   Trash2,
+  Phone,
+  Video,
   X,
 } from "lucide-react";
 import API from "../services/api";
 import EmojiPicker from "./EmojiPicker";
 import type { ChatMessage, Contact } from "../utils/chatHelpers";
+import { isCallLogMessage } from "../utils/callHelpers";
 import {
   formatLastSeen,
   formatMessageDate,
   getMediaUrl,
+  mergeChatMessages,
 } from "../utils/chatHelpers";
+
+function AvatarWithPresence({
+  src,
+  name,
+  isOnline,
+  size = "md",
+}: {
+  src?: string;
+  name: string;
+  isOnline?: boolean;
+  size?: "sm" | "md";
+}) {
+  const dim = size === "sm" ? "h-7 w-7" : "h-9 w-9";
+  const dot = size === "sm" ? "h-2 w-2" : "h-2.5 w-2.5";
+  return (
+    <div className="relative shrink-0">
+      {src ? (
+        <img
+          src={src}
+          alt={name}
+          className={`${dim} rounded-full object-cover ${
+            isOnline
+          }`}
+        />
+      ) : (
+        <div
+          className={`grid ${dim} place-items-center rounded-full bg-cyan-700 text-sm font-bold ${
+            isOnline ? "ring-2 ring-emerald-500/70" : ""
+          }`}
+        >
+          {name.charAt(0)}
+        </div>
+      )}
+      {isOnline && (
+        <span
+          className={`absolute bottom-0 right-0 ${dot} rounded-full border-1 bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]`}
+        />
+      )}
+    </div>
+  );
+}
+
+function PresenceStatus({
+  typing,
+  isOnline,
+  lastSeen,
+}: {
+  typing: boolean;
+  isOnline?: boolean;
+  lastSeen?: string;
+}) {
+  if (typing) {
+    return (
+      <p className="flex items-center gap-1.5 truncate text-xs text-cyan-400"> 
+        Typing...
+      </p>
+    );
+  }
+  if (isOnline) {
+    return (
+      <p className="flex items-center gap-1.5 truncate text-xs text-emerald-400"> 
+        Online
+      </p>
+    );
+  }
+  return (
+    <p className="truncate text-xs text-slate-500">
+      {formatLastSeen(lastSeen)}
+    </p>
+  );
+}
 
 interface Props {
   contact: Contact;
@@ -29,6 +104,9 @@ interface Props {
   fullScreen?: boolean;
   refreshUnread: () => void;
   typing: boolean;
+  onStartVideoCall?: (contact: Contact) => void;
+  onStartVoiceCall?: (contact: Contact) => void;
+  canStartVideoCall?: boolean;
 }
 
 export default function DirectChatPopup({
@@ -42,6 +120,9 @@ export default function DirectChatPopup({
   fullScreen = false,
   refreshUnread,
   typing,
+  onStartVideoCall,
+  onStartVoiceCall,
+  canStartVideoCall = true,
 }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -55,7 +136,10 @@ export default function DirectChatPopup({
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
   const [deleteMsgId, setDeleteMsgId] = useState<string | null>(null);
+  const [showHeaderMenu, setShowHeaderMenu] = useState(false);
+  const [clearingChat, setClearingChat] = useState(false);
   const typingStopTimer = useRef<number | null>(null);
+  const historySessionRef = useRef(0);
 
   useEffect(() => {
     contactRef.current = contact;
@@ -79,17 +163,48 @@ export default function DirectChatPopup({
     refreshUnread();
   }, [contact.employee_id, refreshUnread, socketRef]);
 
-  const loadHistory = useCallback(async () => {
-    const res = await API.get("/employees/chat-history/", {
-      params: { employee_id: employeeId, contact_id: contact.employee_id },
+  const upsertMessage = useCallback((incoming: ChatMessage) => {
+    setMessages((cur) => {
+      const withoutPending = cur.filter(
+        (message) =>
+          !(
+            message.id.startsWith("pending-") &&
+            message.sender_id === incoming.sender_id &&
+            message.message === incoming.message
+          ),
+      );
+      return withoutPending.some((message) => message.id === incoming.id)
+        ? withoutPending
+        : [...withoutPending, incoming];
     });
-    setMessages(res.data.messages || []);
-    markRead();
-  }, [contact.employee_id, employeeId, markRead]);
+  }, []);
 
   useEffect(() => {
-    loadHistory();
-  }, [loadHistory]);
+    const session = ++historySessionRef.current;
+    let cancelled = false;
+
+    const loadHistory = async () => {
+      try {
+        const res = await API.get("/employees/chat-history/", {
+          params: {
+            employee_id: employeeId,
+            contact_id: contact.employee_id,
+          },
+        });
+        if (cancelled || session !== historySessionRef.current) return;
+        const loaded = (res.data.messages || []) as ChatMessage[];
+        setMessages((cur) => mergeChatMessages(loaded, cur));
+        markRead();
+      } catch {
+        /* silent */
+      }
+    };
+
+    void loadHistory();
+    return () => {
+      cancelled = true;
+    };
+  }, [contact.employee_id, employeeId, markRead]);
 
   useEffect(() => {
     const unregister = registerHandler((data) => {
@@ -102,9 +217,7 @@ export default function DirectChatPopup({
           (incoming.sender_id === employeeId &&
             incoming.recipient_id === open.employee_id)
         ) {
-          setMessages((cur) =>
-            cur.some((m) => m.id === incoming.id) ? cur : [...cur, incoming],
-          );
+          upsertMessage(incoming);
           if (incoming.sender_id === open.employee_id) markRead();
         }
       } else if (data.type === "edit" || data.type === "delete" || data.type === "react") {
@@ -126,7 +239,7 @@ export default function DirectChatPopup({
       }
     });
     return unregister;
-  }, [belongsToChat, employeeId, markRead, registerHandler]);
+  }, [belongsToChat, employeeId, markRead, registerHandler, upsertMessage]);
 
   useEffect(() => {
     if (!minimized) {
@@ -138,10 +251,35 @@ export default function DirectChatPopup({
     const handler = () => {
       setMenuMsgId(null);
       setShowInputEmoji(false);
+      setShowHeaderMenu(false);
     };
     document.addEventListener("click", handler);
     return () => document.removeEventListener("click", handler);
   }, []);
+
+  const deleteAllChat = async () => {
+    if (clearingChat) return;
+    const confirmed = window.confirm(
+      `Clear all messages with ${contact.name} from your chat only? ${contact.name} will still see the conversation.`,
+    );
+    if (!confirmed) return;
+    setClearingChat(true);
+    setShowHeaderMenu(false);
+    try {
+      await API.delete("/employees/chat-history/clear/", {
+        data: {
+          employee_id: employeeId,
+          contact_id: contact.employee_id,
+        },
+      });
+      setMessages([]);
+      refreshUnread();
+    } catch {
+      window.alert("Could not delete chat history.");
+    } finally {
+      setClearingChat(false);
+    }
+  };
 
   const sendTyping = (isTyping: boolean) => {
     const socket = socketRef.current;
@@ -163,6 +301,17 @@ export default function DirectChatPopup({
     const socket = socketRef.current;
 
     if (socket?.readyState === WebSocket.OPEN) {
+      const optimistic: ChatMessage = {
+        id: `pending-${Date.now()}`,
+        sender_id: employeeId,
+        sender_name: "You",
+        sender_role: "",
+        recipient_id: contact.employee_id,
+        recipient_name: contact.name,
+        message: text,
+        created_at: new Date().toISOString(),
+      };
+      upsertMessage(optimistic);
       socket.send(
         JSON.stringify({
           type: "message",
@@ -185,11 +334,7 @@ export default function DirectChatPopup({
       });
       if (res.data.success && res.data.message) {
         const saved = res.data.message as ChatMessage;
-        setMessages((cur) =>
-          belongsToChat(saved) && !cur.some((m) => m.id === saved.id)
-            ? [...cur, saved]
-            : cur,
-        );
+        if (belongsToChat(saved)) upsertMessage(saved);
         setDraft("");
       } else {
         setSendError(res.data.error || "Message not sent");
@@ -257,17 +402,12 @@ export default function DirectChatPopup({
           onClick={onMinimize}
           className="flex min-w-0 flex-1 items-center gap-2 text-left"
         >
-          {contact.profile_img ? (
-            <img
-              src={getMediaUrl(contact.profile_img)}
-              alt={contact.name}
-              className="h-7 w-7 rounded-full object-cover"
-            />
-          ) : (
-            <div className="grid h-7 w-7 place-items-center rounded-full bg-cyan-700 text-xs font-bold">
-              {contact.name.charAt(0)}
-            </div>
-          )}
+          <AvatarWithPresence
+            src={contact.profile_img ? getMediaUrl(contact.profile_img) : undefined}
+            name={contact.name}
+            isOnline={contact.is_online}
+            size="sm"
+          />
           <span className="truncate text-sm font-semibold text-white">
             {contact.name}
           </span>
@@ -292,44 +432,84 @@ export default function DirectChatPopup({
             : "h-[min(70vh,480px)] w-[min(calc(100vw-1.5rem),340px)] rounded-2xl border border-b-0 border-slate-700/80 shadow-2xl shadow-black/50 sm:rounded-t-2xl"
         }`}
       >
-        <div className="flex shrink-0 items-center gap-3 border-b border-slate-800 px-4 py-3">
+        <div className="flex shrink-0 items-center gap-2 border-b border-slate-800 px-4 py-3">
           {fullScreen && (
             <button
               type="button"
               onClick={onClose}
-              className="-ml-1 rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
+              className="-ml-1 rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white cursor-pointer"
               title="Back"
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
           )}
-          {contact.profile_img ? (
-            <img
-              src={getMediaUrl(contact.profile_img)}
-              alt={contact.name}
-              className="h-9 w-9 rounded-full object-cover"
-            />
-          ) : (
-            <div className="grid h-9 w-9 place-items-center rounded-full bg-cyan-700 text-sm font-bold">
-              {contact.name.charAt(0)}
-            </div>
-          )}
+          <AvatarWithPresence
+            src={contact.profile_img ? getMediaUrl(contact.profile_img) : undefined}
+            name={contact.name}
+            isOnline={contact.is_online}
+          />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-bold text-white">{contact.name}</p>
-            <p className="truncate text-xs text-slate-400">
-              {typing
-                ? "Typing..."
-                : contact.is_online
-                  ? "Online"
-                  : formatLastSeen(contact.last_seen)}
-            </p>
+            <PresenceStatus
+              typing={typing}
+              isOnline={contact.is_online}
+              lastSeen={contact.last_seen}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => onStartVoiceCall?.(contact)}
+            disabled={!canStartVideoCall}
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+            title="Start voice call"
+          >
+            <Phone className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => onStartVideoCall?.(contact)}
+            disabled={!canStartVideoCall}
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+            title="Start video call"
+          >
+            <Video className="h-4 w-4" />
+          </button>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowHeaderMenu((v) => !v);
+              }}
+              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white cursor-pointer"
+              title="Chat options"
+              aria-label="Chat options"
+            >
+              <MoreVertical className="h-4 w-4" />
+            </button>
+            {showHeaderMenu && (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="absolute right-0 top-9 z-50 w-44 overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl"
+              >
+                <button
+                  type="button"
+                  onClick={() => void deleteAllChat()}
+                  disabled={clearingChat}
+                  className="flex items-center gap-2 px-4 py-2.5 text-sm text-red-300 hover:bg-slate-800 disabled:opacity-50 cursor-pointer"
+                >
+                  <Trash2 size={15} />
+                  {clearingChat ? "Clearing..." : "Clear chat"}
+                </button>
+              </div>
+            )}
           </div>
           {!fullScreen && (
             <>
               <button
                 type="button"
                 onClick={onMinimize}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white cursor-pointer"
                 title="Minimize"
               >
                 <Minus className="h-4 w-4" />
@@ -337,7 +517,7 @@ export default function DirectChatPopup({
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white cursor-pointer"
                 title="Close"
               >
                 <X className="h-4 w-4" />
@@ -350,12 +530,32 @@ export default function DirectChatPopup({
         <div className="pro-chat-scroll min-h-0 flex-1 space-y-2 p-3 pb-2">
           {messages.map((msg, index) => {
             const mine = msg.sender_id === employeeId;
+            const isCallLog = isCallLogMessage(msg.message);
             const showDate =
               index === 0 ||
               formatMessageDate(messages[index - 1].created_at) !==
                 formatMessageDate(msg.created_at);
             const isMenuOpen = menuMsgId === msg.id;
             const isEditing = editingMsgId === msg.id;
+
+            if (isCallLog) {
+              return (
+                <div key={msg.id}>
+                  {showDate && (
+                    <div className="my-3 text-center text-[10px] text-slate-500">
+                      <span className="rounded-full bg-slate-800 px-2 py-1">
+                        {formatMessageDate(msg.created_at)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-center px-2 py-1">
+                    <p className="max-w-[90%] rounded-full border border-slate-700/80 bg-slate-800/90 px-4 py-1.5 text-center text-xs text-slate-300">
+                      {msg.message}
+                    </p>
+                  </div>
+                </div>
+              );
+            }
 
             return (
               <div key={msg.id}>
@@ -377,7 +577,7 @@ export default function DirectChatPopup({
                           e.stopPropagation();
                           setMenuMsgId(isMenuOpen ? null : msg.id);
                         }}
-                        className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-slate-300 hover:bg-slate-700"
+                        className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-slate-300 hover:bg-slate-700 cursor-pointer"
                         aria-label="Message options"
                       >
                         <MoreVertical size={16} />
@@ -394,7 +594,7 @@ export default function DirectChatPopup({
                               setEditingMsgId(msg.id);
                               setEditDraft(msg.message);
                             }}
-                            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs hover:bg-slate-800"
+                            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs hover:bg-slate-800 cursor-pointer text-white"
                           >
                             <Pencil size={13} /> Edit
                           </button>
@@ -404,7 +604,7 @@ export default function DirectChatPopup({
                               setMenuMsgId(null);
                               setDeleteMsgId(msg.id);
                             }}
-                            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs text-red-400 hover:bg-red-500/15"
+                            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs text-red-400 hover:bg-red-500/15 cursor-pointer"
                           >
                             <Trash2 size={13} /> Delete
                           </button>
@@ -537,24 +737,24 @@ export default function DirectChatPopup({
       </div>
 
       {deleteMsgId && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-sm rounded-2xl border border-slate-700 bg-slate-900 p-5">
-            <h3 className="font-semibold">Delete message?</h3>
-            <p className="mt-2 text-sm text-slate-400">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl border border-slate-700 bg-slate-900 p-5 ">
+            <h3 className="font-semibold text-slate-300">Delete message?</h3>
+            <p className="mt-2 text-sm text-slate-200">
               This message will be removed for everyone.
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setDeleteMsgId(null)}
-                className="rounded-xl bg-slate-700 px-4 py-2 text-sm"
+                className="rounded-xl bg-slate-700 text-white px-4 py-2 text-sm cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={() => deleteMessage(deleteMsgId)}
-                className="rounded-xl bg-red-600 px-4 py-2 text-sm"
+                className="rounded-xl bg-red-600 text-white px-4 py-2 text-sm cursor-pointer"
               >
                 Delete
               </button>

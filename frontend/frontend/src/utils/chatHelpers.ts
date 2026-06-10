@@ -32,6 +32,7 @@ export interface ChatGroup {
   group_img?: string;
   member_count?: number;
   members?: string[];
+  member_details?: Contact[];
 }
 
 export const getApiRoot = () => {
@@ -85,3 +86,56 @@ export type OpenChat =
   | { type: "group"; id: string };
 
 export const chatKey = (chat: OpenChat) => `${chat.type}:${chat.id}`;
+
+export const mergeChatMessages = (
+  base: ChatMessage[],
+  incoming: ChatMessage[],
+): ChatMessage[] => {
+  const map = new Map<string, ChatMessage>();
+  for (const message of base) map.set(message.id, message);
+  for (const message of incoming) map.set(message.id, message);
+  return Array.from(map.values()).sort(
+    (a, b) =>
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  );
+};
+
+export const formatMemberLabel = (member: {
+  name: string;
+  role?: string;
+}) => {
+  if (member.role === "hr") return "HR";
+  if (member.role === "admin") return "Admin";
+  return member.name;
+};
+
+export const formatGroupTypingLabel = (
+  members: { name: string; role?: string }[],
+) => {
+  if (members.length === 0) return "";
+  if (members.length === 1) {
+    return `${formatMemberLabel(members[0])} is typing...`;
+  }
+  if (members.length === 2) {
+    return `${formatMemberLabel(members[0])} and ${formatMemberLabel(members[1])} are typing...`;
+  }
+  return `${members.length} people are typing...`;
+};
+
+export const formatGroupOnlineLabel = (
+  onlineMembers: { name: string; role?: string }[],
+  totalMembers: number,
+) => {
+  if (onlineMembers.length === 0) {
+    return `${totalMembers} member${totalMembers === 1 ? "" : "s"}`;
+  }
+  const names = onlineMembers.slice(0, 3).map(formatMemberLabel);
+  const extra =
+    onlineMembers.length > 3 ? ` +${onlineMembers.length - 3} more` : "";
+  return `${names.join(", ")} online${extra}`;
+};
+
+export const getGroupWsUrl = (groupId: string, employeeId: string) => {
+  const root = getApiRoot();
+  return `${root.replace(/^http:/, "ws:").replace(/^https:/, "wss:")}/ws/group/${groupId}/${employeeId}/`;
+};

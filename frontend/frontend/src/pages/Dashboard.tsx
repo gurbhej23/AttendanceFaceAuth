@@ -1,14 +1,14 @@
 // src/pages/Dashboard.tsx
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../services/api";
 import Button from "../components/Button";
 import Input from "../components/Input";
 import Table from "../components/Table";
+import AdminSidebar from "../components/AdminSidebar";
 import { getCurrentLocation } from "../services/attendanceSecurity";
 import {
   CalendarDays,
-  LogOut,
   Menu,
   ScanLine,
   TimerOff,
@@ -423,10 +423,39 @@ export default function Dashboard() {
     year: "numeric",
   });
 
+  const sidebarItems = useMemo(
+    () => [
+      {
+        icon: <ScanLine size={18} />,
+        label: "Check Out",
+        onClick: () => navigate("/check-out"),
+        tone: "bg-blue-600/90 hover:bg-blue-600",
+      },
+      {
+        icon: <TimerOff size={18} />,
+        label: "Half Day",
+        onClick: () => setShowHalfDayModal(true),
+        tone: "bg-orange-600/90 hover:bg-orange-600",
+      },
+      {
+        icon: <CalendarDays size={18} />,
+        label: "My Leaves",
+        onClick: () => setShowLeavesModal(true),
+        tone: "bg-purple-600/90 hover:bg-purple-600",
+      },
+      {
+        icon: <UserRoundPen size={18} />,
+        label: "Profile",
+        onClick: () => navigate("/profile"),
+        tone: "bg-slate-700/80 hover:bg-slate-600",
+      },
+    ],
+    [navigate],
+  );
+
   // ── Render ────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] px-4 
-    pt-5 sm:px-5 lg:px-6">
+    <div className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] px-3 py-5 sm:px-5 lg:px-5">
       {/* LATE ALERT BANNER */}
       {lateAlert.show && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-500/95 text-slate-900 px-6 py-3 flex items-center justify-between shadow-xl">
@@ -460,94 +489,32 @@ export default function Dashboard() {
         </div>
       )}
 
-      <aside className="group hidden lg:flex items-start fixed left-3 top-5 bottom-5 z-30 w-20 hover:w-72 flex-col rounded-[28px] border border-white/10 p-4 shadow-2xl backdrop-blur-xl transition-all duration-300 ease-out overflow-hidden">
-        <div className="mb-6 flex gap-3">
-          <div className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-slate-800">
-            {profileImg ? (
-              <button onClick={() => navigate("/profile")}>
-                <img
-                  src={profileImg}
-                  alt={employeeName || "Employee"}
-                  className="h-full w-full object-cover cursor-pointer"
-                />
-              </button>
-            ) : (
-              <div className="flex h-full w-full items-center justify-center bg-blue-600 font-bold text-white">
-                {employeeName?.charAt(0) || "E"}
-              </div>
-            )}
-          </div>
-          <div className="min-w-0 opacity-0 translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
-            <p className="truncate font-bold text-white">{employeeName}</p>
-            <p className="text-xs text-slate-400">{employeeId}</p>
-          </div>
-        </div>
-
-        <nav className="space-y-7 w-full">
-          {[
-            {
-              icon: <ScanLine />,
-              label: "Check Out",
-              action: () => navigate("/check-out"),
-              tone: "bg-blue-600 hover:bg-blue-700",
-            },
-            {
-              icon: <TimerOff />,
-              label: "Half Day",
-              action: () => setShowHalfDayModal(true),
-              tone: "bg-orange-600 hover:bg-orange-700",
-            },
-            {
-              icon: <CalendarDays />,
-              label: "Leaves",
-              action: () => setShowLeavesModal(true),
-              tone: "bg-purple-600 hover:bg-purple-700",
-            },
-            {
-              icon: <UserRoundPen />,
-              label: "Profile",
-              action: () => navigate("/profile"),
-              tone: "bg-slate-700 hover:bg-slate-600",
-            },
-          ].map((item) => (
-            <button
-              key={item.label}
-              onClick={item.action}
-              className={`flex h-12 w-full cursor-pointer items-center gap-3 rounded-2xl px-2 text-sm text-white transition ${item.tone}`}
-              title={item.label}
-            >
-              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-xl">
-                {item.icon}
-              </span>
-              <span className="whitespace-nowrap opacity-0 translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
-                {item.label}
-              </span>
-            </button>
-          ))}
-        </nav>
-
-        <button
-          onClick={handleLogout}
-          className="mt-auto flex h-12 w-full cursor-pointer items-center gap-3 rounded-2xl bg-red-600 px-2 text-sm font-bold text-white transition hover:bg-red-700"
-          title="Logout"
-        >
-          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-xl bg-white/15 text-[11px]">
-            <LogOut />
-          </span>
-          <span className="whitespace-nowrap opacity-0 translate-x-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-x-0">
-            Logout
-          </span>
-        </button>
-      </aside>
+      <AdminSidebar
+        items={sidebarItems}
+        onLogout={handleLogout}
+        mobileOpen={showMenu}
+        onMobileClose={() => setShowMenu(false)}
+        adminName={employeeName || "Employee"}
+        adminRole={employeeId || "Employee"}
+        profileImg={profileImg}
+      />
 
       <div
-        className={`max-w-8xl mx-auto transition-all duration-300 lg:ml-24 ${anyModalOpen || showWelcomePrompt ? "blur-sm pointer-events-none select-none" : ""}`}
+        className={`mx-auto max-w-8xl transition-all duration-500 ease-out lg:ml-22 ${anyModalOpen || showWelcomePrompt ? "blur-sm pointer-events-none select-none" : ""}`}
       >
 
         {/* HEADER */}
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-4xl px-6 py-6 shadow-2xl mb-4">
+        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl px-4 py-5 shadow-2xl mb-4 sm:px-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex items-center gap-6 sm:gap-4">
+              <button
+                type="button"
+                onClick={() => setShowMenu(true)}
+                className="rounded-xl border border-white/10 bg-white/10 p-2.5 text-white transition hover:bg-white/15 lg:hidden"
+                aria-label="Open menu"
+              >
+                <Menu size={22} />
+              </button>
               <div className="text-center">
                 <h1 className="text-2xl font-bold text-white text-left">
                   Welcome
@@ -556,51 +523,6 @@ export default function Dashboard() {
                   {employeeName}
                 </h2>
               </div>
-            </div>
-
-            <div className="flex justify-end lg:hidden">
-              <button
-                onClick={() => setShowMenu(!showMenu)}
-                className="bg-white/10 border border-white/10 text-white px-3 flex justify-center py-3 rounded-xl backdrop-blur-lg transition-all duration-300 cursor-pointer"
-              >
-                <span
-                  className={`inline-block transition-transform duration-300 ${showMenu ? "rotate-180" : "rotate-0"
-                    }`}
-                >
-                  <Menu />
-                </span>
-              </button>
-            </div>
-
-            <div
-              className={`flex flex-wrap justify-center gap-3 overflow-hidden transition-all duration-500 ease-in-out lg:hidden ${showMenu ? "max-h-125 opacity-100 mt-4" : "max-h-0 opacity-0"
-                }`}
-            >
-              <Button
-                text="Check Out"
-                onClick={() => navigate("/check-out")}
-                className="bg-blue-600 text-white cursor-pointer p-4"
-              />
-              <Button
-                text="Half Day"
-                onClick={() => setShowHalfDayModal(true)}
-                className="bg-orange-600 text-white cursor-pointer p-4"
-              />
-              <Button
-                text="My Leaves"
-                onClick={() => setShowLeavesModal(true)}
-                className="bg-purple-600 text-white p-4"
-              />
-              <Button
-                text="Profile"
-                onClick={() => navigate("/profile")}
-                className="bg-slate-700 text-white p-4"
-              />
-              <Button
-                text="Logout"
-                onClick={handleLogout}
-                className="bg-red-600 text-white p-4"
-              />
             </div>
           </div>
         </div>
@@ -786,7 +708,7 @@ export default function Dashboard() {
 
 
         </div>{monthlySummary && (
-          <div className="px-3 pt-5 pb-18">
+          <div className="px-3 pt-5 pb-12">
             <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h3 className="text-lg font-bold text-white">
