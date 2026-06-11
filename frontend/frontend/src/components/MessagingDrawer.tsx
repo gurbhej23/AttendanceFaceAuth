@@ -26,6 +26,7 @@ import {
 } from "../utils/callHelpers";
 import type { ChatGroup, ChatMessage, Contact, OpenChat } from "../utils/chatHelpers";
 import { chatKey, getMediaUrl, getWsUrl } from "../utils/chatHelpers";
+import { listenNotificationAction } from "../utils/notificationActions";
 import {
   playCallEndSound,
   startIncomingRingtone,
@@ -407,6 +408,14 @@ export default function MessagingDrawer() {
       return [...without, chat].slice(-MAX_OPEN_CHATS);
     });
   };
+
+  useEffect(() => {
+    return listenNotificationAction((action) => {
+      if (action.type === "open_chat") {
+        openChat(action.chat);
+      }
+    });
+  });
 
   const closeChat = (chat: OpenChat) => {
     const key = chatKey(chat);

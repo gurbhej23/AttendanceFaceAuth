@@ -23,7 +23,7 @@ export default function Button({
             onClick={onClick}
             disabled={disabled}
             title={title}
-            className={` rounded-2xl font-semibold transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
+            className={`cursor-pointer rounded-2xl font-semibold transition duration-200 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
         >
             {text}
         </button>

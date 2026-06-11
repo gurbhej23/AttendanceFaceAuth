@@ -76,7 +76,7 @@ export const formatLastSeen = (ds?: string) => {
   const d = new Date(ds);
   if (Number.isNaN(d.getTime())) return "Offline";
   const diff = Date.now() - d.getTime();
-  if (diff < 60_000) return "Active now";
+  if (diff < 60_000) return "Last seen recently";
   if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
   return d.toLocaleDateString([], { day: "numeric", month: "short" });
 };

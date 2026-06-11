@@ -7,7 +7,11 @@ import Input from "../components/Input";
 import Table from "../components/Table";
 import AdminSidebar from "../components/AdminSidebar";
 import NotificationPanel from "../components/NotificationPanel";
-import { useDashboardNotifications } from "../hooks/useDashboardNotifications";
+import {
+  useDashboardNotifications,
+  type DashboardNotification,
+} from "../hooks/useDashboardNotifications";
+import { dispatchNotificationAction } from "../utils/notificationActions";
 import { getCurrentLocation } from "../services/attendanceSecurity";
 import {
   Bell,
@@ -216,7 +220,34 @@ export default function Dashboard() {
     unreadCount,
     markAllRead,
     markOneRead,
+    refreshNotifications,
   } = useDashboardNotifications(employeeId || "", userRole);
+
+  const handleNotificationSelect = useCallback(
+    (item: DashboardNotification) => {
+      markOneRead(item.id);
+      if (item.group_id) {
+        dispatchNotificationAction({
+          type: "open_chat",
+          chat: { type: "group", id: item.group_id },
+        });
+      } else if (item.contact_id) {
+        dispatchNotificationAction({
+          type: "open_chat",
+          chat: { type: "direct", id: item.contact_id },
+        });
+      } else if (item.type === "leave_status") {
+        setShowLeavesModal(true);
+      }
+    },
+    [markOneRead],
+  );
+
+  useEffect(() => {
+    if (showNotifications) {
+      void refreshNotifications();
+    }
+  }, [refreshNotifications, showNotifications]);
   const profileImg = getMediaUrl(localStorage.getItem("profile_img"));
   const today = getLocalDate();
 
@@ -442,6 +473,19 @@ export default function Dashboard() {
   const sidebarItems = useMemo(
     () => [
       {
+        icon: <UserRoundPen size={18} />,
+        label: "Profile",
+        onClick: () => navigate("/profile"),
+        tone: "bg-slate-700/80 hover:bg-slate-600",
+      },
+      {
+        icon: <Bell size={18} />,
+        label: "Notifications",
+        onClick: () => setShowNotifications(true),
+        tone: "bg-sky-600/90 hover:bg-sky-600",
+        badgeCount: unreadCount,
+      },
+      {
         icon: <ScanLine size={18} />,
         label: "Check Out",
         onClick: () => navigate("/check-out"),
@@ -454,13 +498,6 @@ export default function Dashboard() {
         tone: "bg-orange-600/90 hover:bg-orange-600",
       },
       {
-        icon: <Bell size={18} />,
-        label: "Notifications",
-        onClick: () => setShowNotifications(true),
-        tone: "bg-sky-600/90 hover:bg-sky-600",
-        badgeCount: unreadCount,
-      },
-      {
         icon: <CalendarDays size={18} />,
         label: "Leave Request",
         onClick: () => setShowLeaveModal(true),
@@ -471,12 +508,6 @@ export default function Dashboard() {
         label: "My Leaves",
         onClick: () => setShowLeavesModal(true),
         tone: "bg-violet-600/90 hover:bg-violet-600",
-      },
-      {
-        icon: <UserRoundPen size={18} />,
-        label: "Profile",
-        onClick: () => navigate("/profile"),
-        tone: "bg-slate-700/80 hover:bg-slate-600",
       },
     ],
     [navigate, unreadCount],
@@ -522,8 +553,9 @@ export default function Dashboard() {
         open={showNotifications}
         onClose={() => setShowNotifications(false)}
         notifications={notifications}
+        unreadCount={unreadCount}
         onMarkAllRead={markAllRead}
-        onMarkOneRead={markOneRead}
+        onSelect={handleNotificationSelect}
       />
 
       <AdminSidebar

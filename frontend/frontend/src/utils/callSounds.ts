@@ -27,7 +27,6 @@ const stopRingNodes = () => {
       node.stop();
       node.disconnect();
     } catch {
-      /* already stopped */
     }
   });
   ringNodes = [];

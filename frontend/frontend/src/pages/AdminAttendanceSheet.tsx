@@ -5,18 +5,19 @@ import API from "../services/api";
 import Button from "../components/Button";
 import AdminSidebar from "../components/AdminSidebar";
 import NotificationPanel from "../components/NotificationPanel";
-import { useDashboardNotifications } from "../hooks/useDashboardNotifications";
+import {
+  useDashboardNotifications,
+  type DashboardNotification,
+} from "../hooks/useDashboardNotifications";
+import { dispatchNotificationAction } from "../utils/notificationActions";
 import axios from "axios";
 import {
   Bell,
   ChartNoAxesCombined,
-  ClipboardList,
   Download,
   IdCardLanyard,
-  LifeBuoy,
   Menu,
   User,
-  UserPlus,
 } from "lucide-react";
 
 interface SheetRecord {
@@ -174,10 +175,37 @@ export default function AdminAttendanceSheet() {
     unreadCount,
     markAllRead,
     markOneRead,
+    refreshNotifications,
   } = useDashboardNotifications(
     adminId,
     adminRoleRaw === "hr" ? "hr" : "admin",
   );
+
+  const handleNotificationSelect = useCallback(
+    (item: DashboardNotification) => {
+      markOneRead(item.id);
+      if (item.type === "leave_request") {
+        setActiveTab("leaves");
+      } else if (item.group_id) {
+        dispatchNotificationAction({
+          type: "open_chat",
+          chat: { type: "group", id: item.group_id },
+        });
+      } else if (item.contact_id) {
+        dispatchNotificationAction({
+          type: "open_chat",
+          chat: { type: "direct", id: item.contact_id },
+        });
+      }
+    },
+    [markOneRead],
+  );
+
+  useEffect(() => {
+    if (showNotifications) {
+      void refreshNotifications();
+    }
+  }, [refreshNotifications, showNotifications]);
 
   // ── Toast helper ───────────────────────────────────────────────────────
   const showToast = (msg: string, ok: boolean) => {
@@ -360,16 +388,17 @@ export default function AdminAttendanceSheet() {
         tone: "bg-slate-700/80 hover:bg-slate-600",
       },
       {
+        icon: <Bell size={18} />,
+        label: "Notifications",
+        onClick: () => setShowNotifications(true),
+        tone: "bg-sky-600/90 hover:bg-sky-600",
+        badgeCount: unreadCount,
+      },
+      {
         icon: <ChartNoAxesCombined size={18} />,
         label: "Analytics",
         onClick: () => navigate("/admin-analytics"),
         tone: "bg-indigo-600/90 hover:bg-indigo-600",
-      },
-      {
-        icon: <ClipboardList size={18} />,
-        label: "Attendance Sheet",
-        onClick: () => navigate("/attendance-sheet"),
-        tone: "bg-cyan-600/90 hover:bg-cyan-600",
       },
       {
         icon: <IdCardLanyard size={18} />,
@@ -378,28 +407,9 @@ export default function AdminAttendanceSheet() {
         tone: "bg-blue-600/90 hover:bg-blue-600",
       },
       {
-        icon: <UserPlus size={18} />,
-        label: "Add Employee",
-        onClick: () => navigate("/admin-create-employee"),
-        tone: "bg-green-600/90 hover:bg-green-600",
-      },
-      {
         icon: <Download size={18} />,
         label: "Export Report",
         onClick: exportCsv,
-        tone: "bg-emerald-600/90 hover:bg-emerald-600",
-      },
-      {
-        icon: <Bell size={18} />,
-        label: "Notifications",
-        onClick: () => setShowNotifications(true),
-        tone: "bg-sky-600/90 hover:bg-sky-600",
-        badgeCount: unreadCount,
-      },
-      {
-        icon: <LifeBuoy size={18} />,
-        label: "Support",
-        onClick: () => showToast("Reach HR or the admin support team for assistance.", true),
         tone: "bg-emerald-600/90 hover:bg-emerald-600",
       },
     ],
@@ -425,8 +435,9 @@ export default function AdminAttendanceSheet() {
           open={showNotifications}
           onClose={() => setShowNotifications(false)}
           notifications={notifications}
+          unreadCount={unreadCount}
           onMarkAllRead={markAllRead}
-          onMarkOneRead={markOneRead}
+          onSelect={handleNotificationSelect}
         />
 
         <AdminSidebar
@@ -482,20 +493,18 @@ export default function AdminAttendanceSheet() {
             <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
               <button
                 onClick={() => setActiveTab("attendance")}
-                className={`w-full rounded-xl px-5 py-2.5 text-sm font-semibold transition sm:w-auto ${
-                  activeTab === "attendance"
-                  ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
-                  : "border border-slate-700 bg-slate-800 text-slate-400 hover:text-white"
+                className={`w-full rounded-xl px-5 py-2.5 text-sm font-semibold transition sm:w-auto ${activeTab === "attendance"
+                    ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
+                    : "border border-slate-700 bg-slate-800 text-slate-400 hover:text-white"
                   }`}
               >
                 📋 Attendance Sheet
               </button>
               <button
                 onClick={() => setActiveTab("leaves")}
-                className={`relative w-full rounded-xl px-5 py-2.5 text-sm font-semibold transition sm:w-auto ${
-                  activeTab === "leaves"
-                  ? "bg-purple-600 text-white shadow-lg shadow-purple-600/20"
-                  : "border border-slate-700 bg-slate-800 text-slate-400 hover:text-white"
+                className={`relative w-full rounded-xl px-5 py-2.5 text-sm font-semibold transition sm:w-auto ${activeTab === "leaves"
+                    ? "bg-purple-600 text-white shadow-lg shadow-purple-600/20"
+                    : "border border-slate-700 bg-slate-800 text-slate-400 hover:text-white"
                   }`}
               >
                 🏖️ Leave Requests

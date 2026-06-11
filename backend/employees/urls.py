@@ -28,6 +28,7 @@ from .views import (
     remove_group_member,
     delete_group,
     chat_unread_count,
+    dashboard_notifications,
     update_group,
     group_message_detail,
 )
@@ -70,6 +71,11 @@ urlpatterns = [
     path("chat-groups/history/", group_history, name="chat-groups-history"),
     path("chat-groups/message/send/", group_message_send, name="chat-groups-send"),
     path("chat-unread-count/", chat_unread_count, name="chat-unread-count"),
+    path(
+        "dashboard-notifications/",
+        dashboard_notifications,
+        name="dashboard-notifications",
+    ),
     path(
         "chat-groups/message/<str:message_id>/",
         group_message_detail,

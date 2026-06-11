@@ -1529,6 +1529,124 @@ def chat_unread_count(request):
     return Response({"success": True, **counts})
 
 
+@api_view(["GET"])
+def dashboard_notifications(request):
+    from datetime import timedelta
+
+    from attendance.models import AttendanceRecord
+
+    employee_id = request.query_params.get("employee_id", "").strip()
+    employee = find_employee(employee_id)
+    if not employee:
+        return Response(
+            {"success": False, "error": "Employee not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    notifications = []
+    counts = count_unread_messages(employee)
+    call_senders: set[str] = set()
+
+    cutoff = datetime.now(pytz.UTC) - timedelta(days=14)
+    call_messages = ChatMessage.objects(
+        recipient_id=employee.employee_id,
+        is_deleted=False,
+        created_at__gte=cutoff,
+    ).order_by("-created_at")
+
+    for msg in call_messages:
+        if not is_message_visible_to_reader(msg, employee.employee_id):
+            continue
+        text_lower = msg.message.lower()
+        is_missed = "missed" in text_lower and "call" in text_lower
+        is_declined = "call declined" in text_lower
+        is_ended = "call ended" in text_lower
+        if not (is_missed or is_declined or is_ended):
+            continue
+        ntype = "call_ended"
+        if is_missed:
+            ntype = "missed_call"
+        elif is_declined:
+            ntype = "call_declined"
+        call_senders.add(msg.sender_id)
+        notifications.append(
+            {
+                "id": f"call-msg-{msg.id}",
+                "type": ntype,
+                "title": msg.sender_name or msg.sender_id,
+                "message": msg.message,
+                "contact_id": msg.sender_id,
+                "time": chat_datetime_iso(msg.created_at),
+            }
+        )
+
+    for contact in counts.get("direct_contacts", []):
+        sender_id = contact.get("employee_id", "")
+        if sender_id in call_senders:
+            continue
+        unread = int(contact.get("unread", 0) or 0)
+        if unread <= 0:
+            continue
+        notifications.append(
+            {
+                "id": f"chat-direct-{sender_id}",
+                "type": "message",
+                "title": contact.get("name") or sender_id,
+                "message": f"You have {unread} unread message{'s' if unread != 1 else ''}.",
+                "contact_id": sender_id,
+                "time": "",
+            }
+        )
+
+    for group in counts.get("group_unread", []):
+        unread = int(group.get("unread", 0) or 0)
+        if unread <= 0:
+            continue
+        group_id = group.get("group_id", "")
+        notifications.append(
+            {
+                "id": f"chat-group-{group_id}",
+                "type": "group_message",
+                "title": group.get("group_name") or "Group chat",
+                "message": f"{unread} unread group message{'s' if unread != 1 else ''}.",
+                "group_id": group_id,
+                "time": "",
+            }
+        )
+
+    if employee.role in ("admin", "hr"):
+        pending = AttendanceRecord.objects(status="leave_pending").order_by("-date")
+        for record in pending[:20]:
+            notifications.append(
+                {
+                    "id": f"leave-req-{record.id}",
+                    "type": "leave_request",
+                    "title": record.employee_name or record.employee_id,
+                    "message": f"{getattr(record, 'leave_type', 'casual') or 'casual'} leave on {record.date}: {record.reason or 'No reason'}",
+                    "contact_id": record.employee_id,
+                    "time": record.date,
+                }
+            )
+    else:
+        leave_rows = AttendanceRecord.objects(
+            employee_id=employee.employee_id,
+            status__in=["leave_pending", "leave_approved", "leave_rejected"],
+        ).order_by("-date")[:10]
+        for record in leave_rows:
+            status_label = str(record.status or "").replace("leave_", "")
+            notifications.append(
+                {
+                    "id": f"leave-status-{record.id}",
+                    "type": "leave_status",
+                    "title": f"Leave {status_label}",
+                    "message": f"{getattr(record, 'leave_type', 'casual') or 'casual'} leave on {record.date}: {record.reason or 'No reason'}",
+                    "time": record.date,
+                }
+            )
+
+    return Response({"success": True, "notifications": notifications})
+
+
 @api_view(["PATCH"])
 def update_group(request, group_id):
     admin_id = str(request.data.get("employee_id", "")).strip()

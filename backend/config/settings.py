@@ -23,6 +23,8 @@ DEBUG = True
 ALLOWED_HOSTS = [
     "127.0.0.1",
     "localhost",
+    ".ngrok-free.dev",
+    ".ngrok-free.app",
     ".onrender.com",
 ]
 
@@ -102,6 +104,7 @@ CORS_ALLOW_HEADERS = [
     "authorization",
     "content-type",
     "dnt",
+    "ngrok-skip-browser-warning",
     "origin",
     "user-agent",
     "x-csrftoken",

@@ -35,25 +35,23 @@ export default function AdminSidebar({
         item.onClick();
         onMobileClose();
       }}
-      className={`group/item flex h-12 w-full items-center gap-3 rounded-2xl px-1 text-xs font-semibold text-white transition-all duration-300 ease-out hover:translate-x-0.5 hover:shadow-lg active:scale-[0.98] cursor-pointer ${
-        item.tone || "bg-white/5 hover:bg-white/10"
-      }`}
+      className={`group/item flex h-12 w-full items-center gap-3 rounded-2xl px-1 text-xs font-semibold text-white transition-all duration-300 ease-out hover:translate-x-0.5 hover:shadow-lg active:scale-[0.98] cursor-pointer ${item.tone || "bg-white/5 hover:bg-white/10"
+        }`}
       title={item.label}
     >
-      <span className="relative grid h-10 w-10 shrink-0 place-items-center rounded-xl transition-transform duration-300 group-hover/item:scale-110">
+      <span className="relative grid h-10 w-10 shrink-0 place-items-center rounded-xl transition-transform duration-300 group-hover/item:scale-110 ">
         {item.icon}
         {item.badgeCount != null && item.badgeCount > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white ring-2 ring-slate-950">
+          <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white ring-slate-950 ">
             {item.badgeCount > 99 ? "99+" : item.badgeCount}
           </span>
         )}
       </span>
       <span
-        className={`whitespace-nowrap transition-all duration-300 ease-out ${
-          showLabel
-            ? "opacity-100 translate-x-0"
-            : "opacity-0 -translate-x-2 w-0 overflow-hidden lg:group-hover:opacity-100 lg:group-hover:translate-x-0 lg:group-hover:w-auto"
-        }`}
+        className={`whitespace-nowrap transition-all duration-300 ease-out ${showLabel
+          ? "opacity-100 translate-x-0"
+          : "opacity-0 -translate-x-2 w-0 overflow-hidden lg:group-hover:opacity-100 lg:group-hover:translate-x-0 lg:group-hover:w-auto"
+          }`}
       >
         {item.label}
       </span>
@@ -64,18 +62,16 @@ export default function AdminSidebar({
     <>
       {/* Mobile backdrop */}
       <div
-        className={`fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity duration-300 lg:hidden ${
-          mobileOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-        }`}
+        className={`fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity duration-300 lg:hidden ${mobileOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          }`}
         onClick={onMobileClose}
         aria-hidden={!mobileOpen}
       />
 
       {/* Mobile slide-in panel */}
       <aside
-        className={`fixed left-0 top-0 z-50 flex h-full w-[min(88vw,320px)] flex-col border-r border-white/10 bg-slate-950/95 p-5 shadow-2xl backdrop-blur-xl transition-transform duration-300 ease-out lg:hidden ${
-          mobileOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`fixed left-0 top-0 z-50 flex h-full w-[min(88vw,320px)] flex-col border-r border-white/10 bg-slate-950/95 p-5 shadow-2xl backdrop-blur-xl transition-transform duration-300 ease-out lg:hidden ${mobileOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
       >
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
