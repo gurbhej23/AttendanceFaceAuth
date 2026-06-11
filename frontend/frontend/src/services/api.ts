@@ -8,11 +8,6 @@ export const FACE_REQUEST_TIMEOUT_MS = 120_000;
 const API = axios.create({
   baseURL,
   timeout: 30_000,
-  headers: baseURL.includes("ngrok")
-    ? {
-        "ngrok-skip-browser-warning": "true",
-      }
-    : undefined,
 });
 
 export default API;

@@ -4,13 +4,19 @@ import { useNavigate } from "react-router-dom";
 import API from "../services/api";
 import Button from "../components/Button";
 import AdminSidebar from "../components/AdminSidebar";
+import NotificationPanel from "../components/NotificationPanel";
+import { useDashboardNotifications } from "../hooks/useDashboardNotifications";
 import axios from "axios";
 import {
+  Bell,
   ChartNoAxesCombined,
+  ClipboardList,
   Download,
   IdCardLanyard,
+  LifeBuoy,
   Menu,
   User,
+  UserPlus,
 } from "lucide-react";
 
 interface SheetRecord {
@@ -154,11 +160,24 @@ export default function AdminAttendanceSheet() {
   const [pendingCount, setPendingCount] = useState(0);
 
   const [showMenu, setShowMenu] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const today = getLocalDate();
+  const adminId = localStorage.getItem("employee_id") || "";
   const adminName = localStorage.getItem("employee_name") || "Admin";
-  const adminRole = (localStorage.getItem("role") || "admin").toUpperCase();
+  const adminRoleRaw = localStorage.getItem("role") || "admin";
+  const adminRole = adminRoleRaw.toUpperCase();
   const adminProfileImg = getMediaUrl(localStorage.getItem("profile_img"));
+
+  const {
+    notifications,
+    unreadCount,
+    markAllRead,
+    markOneRead,
+  } = useDashboardNotifications(
+    adminId,
+    adminRoleRaw === "hr" ? "hr" : "admin",
+  );
 
   // ── Toast helper ───────────────────────────────────────────────────────
   const showToast = (msg: string, ok: boolean) => {
@@ -341,16 +360,16 @@ export default function AdminAttendanceSheet() {
         tone: "bg-slate-700/80 hover:bg-slate-600",
       },
       {
-        icon: <Download size={18} />,
-        label: "Download CSV",
-        onClick: exportCsv,
-        tone: "bg-green-600/90 hover:bg-green-600",
-      },
-      {
         icon: <ChartNoAxesCombined size={18} />,
         label: "Analytics",
         onClick: () => navigate("/admin-analytics"),
         tone: "bg-indigo-600/90 hover:bg-indigo-600",
+      },
+      {
+        icon: <ClipboardList size={18} />,
+        label: "Attendance Sheet",
+        onClick: () => navigate("/attendance-sheet"),
+        tone: "bg-cyan-600/90 hover:bg-cyan-600",
       },
       {
         icon: <IdCardLanyard size={18} />,
@@ -358,8 +377,33 @@ export default function AdminAttendanceSheet() {
         onClick: () => navigate("/admin-employees"),
         tone: "bg-blue-600/90 hover:bg-blue-600",
       },
+      {
+        icon: <UserPlus size={18} />,
+        label: "Add Employee",
+        onClick: () => navigate("/admin-create-employee"),
+        tone: "bg-green-600/90 hover:bg-green-600",
+      },
+      {
+        icon: <Download size={18} />,
+        label: "Export Report",
+        onClick: exportCsv,
+        tone: "bg-emerald-600/90 hover:bg-emerald-600",
+      },
+      {
+        icon: <Bell size={18} />,
+        label: "Notifications",
+        onClick: () => setShowNotifications(true),
+        tone: "bg-sky-600/90 hover:bg-sky-600",
+        badgeCount: unreadCount,
+      },
+      {
+        icon: <LifeBuoy size={18} />,
+        label: "Support",
+        onClick: () => showToast("Reach HR or the admin support team for assistance.", true),
+        tone: "bg-emerald-600/90 hover:bg-emerald-600",
+      },
     ],
-    [navigate, exportCsv],
+    [exportCsv, navigate, showToast, unreadCount],
   );
 
   return (
@@ -376,6 +420,14 @@ export default function AdminAttendanceSheet() {
             {toast.msg}
           </div>
         )}
+
+        <NotificationPanel
+          open={showNotifications}
+          onClose={() => setShowNotifications(false)}
+          notifications={notifications}
+          onMarkAllRead={markAllRead}
+          onMarkOneRead={markOneRead}
+        />
 
         <AdminSidebar
           items={sidebarItems}

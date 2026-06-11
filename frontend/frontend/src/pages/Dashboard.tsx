@@ -6,13 +6,17 @@ import Button from "../components/Button";
 import Input from "../components/Input";
 import Table from "../components/Table";
 import AdminSidebar from "../components/AdminSidebar";
+import NotificationPanel from "../components/NotificationPanel";
+import { useDashboardNotifications } from "../hooks/useDashboardNotifications";
 import { getCurrentLocation } from "../services/attendanceSecurity";
 import {
+  Bell,
   CalendarDays,
   Menu,
   ScanLine,
   TimerOff,
   TriangleAlert,
+  User,
   UserRoundPen,
   X,
 } from "lucide-react";
@@ -187,6 +191,7 @@ export default function Dashboard() {
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [showMenu, setShowMenu] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const [monthlySummary, setMonthlySummary] = useState<MonthlySummary | null>(
     null,
@@ -199,8 +204,19 @@ export default function Dashboard() {
     minutesLate: number;
   }>({ show: false, minutesLate: 0 });
 
-  const employeeName = localStorage.getItem("employee_name");
   const employeeId = localStorage.getItem("employee_id");
+  const employeeName = localStorage.getItem("employee_name");
+  const userRole = (localStorage.getItem("role") || "employee") as
+    | "employee"
+    | "admin"
+    | "hr";
+
+  const {
+    notifications,
+    unreadCount,
+    markAllRead,
+    markOneRead,
+  } = useDashboardNotifications(employeeId || "", userRole);
   const profileImg = getMediaUrl(localStorage.getItem("profile_img"));
   const today = getLocalDate();
 
@@ -223,16 +239,16 @@ export default function Dashboard() {
     !anyModalOpen;
 
   // ── Auto-dismiss alerts ───────────────────────────────────────────────
-  const showSuccess = (msg: string) => {
+  const showSuccess = useCallback((msg: string) => {
     setSuccessMessage(msg);
     setErrorMessage("");
     setTimeout(() => setSuccessMessage(""), 4000);
-  };
-  const showError = (msg: string) => {
+  }, []);
+  const showError = useCallback((msg: string) => {
     setErrorMessage(msg);
     setSuccessMessage("");
     setTimeout(() => setErrorMessage(""), 4000);
-  };
+  }, []);
 
   // ── Fetch records ─────────────────────────────────────────────────────
   const fetchRecords = useCallback(async () => {
@@ -438,10 +454,23 @@ export default function Dashboard() {
         tone: "bg-orange-600/90 hover:bg-orange-600",
       },
       {
+        icon: <Bell size={18} />,
+        label: "Notifications",
+        onClick: () => setShowNotifications(true),
+        tone: "bg-sky-600/90 hover:bg-sky-600",
+        badgeCount: unreadCount,
+      },
+      {
         icon: <CalendarDays size={18} />,
+        label: "Leave Request",
+        onClick: () => setShowLeaveModal(true),
+        tone: "bg-purple-600/90 hover:bg-purple-600",
+      },
+      {
+        icon: <User size={18} />,
         label: "My Leaves",
         onClick: () => setShowLeavesModal(true),
-        tone: "bg-purple-600/90 hover:bg-purple-600",
+        tone: "bg-violet-600/90 hover:bg-violet-600",
       },
       {
         icon: <UserRoundPen size={18} />,
@@ -450,7 +479,7 @@ export default function Dashboard() {
         tone: "bg-slate-700/80 hover:bg-slate-600",
       },
     ],
-    [navigate],
+    [navigate, unreadCount],
   );
 
   // ── Render ────────────────────────────────────────────────────────────
@@ -458,7 +487,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] px-3 py-5 sm:px-5 lg:px-5">
       {/* LATE ALERT BANNER */}
       {lateAlert.show && (
-        <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-500/95 text-slate-900 px-6 py-3 flex items-center justify-between shadow-xl">
+        <div className="fixed top-0 left-0 right-0 z-99 bg-yellow-500/95 text-slate-900 px-6 py-3 flex items-center justify-between shadow-xl">
           <div className="flex items-center gap-3">
             <span className="text-2xl">⚠️</span>
             <div>
@@ -479,15 +508,23 @@ export default function Dashboard() {
 
       {/* SUCCESS / ERROR TOASTS */}
       {successMessage && (
-        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-green-500/15 border border-green-500/30 text-green-300 px-5 py-4 rounded-2xl text-center font-medium shadow-lg">
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-99 bg-green-500/15 border border-green-500/30 text-green-300 px-5 py-4 rounded-2xl text-center font-medium shadow-lg">
           {successMessage}
         </div>
       )}
       {errorMessage && (
-        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-red-500/15 border border-red-500/30 text-red-300 px-5 py-4 rounded-2xl text-center font-medium shadow-lg">
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-99 bg-red-500/15 border border-red-500/30 text-red-300 px-5 py-4 rounded-2xl text-center font-medium shadow-lg">
           {errorMessage}
         </div>
       )}
+
+      <NotificationPanel
+        open={showNotifications}
+        onClose={() => setShowNotifications(false)}
+        notifications={notifications}
+        onMarkAllRead={markAllRead}
+        onMarkOneRead={markOneRead}
+      />
 
       <AdminSidebar
         items={sidebarItems}
@@ -720,7 +757,7 @@ export default function Dashboard() {
                 Attendance overview for this month
               </p> */}
             </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 lg:w-full lg:max-w-325">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 lg:w-full lg:max-w-425">
               {[
                 {
                   label: "Present Days",
@@ -776,7 +813,7 @@ export default function Dashboard() {
 
       {/* ── WELCOME MODAL ── */}
       {showWelcomePrompt && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-5">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-99 p-5">
           <div className="bg-[#111827] border border-white/10 rounded-4xl p-8 w-full max-w-lg shadow-2xl text-center">
             <div className="w-20 h-20 rounded-3xl bg-linear-to-br from-blue-500 to-cyan-400 flex items-center justify-center text-4xl mx-auto mb-5">
               👋
@@ -816,7 +853,7 @@ export default function Dashboard() {
 
       {/* ── ABSENT MODAL ── */}
       {showAbsentModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-5">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-99 p-5">
           <div className="bg-[#111827] border border-white/10 rounded-4xl p-8 w-full max-w-md shadow-2xl">
             <div className="w-16 h-16 rounded-3xl bg-red-500/20 flex items-center justify-center text-3xl mx-auto mb-5">
               🤒
@@ -854,7 +891,7 @@ export default function Dashboard() {
 
       {/* ── HALF DAY MODAL ── */}
       {showHalfDayModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-5">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-99 p-5">
           <div className="bg-[#111827] border border-white/10 rounded-4xl p-8 w-full max-w-md shadow-2xl">
             <div className="w-16 h-16 rounded-3xl bg-orange-500/20 flex items-center justify-center text-3xl mx-auto mb-5">
               🌗
@@ -903,7 +940,7 @@ export default function Dashboard() {
 
       {/* ── LEAVE REQUEST MODAL ── */}
       {showLeaveModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-5">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-99 p-5">
           <div className="bg-[#111827] border border-white/10 rounded-4xl p-8 w-full max-w-md shadow-2xl">
             <div className="w-16 h-16 rounded-3xl bg-purple-500/20 flex items-center justify-center text-3xl mx-auto mb-5">
               🏖️
@@ -990,7 +1027,7 @@ export default function Dashboard() {
 
       {/* ── MY LEAVE REQUESTS MODAL ── */}
       {showLeavesModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-5">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-99 p-5">
           <div className="bg-[#111827] border border-white/10 rounded-4xl p-8 w-full max-w-lg shadow-2xl">
             <div className="w-16 h-16 rounded-3xl bg-purple-500/20 flex items-center justify-center text-3xl mx-auto mb-4">
               🏖️
@@ -1044,7 +1081,7 @@ export default function Dashboard() {
 
       {/* ── REASON MODAL ── */}
       {showReasonModal && viewReason && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-5">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-99 p-5">
           <div className="bg-[#111827] border border-white/10 rounded-4xl p-8 w-full max-w-md shadow-2xl">
             <div className="w-16 h-16 rounded-3xl bg-blue-500/20 flex items-center justify-center text-3xl mx-auto mb-5">
               📝

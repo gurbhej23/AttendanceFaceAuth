@@ -21,12 +21,9 @@ SECRET_KEY = "django-insecure-9hkbfp9ssh4%(k5ae=s88se+^q81_-=e#vee!c1#uk(qh#gfhy
 DEBUG = True
 
 ALLOWED_HOSTS = [
-    ".ngrok-free.dev",
-    ".ngrok-free.app",
-    ".onrender.com",
     "127.0.0.1",
     "localhost",
-    "*",
+    ".onrender.com",
 ]
 
 INSTALLED_APPS = [
@@ -92,8 +89,9 @@ DATABASES = {
 CORS_ALLOWED_ORIGINS = [
     "https://attendance-face-auth.vercel.app",
     "http://localhost:5173",
+    "http://127.0.0.1:5173",
     "http://localhost:3000",
-    "https://override-jawless-boogieman.ngrok-free.dev",
+    "http://127.0.0.1:3000",
 ]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = True
@@ -104,7 +102,6 @@ CORS_ALLOW_HEADERS = [
     "authorization",
     "content-type",
     "dnt",
-    "ngrok-skip-browser-warning",
     "origin",
     "user-agent",
     "x-csrftoken",

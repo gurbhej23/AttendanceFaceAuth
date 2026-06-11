@@ -291,7 +291,7 @@ export default function AdminEmployees() {
                         </span>
                       </td>
                       <td className="px-5 py-4">
-                        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                           <button
                             onClick={() => setEditing(employee)}
                             className="rounded-xl bg-slate-800 px-3 py-2 text-xs font-semibold hover:bg-slate-700 cursor-pointer"
@@ -419,10 +419,10 @@ export default function AdminEmployees() {
       )}
 
       {viewing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur">
+        <div className="fixed inset-0 z-99 flex items-center justify-center bg-black/75 p-4 backdrop-blur">
           <div className="w-full max-w-2xl rounded-3xl border border-slate-800 bg-slate-900 p-6">
-            <div className="flex flex-col gap-5 sm:flex">
-              <div className="mx-auto sm:mx-auto h-32 w-32 shrink-0 overflow-hidden rounded-full border border-slate-700 bg-slate-800 ">
+            <div className="grid grid-cols-2 gap-5 sm:flex">
+              <div className=" mx-auto sm:mx-auto h-32 w-32 shrink-0 overflow-hidden rounded-full border border-slate-700 bg-slate-800 ">
                 {viewing.profile_img ? (
                   <img
                     src={getMediaUrl(viewing.profile_img)}

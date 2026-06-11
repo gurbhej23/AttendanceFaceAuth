@@ -6,8 +6,8 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
-    host: "0.0.0.0",
-    allowedHosts: ["override-jawless-boogieman.ngrok-free.dev"],
+    host: "localhost",
+    port: 5173,
     proxy: {
       "/api": {
         target: "http://127.0.0.1:8000",

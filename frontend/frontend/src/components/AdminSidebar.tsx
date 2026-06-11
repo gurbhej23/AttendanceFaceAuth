@@ -5,6 +5,7 @@ export interface AdminNavItem {
   label: string;
   onClick: () => void;
   tone?: string;
+  badgeCount?: number;
 }
 
 interface Props {
@@ -39,8 +40,13 @@ export default function AdminSidebar({
       }`}
       title={item.label}
     >
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl transition-transform duration-300 group-hover/item:scale-110">
+      <span className="relative grid h-10 w-10 shrink-0 place-items-center rounded-xl transition-transform duration-300 group-hover/item:scale-110">
         {item.icon}
+        {item.badgeCount != null && item.badgeCount > 0 && (
+          <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white ring-2 ring-slate-950">
+            {item.badgeCount > 99 ? "99+" : item.badgeCount}
+          </span>
+        )}
       </span>
       <span
         className={`whitespace-nowrap transition-all duration-300 ease-out ${

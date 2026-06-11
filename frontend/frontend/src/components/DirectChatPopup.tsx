@@ -487,21 +487,16 @@ export default function DirectChatPopup({
             >
               <MoreVertical className="h-4 w-4" />
             </button>
-            {showHeaderMenu && (
-              <div
-                onClick={(e) => e.stopPropagation()}
-                className="absolute right-0 top-9 z-50 w-44 overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl"
-              >
+            {showHeaderMenu && ( 
                 <button
                   type="button"
                   onClick={() => void deleteAllChat()}
                   disabled={clearingChat}
-                  className="flex items-center gap-2 px-4 py-2.5 text-sm text-red-300 hover:bg-slate-800 disabled:opacity-50 cursor-pointer"
+                  className="absolute right-0 top-9 z-50 flex items-center gap-2 px-4 py-2.5 text-sm text-red-300 hover:bg-slate-800 disabled:opacity-50 cursor-pointer w-33 border border-red-300 rounded-2xl bg-red-300/10"
                 >
                   <Trash2 size={15} />
-                  {clearingChat ? "Clearing..." : "Clear chat"}
-                </button>
-              </div>
+                  {clearingChat ? "Clearing..." : "Delete chat"}
+                </button> 
             )}
           </div>
           {!fullScreen && (

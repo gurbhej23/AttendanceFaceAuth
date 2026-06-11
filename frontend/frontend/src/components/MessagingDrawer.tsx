@@ -926,7 +926,7 @@ export default function MessagingDrawer() {
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full md:rounded-none border border-cyan-800 bg-slate-900/95 shadow-xl shadow-cyan-950/40 backdrop-blur-xl text-cyan-500 transition hover:scale-105 active:scale-95 md:border-slate-800 md:h-12 md:w-full md:max-w-none md:justify-start md:gap-3 md:px-4 md:py-0 md:hover:scale-100 cursor-pointer"
+        className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full md:rounded-none border border-cyan-800 bg-slate-900/95 shadow-xl shadow-cyan-950/40 backdrop-blur-xl text-cyan-500 hover:scale-105 active:scale-95 md:border-slate-800 md:h-12 md:w-full md:max-w-none md:justify-start md:gap-3 md:px-4 md:py-0 md:hover:scale-100 cursor-pointer transition"
         aria-label={expanded ? "Close messages" : "Open messages"}
       >
         <div className="relative flex items-center gap-3">
@@ -948,7 +948,7 @@ export default function MessagingDrawer() {
             Messages
           </span>
           {summary.total > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-bold text-white ring-2 ring-slate-900">
+            <span className="absolute -left-1 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-bold text-white ring-1 ring-slate-900">
               {summary.total > 99 ? "99+" : summary.total}
             </span>
           )}
