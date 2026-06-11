@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: attendance-backend
+    runtime: python
+    rootDir: backend
+    buildCommand: chmod +x build.sh && ./build.sh
+    startCommand: gunicorn config.wsgi:application --config gunicorn.conf.py --log-file - --log-level info
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: PIP_DEFAULT_TIMEOUT
+        value: 100
+      - key: RENDER
+        value: "true"
