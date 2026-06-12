@@ -35,6 +35,33 @@ export interface ChatGroup {
   member_details?: Contact[];
 }
 
+/** Personalize group system messages for the current user (e.g. "HR added you to the group"). */
+export const formatGroupSystemMessage = (
+  message: string,
+  employeeId: string,
+  employeeName: string,
+): string => {
+  const added = message.match(/^(.+) added (.+) to the group$/);
+  if (
+    added &&
+    (added[2] === employeeName ||
+      added[2] === employeeId ||
+      added[2].includes(employeeName))
+  ) {
+    return `${added[1]} added you to the group`;
+  }
+  const removed = message.match(/^(.+) removed (.+) from the group$/);
+  if (
+    removed &&
+    (removed[2] === employeeName ||
+      removed[2] === employeeId ||
+      removed[2].includes(employeeName))
+  ) {
+    return `${removed[1]} removed you from the group`;
+  }
+  return message;
+};
+
 export const getApiRoot = () => {
   const base =
     import.meta.env.VITE_API_URL ||

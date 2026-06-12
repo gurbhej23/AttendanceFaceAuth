@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import Webcam from "react-webcam";
 import { useNavigate } from "react-router-dom";
-import API, { FACE_REQUEST_TIMEOUT_MS } from "../services/api";
-import MessageOverlay from "../components/MessageOverlay";
+import API, { FACE_REQUEST_TIMEOUT_MS } from "../../services/api";
+import MessageOverlay from "../../components/chat/MessageOverlay";
+import Button from "../../components/common/Button";
 import {
   getCurrentLocation,
   pickLivenessPrompt,
-} from "../services/attendanceSecurity";
+} from "../../services/attendanceSecurity";
 
 const getApiError = (err: unknown, fallback: string): string => {
   const e = err as { response?: { data?: { error?: string } } };
@@ -148,17 +149,19 @@ export default function CheckOut() {
           </div>
         )}
 
-        <button
+        <Button
           onClick={handleCheckOut}
           disabled={loading || !livenessDone}
-          className="mt-6 w-full cursor-pointer rounded-2xl bg-linear-to-r from-blue-600 to-cyan-500 p-4 font-bold text-white transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-blue-500/30 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {loading
-            ? "Verifying..."
-            : livenessDone
-              ? "Verify & Check Out"
-              : `Complete Liveness (${livenessCount})`}
-        </button>
+          loading={loading}
+          text={
+            loading
+              ? "Verifying..."
+              : livenessDone
+                ? "Verify & Check Out"
+                : `Complete Liveness (${livenessCount})`
+          }
+          className="mt-6 w-full bg-linear-to-r from-blue-600 to-cyan-500 p-4 text-white transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-blue-500/30"
+        />
 
         <button
           onClick={() => navigate("/dashboard")}

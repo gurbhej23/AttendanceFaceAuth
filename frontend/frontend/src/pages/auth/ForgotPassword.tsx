@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import API from "../services/api";
-import MessageOverlay from "../components/MessageOverlay";
+import API from "../../services/api";
+import MessageOverlay from "../../components/chat/MessageOverlay";
+import Button from "../../components/common/Button";
 
 const getApiError = (err: unknown, fallback: string): string => {
   const e = err as { response?: { data?: { error?: string } } };
@@ -137,13 +138,13 @@ export default function ForgotPassword() {
                 />
               </div>
 
-              <button
+              <Button
                 onClick={sendOTP}
                 disabled={loading}
-                className="w-full bg-blue-600 hover:bg-blue-700 transition p-4 rounded-2xl text-white font-bold"
-              >
-                {loading ? "Sending OTP..." : "Send OTP"}
-              </button>
+                loading={loading}
+                text={loading ? "Sending OTP..." : "Send OTP"}
+                className="w-full bg-blue-600 p-4 text-white hover:bg-blue-700"
+              />
             </div>
           )}
 
@@ -205,13 +206,13 @@ export default function ForgotPassword() {
                 />
               </div>
 
-              <button
+              <Button
                 onClick={resetPassword}
                 disabled={loading}
-                className="w-full bg-green-600 hover:bg-green-700 transition p-4 rounded-2xl text-white font-bold"
-              >
-                {loading ? "Updating..." : "Reset Password"}
-              </button>
+                loading={loading}
+                text={loading ? "Updating..." : "Reset Password"}
+                className="w-full bg-green-600 p-4 text-white hover:bg-green-700"
+              />
             </div>
           )}
 

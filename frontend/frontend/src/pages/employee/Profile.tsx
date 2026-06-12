@@ -7,9 +7,9 @@ import {
 } from "react";
 import { useNavigate } from "react-router-dom";
 import Webcam from "react-webcam";
-import API, { FACE_REQUEST_TIMEOUT_MS } from "../services/api";
-import Button from "../components/Button";
-import Input from "../components/Input";
+import API, { FACE_REQUEST_TIMEOUT_MS } from "../../services/api";
+import Button from "../../components/common/Button";
+import Input from "../../components/common/Input";
 import ReactCrop, {
   centerCrop,
   makeAspectCrop,
@@ -17,7 +17,7 @@ import ReactCrop, {
   type PixelCrop,
 } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
-import { X } from "lucide-react";
+import { ArrowBigLeft, X } from "lucide-react";
 
 const DEPARTMENTS = ["IT", "HR", "Finance", "Operations", "Sales", "Marketing"];
 const JOB_ROLES = [
@@ -53,7 +53,7 @@ const getError = (err: unknown, fallback: string) => {
   return e.response?.data?.error || fallback;
 };
 
-export default function AdminProfile() {
+export default function Profile() {
   const navigate = useNavigate();
   const webcamRef = useRef<Webcam>(null);
   const cropImageRef = useRef<HTMLImageElement>(null);
@@ -309,7 +309,18 @@ export default function AdminProfile() {
         </div>
       )}
 
-      <div className="mx-auto max-w-6xl"> 
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          {/* <div>
+            <p className="text-sm text-blue-300">Employee profile</p>
+            <h1 className="text-3xl font-bold">Account & Face Settings</h1>
+          </div> */}
+          <Button
+            text={<ArrowBigLeft size={26} />}
+            onClick={() => navigate("/dashboard")}
+            className="px-4 cursor-pointer"
+          />
+        </div>
 
         <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
           <section className="rounded-3xl border border-slate-800 bg-slate-900 p-6">

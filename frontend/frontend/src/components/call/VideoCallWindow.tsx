@@ -13,15 +13,16 @@ import {
   callStatusLabel,
   formatCallDuration,
   type CallMode,
-} from "../utils/callHelpers";
-import { getMediaUrl } from "../utils/chatHelpers";
+} from "../../utils/callHelpers";
+import { getMediaUrl } from "../../utils/chatHelpers";
 import {
   playCallEndSound,
   startOutgoingRingtone,
   stopAllRingtones,
   stopIncomingRingtone,
   stopOutgoingRingtone,
-} from "../utils/callSounds";
+} from "../../utils/callSounds";
+import Button from "../common/Button";
 
 export interface CallParticipant {
   employee_id: string;
@@ -558,16 +559,20 @@ export default function VideoCallWindow({
       stopAllRingtones();
       if (notify) {
         playCallEndSound();
-        const endTargets = new Set<string>([
-          ...acceptedPeersRef.current,
-          ...(call.callType === "direct" ? call.peerIds : []),
-          ...(!call.startedByMe ? [call.callerId] : []),
-        ]);
-        endTargets.forEach((peerId) => {
-          if (peerId && peerId !== employeeId) {
-            sendCallEvent({ type: "call_end", target_id: peerId });
-          }
-        });
+        if (call.callType === "group" && call.groupId) {
+          sendCallEvent({ type: "call_end" });
+        } else {
+          const endTargets = new Set<string>([
+            ...acceptedPeersRef.current,
+            ...call.peerIds,
+            ...(!call.startedByMe ? [call.callerId] : []),
+          ]);
+          endTargets.forEach((peerId) => {
+            if (peerId && peerId !== employeeId) {
+              sendCallEvent({ type: "call_end", target_id: peerId });
+            }
+          });
+        }
         if (call.startedByMe && !wasConnected) {
           void Promise.resolve(onUnanswered?.(call));
         }
@@ -890,26 +895,25 @@ export default function VideoCallWindow({
               : ""}
           </p>
         </div>
-        <button
+        <Button
           type="button"
           onClick={() => setExpanded((v) => !v)}
+          text={expanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+          unstyled
           className="rounded-xl p-2 text-slate-300 transition hover:bg-white/10 hover:text-white"
           title={expanded ? "Restore" : "Expand"}
-        >
-          {expanded ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
-        </button>
+        />
       </div>
 
       {permissionError ? (
         <div className="p-6 text-center">
           <p className="text-sm font-semibold text-red-300">{permissionError}</p>
-          <button
+          <Button
             type="button"
             onClick={() => endCall(true)}
-            className="mt-4 rounded-2xl bg-red-600 px-5 py-3 text-sm font-bold hover:bg-red-700"
-          >
-            Close call
-          </button>
+            text="Close call"
+            className="mt-4 bg-red-600 px-5 py-3 text-sm hover:bg-red-700"
+          />
         </div>
       ) : (
         <div

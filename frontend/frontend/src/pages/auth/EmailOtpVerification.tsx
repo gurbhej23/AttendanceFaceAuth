@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import API from "../services/api";
-import MessageOverlay from "../components/MessageOverlay";
+import API from "../../services/api";
+import MessageOverlay from "../../components/chat/MessageOverlay";
+import Button from "../../components/common/Button";
 import { ArrowLeft, Mail } from "lucide-react";
 
 const getApiError = (err: unknown, fallback: string): string => {
@@ -176,23 +177,23 @@ export default function EmailOtpVerification() {
             />
           </div>
 
-          <button
+          <Button
             type="button"
             onClick={verifyOtp}
             disabled={loading || otp.length < 6}
-            className="w-full rounded-2xl bg-violet-600 py-4 font-bold text-white transition hover:bg-violet-700 disabled:opacity-50 cursor-pointer"
-          >
-            {loading ? "Verifying..." : "Verify & Continue"}
-          </button>
+            loading={loading}
+            text={loading ? "Verifying..." : "Verify & Continue"}
+            className="w-full bg-violet-600 py-4 text-white hover:bg-violet-700"
+          />
 
-          <button
+          <Button
             type="button"
             onClick={sendOtp}
             disabled={sending}
-            className="w-full rounded-2xl border border-slate-700 py-3 text-sm text-slate-300 transition hover:bg-slate-800 cursor-pointer"
-          >
-            {sending ? "Sending..." : otpSent ? "Resend OTP" : "Send OTP"}
-          </button>
+            loading={sending}
+            text={sending ? "Sending..." : otpSent ? "Resend OTP" : "Send OTP"}
+            className="w-full border border-slate-700 py-3 text-sm text-slate-300 hover:bg-slate-800"
+          />
         </div>
       </div>
     </div>

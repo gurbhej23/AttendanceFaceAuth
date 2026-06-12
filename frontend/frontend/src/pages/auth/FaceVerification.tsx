@@ -1,12 +1,13 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import Webcam from "react-webcam";
 import { useNavigate } from "react-router-dom";
-import API, { FACE_REQUEST_TIMEOUT_MS } from "../services/api";
-import MessageOverlay from "../components/MessageOverlay";
+import API, { FACE_REQUEST_TIMEOUT_MS } from "../../services/api";
+import MessageOverlay from "../../components/chat/MessageOverlay";
+import Button from "../../components/common/Button";
 import {
   getCurrentLocation,
   pickLivenessPrompt,
-} from "../services/attendanceSecurity";
+} from "../../services/attendanceSecurity";
 
 type BorderStatus = "idle" | "scanning" | "success" | "error";
 
@@ -419,14 +420,13 @@ export default function VerifyFace() {
       </p>
 
       {borderStatus === "success" ? (
-        <button
+        <Button
           disabled
-          className="mt-6 px-8 py-3 bg-green-600 text-white rounded-2xl font-bold opacity-90"
-        >
-          Opening Dashboard...
-        </button>
+          text="Opening Dashboard..."
+          className="mt-6 bg-green-600 px-8 py-3 text-white opacity-90"
+        />
       ) : (
-        <button
+        <Button
           onClick={() => {
             setRetryCount((c) => c + 1);
             handleFaceVerification();
@@ -434,16 +434,18 @@ export default function VerifyFace() {
           disabled={
             !cameraReady || !livenessDone || loading || borderStatus === "scanning"
           }
-          className="mt-6 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold disabled:opacity-50 transition"
-        >
-          {loading || borderStatus === "scanning"
-            ? "Checking..."
-            : !livenessDone
-              ? "Complete Liveness..."
-            : retryCount > 0
-              ? "Try Again"
-              : "Verify Face"}
-        </button>
+          loading={loading || borderStatus === "scanning"}
+          text={
+            loading || borderStatus === "scanning"
+              ? "Checking..."
+              : !livenessDone
+                ? "Complete Liveness..."
+                : retryCount > 0
+                  ? "Try Again"
+                  : "Verify Face"
+          }
+          className="mt-6 bg-blue-600 px-8 py-3 text-white hover:bg-blue-700"
+        />
       )}
 
       {capturedImage && borderStatus !== "success" && (

@@ -8,19 +8,21 @@ import {
   Pencil,
   Trash2,
   Phone,
+  User,
   Video,
   X,
 } from "lucide-react";
-import API from "../services/api";
+import API from "../../services/api";
 import EmojiPicker from "./EmojiPicker";
-import type { ChatMessage, Contact } from "../utils/chatHelpers";
-import { isCallLogMessage } from "../utils/callHelpers";
+import Button from "../common/Button";
+import type { ChatMessage, Contact } from "../../utils/chatHelpers";
+import { isCallLogMessage } from "../../utils/callHelpers";
 import {
   formatLastSeen,
   formatMessageDate,
   getMediaUrl,
   mergeChatMessages,
-} from "../utils/chatHelpers";
+} from "../../utils/chatHelpers";
 
 function AvatarWithPresence({
   src,
@@ -41,15 +43,13 @@ function AvatarWithPresence({
         <img
           src={src}
           alt={name}
-          className={`${dim} rounded-full object-cover ${
-            isOnline
-          }`}
+          className={`${dim} rounded-full object-cover ${isOnline
+            }`}
         />
       ) : (
         <div
-          className={`grid ${dim} place-items-center rounded-full bg-cyan-700 text-sm font-bold ${
-            isOnline ? "ring-2 ring-emerald-500/70" : ""
-          }`}
+          className={`grid ${dim} place-items-center rounded-full bg-cyan-700 text-sm font-bold ${isOnline ? "ring-2 ring-emerald-500/70" : ""
+            }`}
         >
           {name.charAt(0)}
         </div>
@@ -74,14 +74,14 @@ function PresenceStatus({
 }) {
   if (typing) {
     return (
-      <p className="flex items-center gap-1.5 truncate text-xs text-cyan-400"> 
+      <p className="flex items-center gap-1.5 truncate text-xs text-cyan-400">
         Typing...
       </p>
     );
   }
   if (isOnline) {
     return (
-      <p className="flex items-center gap-1.5 truncate text-xs text-emerald-400"> 
+      <p className="flex items-center gap-1.5 truncate text-xs text-emerald-400">
         Online
       </p>
     );
@@ -137,9 +137,15 @@ export default function DirectChatPopup({
   const [editDraft, setEditDraft] = useState("");
   const [deleteMsgId, setDeleteMsgId] = useState<string | null>(null);
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
   const [clearingChat, setClearingChat] = useState(false);
   const typingStopTimer = useRef<number | null>(null);
   const historySessionRef = useRef(0);
+  const [notification, setNotification] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     contactRef.current = contact;
@@ -231,7 +237,7 @@ export default function DirectChatPopup({
         setMessages((cur) =>
           cur.map((message) =>
             message.sender_id === employeeId &&
-            message.recipient_id === open.employee_id
+              message.recipient_id === open.employee_id
               ? { ...message, is_read: true }
               : message,
           ),
@@ -259,10 +265,7 @@ export default function DirectChatPopup({
 
   const deleteAllChat = async () => {
     if (clearingChat) return;
-    const confirmed = window.confirm(
-      `Clear all messages with ${contact.name} from your chat only? ${contact.name} will still see the conversation.`,
-    );
-    if (!confirmed) return;
+    setShowDeleteConfirm(false);
     setClearingChat(true);
     setShowHeaderMenu(false);
     try {
@@ -274,8 +277,24 @@ export default function DirectChatPopup({
       });
       setMessages([]);
       refreshUnread();
+
+      setNotification({
+        type: "success",
+        message: "Chat history cleared successfully.",
+      });
+
+      setTimeout(() => {
+        setNotification(null);
+      }, 3000);
     } catch {
-      window.alert("Could not delete chat history.");
+      setNotification({
+        type: "error",
+        message: "Could not delete chat history.",
+      });
+
+      setTimeout(() => {
+        setNotification(null);
+      }, 3000);
     } finally {
       setClearingChat(false);
     }
@@ -412,36 +431,45 @@ export default function DirectChatPopup({
             {contact.name}
           </span>
         </button>
-        <button
+        <Button
           type="button"
           onClick={onClose}
+          text={<X className="h-4 w-4" />}
+          unstyled
           className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
-        >
-          <X className="h-4 w-4" />
-        </button>
+        />
       </div>
     );
   }
 
   return (
     <>
+      {notification && (
+        <div
+          className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl shadow-lg text-white transition-all duration-300 ${notification.type === "success"
+            ? "bg-green-600"
+            : "bg-red-600"
+            }`}
+        >
+          {notification.message}
+        </div>
+      )}
       <div
-        className={`flex flex-col overflow-hidden bg-slate-900 ${
-          fullScreen
-            ? "h-[100dvh] w-full"
-            : "h-[min(70vh,480px)] w-[min(calc(100vw-1.5rem),340px)] rounded-2xl border border-b-0 border-slate-700/80 shadow-2xl shadow-black/50 sm:rounded-t-2xl"
-        }`}
+        className={`flex flex-col overflow-hidden bg-slate-900 ${fullScreen
+          ? "h-[100dvh] w-full"
+          : "h-[min(70vh,480px)] w-[min(calc(100vw-1.5rem),450px)] rounded-2xl border border-b-0 border-slate-700/80 shadow-2xl shadow-black/50 sm:rounded-t-2xl"
+          }`}
       >
         <div className="flex shrink-0 items-center gap-2 border-b border-slate-800 px-4 py-3">
           {fullScreen && (
-            <button
+            <Button
               type="button"
               onClick={onClose}
-              className="-ml-1 rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white cursor-pointer"
+              text={<ArrowLeft className="h-5 w-5" />}
+              unstyled
+              className="-ml-1 rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
               title="Back"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </button>
+            />
           )}
           <AvatarWithPresence
             src={contact.profile_img ? getMediaUrl(contact.profile_img) : undefined}
@@ -456,67 +484,93 @@ export default function DirectChatPopup({
               lastSeen={contact.last_seen}
             />
           </div>
-          <button
+          <Button
             type="button"
             onClick={() => onStartVoiceCall?.(contact)}
             disabled={!canStartVideoCall}
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+            text={<Phone className="h-4 w-4" />}
+            unstyled
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
             title="Start voice call"
-          >
-            <Phone className="h-4 w-4" />
-          </button>
-          <button
+          />
+          <Button
             type="button"
             onClick={() => onStartVideoCall?.(contact)}
             disabled={!canStartVideoCall}
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+            text={<Video className="h-4 w-4" />}
+            unstyled
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
             title="Start video call"
-          >
-            <Video className="h-4 w-4" />
-          </button>
+          />
           <div className="relative">
-            <button
+            <Button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 setShowHeaderMenu((v) => !v);
               }}
-              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white cursor-pointer"
+              text={<MoreVertical className="h-4 w-4" />}
+              unstyled
+              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
               title="Chat options"
               aria-label="Chat options"
-            >
-              <MoreVertical className="h-4 w-4" />
-            </button>
-            {showHeaderMenu && ( 
-                <button
+            />
+            {showHeaderMenu && (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="absolute right-0 top-9 z-50 w-44 overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl"
+              >
+                <Button
                   type="button"
-                  onClick={() => void deleteAllChat()}
+                  onClick={() => {
+                    setShowHeaderMenu(false);
+                    setShowContactModal(true);
+                  }}
+                  text={
+                    <>
+                      <User size={15} /> View contact
+                    </>
+                  }
+                  unstyled
+                  className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-300 hover:bg-slate-800"
+                />
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setShowHeaderMenu(false);
+                    setShowDeleteConfirm(true);
+                  }}
                   disabled={clearingChat}
-                  className="absolute right-0 top-9 z-50 flex items-center gap-2 px-4 py-2.5 text-sm text-red-300 hover:bg-slate-800 disabled:opacity-50 cursor-pointer w-33 border border-red-300 rounded-2xl bg-red-300/10"
-                >
-                  <Trash2 size={15} />
-                  {clearingChat ? "Clearing..." : "Delete chat"}
-                </button> 
+                  text={
+                    <>
+                      <Trash2 size={15} />
+                      {clearingChat ? "Clearing..." : "Clear chat"}
+                    </>
+                  }
+                  unstyled
+                  className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-red-300 hover:bg-red-500/10 disabled:opacity-50"
+                />
+              </div>
             )}
           </div>
           {!fullScreen && (
             <>
-              <button
+              <Button
                 type="button"
                 onClick={onMinimize}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white cursor-pointer"
+                text={<Minus className="h-4 w-4" />}
+                unstyled
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
                 title="Minimize"
-              >
-                <Minus className="h-4 w-4" />
-              </button>
-              <button
+              />
+              <Button
                 type="button"
                 onClick={onClose}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white cursor-pointer"
+                text={<X className="h-4 w-4" />}
+                unstyled
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
                 title="Close"
-              >
-                <X className="h-4 w-4" />
-              </button>
+              />
             </>
           )}
         </div>
@@ -529,7 +583,7 @@ export default function DirectChatPopup({
             const showDate =
               index === 0 ||
               formatMessageDate(messages[index - 1].created_at) !==
-                formatMessageDate(msg.created_at);
+              formatMessageDate(msg.created_at);
             const isMenuOpen = menuMsgId === msg.id;
             const isEditing = editingMsgId === msg.id;
 
@@ -566,43 +620,51 @@ export default function DirectChatPopup({
                 >
                   {mine && !msg.is_deleted && !isEditing && (
                     <div className="relative mb-1 opacity-100 md:opacity-0 md:group-hover:opacity-100">
-                      <button
+                      <Button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           setMenuMsgId(isMenuOpen ? null : msg.id);
                         }}
-                        className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-slate-300 hover:bg-slate-700 cursor-pointer"
+                        text={<MoreVertical size={16} />}
+                        unstyled
+                        className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-slate-300 hover:bg-slate-700"
                         aria-label="Message options"
-                      >
-                        <MoreVertical size={16} />
-                      </button>
+                      />
                       {isMenuOpen && (
                         <div
                           onClick={(e) => e.stopPropagation()}
                           className="absolute bottom-10 right-0 z-10 w-32 overflow-hidden rounded-xl border border-slate-700 bg-slate-900 shadow-xl"
                         >
-                          <button
+                          <Button
                             type="button"
                             onClick={() => {
                               setMenuMsgId(null);
                               setEditingMsgId(msg.id);
                               setEditDraft(msg.message);
                             }}
-                            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs hover:bg-slate-800 cursor-pointer text-white"
-                          >
-                            <Pencil size={13} /> Edit
-                          </button>
-                          <button
+                            text={
+                              <>
+                                <Pencil size={13} /> Edit
+                              </>
+                            }
+                            unstyled
+                            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs text-white hover:bg-slate-800"
+                          />
+                          <Button
                             type="button"
                             onClick={() => {
                               setMenuMsgId(null);
                               setDeleteMsgId(msg.id);
                             }}
-                            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs text-red-400 hover:bg-red-500/15 cursor-pointer"
-                          >
-                            <Trash2 size={13} /> Delete
-                          </button>
+                            text={
+                              <>
+                                <Trash2 size={13} /> Delete
+                              </>
+                            }
+                            unstyled
+                            className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs text-red-400 hover:bg-red-500/15"
+                          />
                         </div>
                       )}
                     </div>
@@ -617,34 +679,31 @@ export default function DirectChatPopup({
                           rows={2}
                         />
                         <div className="flex justify-end gap-2">
-                          <button
+                          <Button
                             type="button"
                             onClick={() => {
                               setEditingMsgId(null);
                               setEditDraft("");
                             }}
+                            text="Cancel"
                             className="rounded-lg bg-slate-700 px-2 py-1 text-xs"
-                          >
-                            Cancel
-                          </button>
-                          <button
+                          />
+                          <Button
                             type="button"
                             onClick={submitEdit}
+                            text="Save"
                             className="rounded-lg bg-blue-600 px-2 py-1 text-xs"
-                          >
-                            Save
-                          </button>
+                          />
                         </div>
                       </div>
                     ) : (
                       <div
-                        className={`rounded-2xl px-3 py-2 text-sm ${
-                          msg.is_deleted
-                            ? "bg-slate-800/50 italic text-slate-500"
-                            : mine
-                              ? "bg-blue-600 text-white"
-                              : "bg-slate-800 text-slate-100"
-                        }`}
+                        className={`rounded-2xl px-3 py-2 text-sm ${msg.is_deleted
+                          ? "bg-slate-800/50 italic text-slate-500"
+                          : mine
+                            ? "bg-blue-600 text-white"
+                            : "bg-slate-800 text-slate-100"
+                          }`}
                       >
                         <p className="whitespace-pre-wrap wrap-break-words">
                           {msg.message}
@@ -719,14 +778,14 @@ export default function DirectChatPopup({
               rows={1}
               className="max-h-24 min-h-10 flex-1 resize-none rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none placeholder:text-slate-500 focus:border-blue-500"
             />
-            <button
+            <Button
               type="button"
               onClick={sendMessage}
               disabled={!draft.trim() || sending}
-              className="h-10 shrink-0 rounded-xl bg-blue-600 px-4 text-sm font-semibold hover:bg-blue-700 disabled:opacity-40"
-            >
-              Send
-            </button>
+              loading={sending}
+              text="Send"
+              className="h-10 shrink-0 rounded-xl bg-blue-600 px-4 text-sm hover:bg-blue-700"
+            />
           </div>
         </div>
       </div>
@@ -739,20 +798,89 @@ export default function DirectChatPopup({
               This message will be removed for everyone.
             </p>
             <div className="mt-4 flex justify-end gap-2">
-              <button
+              <Button
                 type="button"
                 onClick={() => setDeleteMsgId(null)}
-                className="rounded-xl bg-slate-700 text-white px-4 py-2 text-sm cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
+                text="Cancel"
+                className="rounded-xl bg-slate-700 px-4 py-2 text-sm text-white"
+              />
+              <Button
                 type="button"
                 onClick={() => deleteMessage(deleteMsgId)}
-                className="rounded-xl bg-red-600 text-white px-4 py-2 text-sm cursor-pointer"
-              >
-                Delete
-              </button>
+                text="Delete"
+                className="rounded-xl bg-red-600 px-4 py-2 text-sm text-white"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showContactModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm overflow-hidden rounded-3xl border border-slate-700 bg-slate-900">
+            <div className="border-b border-slate-800 p-5 text-center">
+              <div className="mx-auto mb-3 flex justify-center">
+                <AvatarWithPresence
+                  src={contact.profile_img ? getMediaUrl(contact.profile_img) : undefined}
+                  name={contact.name}
+                  isOnline={contact.is_online}
+                />
+              </div>
+              <h3 className="text-lg font-semibold text-white">{contact.name}</h3>
+              <p className="mt-1 text-sm capitalize text-slate-400">
+                {contact.role}
+                {contact.department ? ` · ${contact.department}` : ""}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                {contact.is_online ? (
+                  <span className="text-emerald-400">Online</span>
+                ) : (
+                  formatLastSeen(contact.last_seen)
+                )}
+              </p>
+              {contact.designation && (
+                <p className="mt-1 text-xs text-slate-500">{contact.designation}</p>
+              )}
+            </div>
+            <div className="flex justify-end p-4">
+              <Button
+                type="button"
+                onClick={() => setShowContactModal(false)}
+                text="Close"
+                className="rounded-xl bg-slate-700 px-4 py-2 text-sm text-white hover:bg-slate-600"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
+            <h3 className="mb-3 text-lg font-bold text-white">
+              Clear Chat History
+            </h3>
+
+            <p className="text-sm text-slate-300">
+              Clear all messages with <b>{contact.name}</b> from your chat only?
+              {contact.name} will still see the conversation.
+            </p>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <Button
+                type="button"
+                onClick={() => setShowDeleteConfirm(false)}
+                text="Cancel"
+                className="rounded-xl bg-slate-700 px-4 py-2 text-white"
+              />
+              <Button
+                type="button"
+                onClick={() => void deleteAllChat()}
+                disabled={clearingChat}
+                loading={clearingChat}
+                text="Clear"
+                className="rounded-xl bg-red-600 px-4 py-2 text-white"
+              />
             </div>
           </div>
         </div>

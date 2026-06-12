@@ -340,13 +340,19 @@ class ChatConsumer(AsyncWebsocketConsumer):
         }
         payload["caller"] = await employee_call_profile(self.employee_id)
 
-        if event_type == "call_invite" and str(data.get("call_type")) == "group":
+        if str(data.get("call_type")) == "group":
             group_id = str(data.get("group_id", "")).strip()
-            members = await group_call_members(group_id, self.employee_id)
-            payload["group_id"] = group_id
-            for member_id in members:
-                await self.broadcast_simple(member_id, payload)
-            return
+            if group_id:
+                members = await group_call_members(group_id, self.employee_id)
+                payload["group_id"] = group_id
+                if event_type == "call_invite":
+                    for member_id in members:
+                        await self.broadcast_simple(member_id, payload)
+                    return
+                if event_type == "call_end":
+                    for member_id in members:
+                        await self.broadcast_simple(member_id, payload)
+                    return
 
         recipients = []
         target_id = str(data.get("target_id", "")).strip()

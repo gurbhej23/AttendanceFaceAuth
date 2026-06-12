@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import API from "../services/api";
+import API from "../../services/api";
 import EmojiPicker from "./EmojiPicker";
-import NotificationBadge from "./NotificationBadge";
+import NotificationBadge from "../common/NotificationBadge";
 import {
   Camera,
   Check,
@@ -15,14 +15,15 @@ import {
   UserPlus,
   Users,
 } from "lucide-react";
-import type { Contact } from "../utils/chatHelpers";
+import type { Contact } from "../../utils/chatHelpers";
 import {
   formatGroupOnlineLabel,
+  formatGroupSystemMessage,
   formatGroupTypingLabel,
   formatMemberLabel,
-} from "../utils/chatHelpers";
-import { isCallLogMessage } from "../utils/callHelpers";
-import Button from "./Button";
+} from "../../utils/chatHelpers";
+import { isCallLogMessage } from "../../utils/callHelpers";
+import Button from "../common/Button";
 
 interface ChatGroup {
   id: string;
@@ -55,6 +56,7 @@ export interface GroupChatHeaderActions {
   openAddMembers: () => void;
   openManage: () => void;
   openMembers: () => void;
+  openClearChat: () => void;
 }
 
 export interface GroupChatHeaderStatus {
@@ -137,6 +139,8 @@ export default function GroupChatSection({
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [showMembersModal, setShowMembersModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showClearChatConfirm, setShowClearChatConfirm] = useState(false);
+  const [clearingChat, setClearingChat] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [memberSearch, setMemberSearch] = useState("");
@@ -308,6 +312,18 @@ export default function GroupChatSection({
   useEffect(() => {
     loadGroups();
   }, [loadGroups]);
+
+  useEffect(() => {
+    const onGroupAdded = (event: Event) => {
+      const group = (event as CustomEvent<ChatGroup>).detail;
+      if (!group?.id) return;
+      setGroups((cur) =>
+        cur.some((g) => g.id === group.id) ? cur : [group, ...cur],
+      );
+    };
+    window.addEventListener("group_added", onGroupAdded);
+    return () => window.removeEventListener("group_added", onGroupAdded);
+  }, []);
 
   const loadEmployeePool = useCallback(async () => {
     if (!isStaffRole) return;
@@ -695,12 +711,38 @@ export default function GroupChatSection({
     setShowMembersModal(true);
   }, []);
 
+  const openClearChatConfirm = useCallback(() => {
+    setShowClearChatConfirm(true);
+  }, []);
+
+  const clearGroupChat = async () => {
+    if (!selectedGroup || clearingChat) return;
+    setShowClearChatConfirm(false);
+    setClearingChat(true);
+    setShowHeaderMenu(false);
+    try {
+      await API.delete("/employees/chat-groups/history/clear/", {
+        data: {
+          employee_id: employeeId,
+          group_id: selectedGroup.id,
+        },
+      });
+      setMessages([]);
+      onUnreadChange?.();
+    } catch {
+      setActionError("Could not clear group chat history.");
+    } finally {
+      setClearingChat(false);
+    }
+  };
+
   useEffect(() => {
     if (!embedded || !onRegisterHeaderActions) return;
     onRegisterHeaderActions({
       openAddMembers: openAddMemberModal,
       openManage: openManageModal,
       openMembers: openMembersModal,
+      openClearChat: openClearChatConfirm,
     });
   }, [
     embedded,
@@ -708,58 +750,91 @@ export default function GroupChatSection({
     openAddMemberModal,
     openManageModal,
     openMembersModal,
+    openClearChatConfirm,
   ]);
 
   const renderHeaderMenu = () => {
-    if (!isStaffRole || !selectedGroup) return null;
+    if (!selectedGroup) return null;
     return (
       <div className="relative shrink-0">
-        <button
+        <Button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
             setShowHeaderMenu((v) => !v);
           }}
+          text={<MoreVertical size={18} />}
+          unstyled
           className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-700 text-slate-300 transition hover:bg-slate-800 hover:text-white"
           title="Group options"
-        >
-          <MoreVertical size={18} />
-        </button>
+          aria-label="Group options"
+        />
         {showHeaderMenu && (
           <div
             onClick={(e) => e.stopPropagation()}
             className="absolute right-0 top-10 z-50 w-44 overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl"
           >
-            <button
+            <Button
               type="button"
               onClick={() => {
                 setShowHeaderMenu(false);
                 openMembersModal();
               }}
-              className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm hover:bg-slate-800"
-            >
-              <Users size={15} /> View members
-            </button>
-            <button
+              text={
+                <>
+                  <Users size={15} /> View members
+                </>
+              }
+              unstyled
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-300 hover:bg-slate-800"
+            />
+            <Button
               type="button"
               onClick={() => {
                 setShowHeaderMenu(false);
-                openAddMemberModal();
+                openClearChatConfirm();
               }}
-              className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-green-300 hover:bg-green-500/10"
-            >
-              <UserPlus size={15} /> Add members
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setShowHeaderMenu(false);
-                openManageModal();
-              }}
-              className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm hover:bg-slate-800"
-            >
-              <Settings size={15} /> Manage group
-            </button>
+              disabled={clearingChat}
+              text={
+                <>
+                  <Trash2 size={15} /> {clearingChat ? "Clearing..." : "Clear chat"}
+                </>
+              }
+              unstyled
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-red-300 hover:bg-red-500/10 disabled:opacity-50"
+            />
+            {isStaffRole && (
+              <>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setShowHeaderMenu(false);
+                    openAddMemberModal();
+                  }}
+                  text={
+                    <>
+                      <UserPlus size={15} /> Add members
+                    </>
+                  }
+                  unstyled
+                  className="flex w-full items-center gap-2 border-t border-slate-800 px-4 py-2.5 text-left text-sm text-slate-300 hover:bg-slate-800"
+                />
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setShowHeaderMenu(false);
+                    openManageModal();
+                  }}
+                  text={
+                    <>
+                      <Settings size={15} /> Manage group
+                    </>
+                  }
+                  unstyled
+                  className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-300 hover:bg-slate-800"
+                />
+              </>
+            )}
           </div>
         )}
       </div>
@@ -804,17 +879,20 @@ export default function GroupChatSection({
               </p>
             </div>
             {isStaffRole && (
-              <button
+              <Button
                 type="button"
                 onClick={() => {
                   setActionError("");
                   setShowCreateModal(true);
                 }}
-                className="flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold hover:bg-blue-700 transition cursor-pointer"
-              >
-                <Plus size={16} />
-                New Group
-              </button>
+                text={
+                  <>
+                    <Plus size={16} />
+                    New Group
+                  </>
+                }
+                className="flex items-center gap-2 bg-blue-600 px-4 py-2 text-sm hover:bg-blue-700"
+              />
             )}
           </div>
           <div className="flex gap-3 overflow-x-auto px-5 pb-4">
@@ -952,7 +1030,13 @@ export default function GroupChatSection({
                               : "border-violet-500/25 bg-violet-500/10 text-violet-200"
                           }`}
                         >
-                          {msg.message}
+                          {isSystem
+                            ? formatGroupSystemMessage(
+                                msg.message,
+                                employeeId,
+                                localStorage.getItem("employee_name") || "",
+                              )
+                            : msg.message}
                         </p>
                       </div>
                     </div>
@@ -973,36 +1057,44 @@ export default function GroupChatSection({
                     >
                       {!msg.is_deleted && mine && !isEditing && (
                         <div className="relative opacity-100 transition md:opacity-0 md:group-hover:opacity-100">
-                          <button
+                          <Button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               setMenuMsgId(isMenuOpen ? null : msg.id);
                             }}
+                            text={<MoreVertical size={16} />}
+                            unstyled
                             className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-800 text-slate-300 hover:bg-slate-700"
                             aria-label="Message options"
-                          >
-                            <MoreVertical size={16} />
-                          </button>
+                          />
                           {isMenuOpen && (
                             <div
                               onClick={(e) => e.stopPropagation()}
                               className="absolute bottom-10 right-0 z-50 w-36 overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl text-slate-300"
                             >
-                              <button
+                              <Button
                                 type="button"
                                 onClick={() => startEdit(msg)}
+                                text={
+                                  <>
+                                    <Pencil size={14} /> Edit
+                                  </>
+                                }
+                                unstyled
                                 className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm hover:bg-slate-800"
-                              >
-                                <Pencil size={14} /> Edit
-                              </button>
-                              <button
+                              />
+                              <Button
                                 type="button"
                                 onClick={() => deleteMessage(msg.id)}
+                                text={
+                                  <>
+                                    <Trash2 size={14} /> Delete
+                                  </>
+                                }
+                                unstyled
                                 className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm text-red-400 hover:bg-red-500/15"
-                              >
-                                <Trash2 size={14} /> Delete
-                              </button>
+                              />
                             </div>
                           )}
                         </div>
@@ -1023,23 +1115,21 @@ export default function GroupChatSection({
                               autoFocus
                             />
                             <div className="flex justify-end gap-2">
-                              <button
+                              <Button
                                 type="button"
                                 onClick={() => {
                                   setEditingMsgId(null);
                                   setEditDraft("");
                                 }}
-                                className="rounded-xl bg-slate-700 px-3 py-1.5 text-xs cursor-pointer"
-                              >
-                                Cancel
-                              </button>
-                              <button
+                                text="Cancel"
+                                className="rounded-xl bg-slate-700 px-3 py-1.5 text-xs"
+                              />
+                              <Button
                                 type="button"
                                 onClick={submitEdit}
-                                className="rounded-xl bg-blue-600 px-3 py-1.5 text-xs cursor-pointer"
-                              >
-                                Save
-                              </button>
+                                text="Save"
+                                className="rounded-xl bg-blue-600 px-3 py-1.5 text-xs"
+                              />
                             </div>
                           </div>
                         ) : (
@@ -1131,21 +1221,23 @@ export default function GroupChatSection({
                   className="min-h-12 max-h-32 flex-1 resize-none rounded-2xl border border-slate-700 bg-slate-950 text-white p-3 text-sm outline-none transition focus:border-blue-500"
                   rows={1}
                 />
-                <button
+                <Button
                   type="button"
                   onClick={sendMessage}
                   disabled={!draft.trim()}
-                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-600 transition hover:bg-blue-700 disabled:opacity-40 cursor-pointer"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    className="h-5 w-5"
-                  >
-                    <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
-                  </svg>
-                </button>
+                  text={
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                      className="h-5 w-5"
+                    >
+                      <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
+                    </svg>
+                  }
+                  unstyled
+                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-600 transition hover:bg-blue-700"
+                />
               </div>
             </div>
           </>
@@ -1231,21 +1323,20 @@ export default function GroupChatSection({
               )}
             </div>
             <div className="flex justify-end gap-3 border-t border-slate-800 p-5">
-              <button
+              <Button
                 type="button"
                 onClick={() => setShowCreateModal(false)}
-                className="rounded-xl bg-slate-700 px-4 py-2 hover:bg-slate-600 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
+                text="Cancel"
+                className="rounded-xl bg-slate-700 px-4 py-2 hover:bg-slate-600"
+              />
+              <Button
                 type="button"
                 onClick={createGroup}
                 disabled={actionLoading}
-                className="rounded-xl bg-blue-600 px-4 py-2 hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
-              >
-                {actionLoading ? "Creating..." : "Create Group"}
-              </button>
+                loading={actionLoading}
+                text={actionLoading ? "Creating..." : "Create Group"}
+                className="rounded-xl bg-blue-600 px-4 py-2 hover:bg-blue-700"
+              />
             </div>
           </div>
         </div>
@@ -1385,14 +1476,14 @@ export default function GroupChatSection({
                     />
                   </div>
                 </div>
-                <button
+                <Button
                   type="button"
                   onClick={updateGroupDetails}
                   disabled={actionLoading}
-                  className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
-                >
-                  Save changes
-                </button>
+                  loading={actionLoading}
+                  text="Save changes"
+                  className="rounded-xl bg-blue-600 px-4 py-2 text-sm hover:bg-blue-700"
+                />
               </div>
 
               <div>
@@ -1439,15 +1530,15 @@ export default function GroupChatSection({
                           </div>
                         </div>
                         {member.employee_id !== employeeId && (
-                          <button
+                          <Button
                             type="button"
                             onClick={() => removeMember(member.employee_id)}
                             disabled={actionLoading}
-                            className="rounded-xl p-2 text-red-400 hover:bg-red-500/10 cursor-pointer"
+                            text={<UserMinus size={16} />}
+                            unstyled
+                            className="rounded-xl p-2 text-red-400 hover:bg-red-500/10"
                             title="Remove member"
-                          >
-                            <UserMinus size={16} />
-                          </button>
+                          />
                         )}
                       </div>
                     );
@@ -1484,15 +1575,15 @@ export default function GroupChatSection({
                             {emp.department}
                           </p>
                         </div>
-                        <button
+                        <Button
                           type="button"
                           onClick={() => addMember(emp.employee_id)}
                           disabled={actionLoading}
-                          className="rounded-xl p-2 text-green-400 hover:bg-green-500/10 cursor-pointer"
+                          text={<UserPlus size={16} />}
+                          unstyled
+                          className="rounded-xl p-2 text-green-400 hover:bg-green-500/10"
                           title="Add member"
-                        >
-                          <UserPlus size={16} />
-                        </button>
+                        />
                       </div>
                     ))}
                   </div>
@@ -1503,23 +1594,25 @@ export default function GroupChatSection({
                 <p className="text-sm text-red-400">{actionError}</p>
               )}
 
-              <button
+              <Button
                 type="button"
                 onClick={() => setShowDeleteConfirm(true)}
-                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-300 hover:bg-red-500/20 cursor-pointer"
-              >
-                <Trash2 size={16} />
-                Delete Group
-              </button>
+                text={
+                  <>
+                    <Trash2 size={16} />
+                    Delete Group
+                  </>
+                }
+                className="flex w-full items-center justify-center gap-2 border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300 hover:bg-red-500/20"
+              />
             </div>
             <div className="flex justify-end border-t border-slate-800 p-5">
-              <button
+              <Button
                 type="button"
                 onClick={() => setShowManageModal(false)}
-                className="rounded-xl bg-slate-700 px-4 py-2 hover:bg-slate-600 cursor-pointer"
-              >
-                Close
-              </button>
+                text="Close"
+                className="rounded-xl bg-slate-700 px-4 py-2 hover:bg-slate-600"
+              />
             </div>
           </div>
         </div>
@@ -1588,36 +1681,61 @@ export default function GroupChatSection({
             </div>
             <div className="flex justify-end gap-3 border-t border-slate-800 p-5">
               {isStaffRole && (
-                <button
+                <Button
                   type="button"
                   onClick={() => {
                     setShowMembersModal(false);
                     openAddMemberModal();
                   }}
-                  className="rounded-xl bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700 cursor-pointer"
-                >
-                  Add Members
-                </button>
+                  text="Add Members"
+                  className="rounded-xl bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700"
+                />
               )}
               {isStaffRole && (
-                <button
+                <Button
                   type="button"
                   onClick={() => {
                     setShowMembersModal(false);
                     setShowManageModal(true);
                   }}
-                  className="rounded-xl bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 cursor-pointer"
-                >
-                  Manage group
-                </button>
+                  text="Manage group"
+                  className="rounded-xl bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+                />
               )}
-              <button
+              <Button
                 type="button"
                 onClick={() => setShowMembersModal(false)}
-                className="rounded-xl bg-slate-700 px-4 py-2 text-white hover:bg-slate-600 cursor-pointer"
-              >
-                Close
-              </button>
+                text="Close"
+                className="rounded-xl bg-slate-700 px-4 py-2 text-white hover:bg-slate-600"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showClearChatConfirm && selectedGroup && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-3xl border border-slate-700 bg-slate-900 p-6">
+            <h3 className="text-lg font-semibold text-slate-300">Clear Chat History</h3>
+            <p className="mt-2 text-sm text-slate-400">
+              Clear all messages in <b>{selectedGroup.group_name}</b> from your view
+              only? Other members will still see the conversation.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <Button
+                type="button"
+                onClick={() => setShowClearChatConfirm(false)}
+                text="Cancel"
+                className="rounded-xl bg-slate-700 px-4 py-2 hover:bg-slate-600"
+              />
+              <Button
+                type="button"
+                onClick={() => void clearGroupChat()}
+                disabled={clearingChat}
+                loading={clearingChat}
+                text="Clear"
+                className="rounded-xl bg-red-600 px-4 py-2 hover:bg-red-700"
+              />
             </div>
           </div>
         </div>
@@ -1631,21 +1749,20 @@ export default function GroupChatSection({
               This will permanently delete the group and all its messages.
             </p>
             <div className="mt-6 flex justify-end gap-3">
-              <button
+              <Button
                 type="button"
                 onClick={() => setShowDeleteConfirm(false)}
-                className="rounded-xl bg-slate-700 px-4 py-2 hover:bg-slate-600 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
+                text="Cancel"
+                className="rounded-xl bg-slate-700 px-4 py-2 hover:bg-slate-600"
+              />
+              <Button
                 type="button"
                 onClick={deleteGroup}
                 disabled={actionLoading}
-                className="rounded-xl bg-red-600 px-4 py-2 hover:bg-red-700 cursor-pointer"
-              >
-                Delete
-              </button>
+                loading={actionLoading}
+                text="Delete"
+                className="rounded-xl bg-red-600 px-4 py-2 hover:bg-red-700"
+              />
             </div>
           </div>
         </div>

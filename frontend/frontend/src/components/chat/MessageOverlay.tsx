@@ -1,3 +1,5 @@
+import Button from "../common/Button";
+
 interface MessageOverlayProps {
   title: string;
   message?: string;
@@ -29,13 +31,12 @@ export default function MessageOverlay({
         <h2 className="text-2xl font-bold text-white">{title}</h2>
         {message && <p className="mt-3 whitespace-pre-line text-sm leading-6 text-slate-300">{message}</p>}
         {onClose && (
-          <button
+          <Button
             type="button"
+            text="Close"
             onClick={onClose}
-            className="mt-6 w-full rounded-2xl bg-slate-800 px-5 py-3 font-semibold text-white transition hover:bg-slate-700"
-          >
-            Close
-          </button>
+            className="mt-6 w-full bg-slate-800 px-5 py-3 text-white hover:bg-slate-700"
+          />
         )}
       </div>
     </div>

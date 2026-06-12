@@ -2,8 +2,9 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Webcam from "react-webcam";
-import API from "../services/api";
-import Button from "../components/Button";
+import API from "../../services/api";
+import Button from "../../components/common/Button";
+import { ArrowLeft } from "lucide-react";
 
 type BorderStatus = "idle" | "scanning" | "success" | "error";
 
@@ -76,10 +77,10 @@ export default function AdminCreateEmployee() {
   });
 
   // ── Route guard ────────────────────────────────────────────────────────
-//   useEffect(() => {
-//     const role = localStorage.getItem("role");
-//     if (role !== "admin" && role !== "hr") navigate("/");
-//   }, [navigate]);
+  //   useEffect(() => {
+  //     const role = localStorage.getItem("role");
+  //     if (role !== "admin" && role !== "hr") navigate("/");
+  //   }, [navigate]);
 
   // ── Canvas animation ───────────────────────────────────────────────────
   const drawOverlay = (status: BorderStatus, scanOffset: number) => {
@@ -125,8 +126,8 @@ export default function AdminCreateEmployee() {
       const lineY = ovalY - ovalRY + scanOffset * ovalRY * 2;
       const halfW = Math.sqrt(
         Math.max(0, 1 - Math.pow((lineY - ovalY) / ovalRY, 2)) *
-          ovalRX *
-          ovalRX,
+        ovalRX *
+        ovalRX,
       );
       ctx.save();
       const grad = ctx.createLinearGradient(
@@ -200,10 +201,10 @@ export default function AdminCreateEmployee() {
             const idx = (y * W + x) * 4;
             blur += Math.abs(
               -4 * data[idx] +
-                data[((y - 1) * W + x) * 4] +
-                data[((y + 1) * W + x) * 4] +
-                data[(y * W + (x - 1)) * 4] +
-                data[(y * W + (x + 1)) * 4],
+              data[((y - 1) * W + x) * 4] +
+              data[((y + 1) * W + x) * 4] +
+              data[(y * W + (x - 1)) * 4] +
+              data[(y * W + (x + 1)) * 4],
             );
           }
         if (blur / (W * H) < 4.5)
@@ -391,26 +392,23 @@ export default function AdminCreateEmployee() {
           </p>
 
           <div className="flex gap-3">
-            <button
+            <Button
+              text={copied ? "✅ Copied!" : "📋 Copy Credentials"}
               onClick={copyCredentials}
               className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-2xl font-semibold transition cursor-pointer"
-            >
-              {copied ? "✅ Copied!" : "📋 Copy Credentials"}
-            </button>
-            <button
+            />
+            <Button
+              text="➕ Add Another"
               onClick={() => setCreated(null)}
               className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 rounded-2xl font-semibold transition cursor-pointer"
-            >
-              ➕ Add Another
-            </button>
+            />
           </div>
 
-          <button
+          <Button
+            text="← Back to Dashboard"
             onClick={() => navigate("/attendance-sheet")}
             className="w-full mt-3 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-2xl font-semibold transition cursor-pointer"
-          >
-            ← Back to Dashboard
-          </button>
+          />
         </div>
       </div>
     );
@@ -428,12 +426,11 @@ export default function AdminCreateEmployee() {
               Fill the form — ID and password will be auto-generated
             </p>
           </div>
-          <button
+          <Button
+            text={<ArrowLeft size={22} />}
             onClick={() => navigate("/attendance-sheet")}
             className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2.5 rounded-xl text-sm font-semibold transition cursor-pointer border border-slate-700"
-          >
-            ← Back
-          </button>
+          />
         </div>
 
         <div className="bg-slate-800 border border-slate-700 rounded-3xl p-8 space-y-6">
@@ -534,14 +531,17 @@ export default function AdminCreateEmployee() {
                 { v: "hr", l: "HR", e: "🧑‍💼" },
                 { v: "admin", l: "Admin", e: "🔑" },
               ].map(({ v, l, e }) => (
-                <button
+                <Button
+                  text={
+                    <>
+                      <span>{e}</span>
+                      {l}
+                    </>
+                  }
                   key={v}
                   onClick={() => setForm({ ...form, role: v })}
                   className={`py-3 rounded-2xl text-sm font-semibold border transition cursor-pointer flex flex-col items-center gap-1 ${form.role === v ? "bg-blue-600 border-blue-500 text-white" : "bg-slate-900 border-slate-700 text-slate-400 hover:border-blue-500"}`}
-                >
-                  <span>{e}</span>
-                  {l}
-                </button>
+                />
               ))}
             </div>
           </div>
@@ -603,16 +603,15 @@ export default function AdminCreateEmployee() {
             </label>
 
             {!showCamera && !capturedImage && (
-              <button
+              <Button
+                text="📷 Open Camera to Capture Face"
                 onClick={() => {
                   setShowCamera(true);
                   setBorderStatus("idle");
                   setFaceMsg("Position your face in the oval");
                 }}
                 className="w-full py-4 rounded-2xl border border-dashed border-slate-600 text-slate-400 hover:border-blue-500 hover:text-blue-400 transition text-sm cursor-pointer"
-              >
-                📷 Open Camera to Capture Face
-              </button>
+              />
             )}
 
             {capturedImage && (
@@ -626,16 +625,15 @@ export default function AdminCreateEmployee() {
                   <p className="text-green-300 text-sm font-semibold">
                     ✅ Face captured
                   </p>
-                  <button
+                  <Button
+                    text="Retake"
                     onClick={() => {
                       setCapturedImage(null);
                       setBorderStatus("idle");
                       setShowCamera(true);
                     }}
                     className="text-xs text-slate-400 hover:text-white mt-1 cursor-pointer"
-                  >
-                    Retake
-                  </button>
+                  />  
                 </div>
               </div>
             )}
@@ -681,7 +679,8 @@ export default function AdminCreateEmployee() {
                 </p>
 
                 <div className="flex gap-3">
-                  <button
+                  <Button
+                    text={borderStatus === "scanning" ? "Checking..." : "Capture"}
                     onClick={() => {
                       setBorderStatus("scanning");
                       setFaceMsg("Scanning...");
@@ -689,18 +688,15 @@ export default function AdminCreateEmployee() {
                     }}
                     disabled={!cameraReady || borderStatus === "scanning"}
                     className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-2.5 rounded-xl text-sm font-semibold cursor-pointer"
-                  >
-                    {borderStatus === "scanning" ? "Checking..." : "Capture"}
-                  </button>
-                  <button
+                  />
+                  <Button
+                    text="Cancel"
                     onClick={() => {
                       setShowCamera(false);
                       setBorderStatus("idle");
                     }}
                     className="bg-slate-700 hover:bg-slate-600 text-white px-6 py-2.5 rounded-xl text-sm font-semibold cursor-pointer"
-                  >
-                    Cancel
-                  </button>
+                  />
                 </div>
               </div>
             )}

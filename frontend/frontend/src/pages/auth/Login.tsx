@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import API from "../services/api";
-import Button from "../components/Button";
-import MessageOverlay from "../components/MessageOverlay";
+import API from "../../services/api";
+import Button from "../../components/common/Button";
+import MessageOverlay from "../../components/chat/MessageOverlay";
 import { Eye, EyeOff, UserRound } from "lucide-react";
 
 export default function Login() {

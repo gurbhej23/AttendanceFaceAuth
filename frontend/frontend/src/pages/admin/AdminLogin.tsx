@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import API from "../services/api";
-import Button from "../components/Button";
+import API from "../../services/api";
+import Button from "../../components/common/Button";
 import { Eye, EyeOff, ShieldUser, UserRound } from "lucide-react";
 
 export default function AdminLogin() {

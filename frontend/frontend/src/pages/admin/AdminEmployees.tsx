@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import API from "../services/api";
-import Input from "../components/Input";
+import API from "../../services/api";
+import Input from "../../components/common/Input";
+import Button from "../../components/common/Button";
 
 const DEPARTMENTS = ["IT", "HR", "Finance", "Operations", "Sales", "Marketing"];
 const JOB_ROLES = [
@@ -131,21 +132,19 @@ export default function AdminEmployees() {
             <h1 className="text-3xl font-bold">Employee Management</h1>
           </div>
           <div className="flex md:flex-wrap justify-center gap-3">
-            <button
+            <Button
               onClick={() => navigate("/attendance-sheet")}
-              className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-semibold hover:bg-slate-800 cursor-pointer"
-            >
-              Attendance sheet
-            </button>
-            <button
+              text="Attendance sheet"
+              className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm hover:bg-slate-800"
+            />
+            <Button
               onClick={() => {
                 localStorage.clear();
                 navigate("/", { replace: true });
               }}
-              className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold hover:bg-red-700 cursor-pointer"
-            >
-              Logout
-            </button>
+              text="Logout"
+              className="rounded-xl bg-red-600 px-4 py-2 text-sm hover:bg-red-700"
+            />
           </div>
         </header>
 
@@ -193,26 +192,24 @@ export default function AdminEmployees() {
           </div>
 
           <div className="flex flex-wrap gap-2 border-b border-slate-800 px-5 py-4">
-            <button
+            <Button
               onClick={() => setViewMode("employees")}
-              className={`rounded-xl px-4 py-2 text-sm font-semibold transition cursor-pointer ${
+              text="Employees"
+              className={`rounded-xl px-4 py-2 text-sm transition ${
                 viewMode === "employees"
                   ? "bg-blue-600 text-white"
                   : "bg-slate-950 text-slate-400 hover:text-white"
               }`}
-            >
-              Employees
-            </button>
-            <button
+            />
+            <Button
               onClick={() => setViewMode("staff")}
-              className={`rounded-xl px-4 py-2 text-sm font-semibold transition cursor-pointer ${
+              text="HR / Admin"
+              className={`rounded-xl px-4 py-2 text-sm transition ${
                 viewMode === "staff"
                   ? "bg-cyan-600 text-white"
                   : "bg-slate-950 text-slate-400 hover:text-white"
               }`}
-            >
-              HR / Admin
-            </button>
+            />
           </div>
 
           {loading ? (
@@ -292,18 +289,16 @@ export default function AdminEmployees() {
                       </td>
                       <td className="px-5 py-4">
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                          <button
+                          <Button
                             onClick={() => setEditing(employee)}
-                            className="rounded-xl bg-slate-800 px-3 py-2 text-xs font-semibold hover:bg-slate-700 cursor-pointer"
-                          >
-                            Edit
-                          </button>
-                          <button
+                            text="Edit"
+                            className="rounded-xl bg-slate-800 px-3 py-2 text-xs hover:bg-slate-700"
+                          />
+                          <Button
                             onClick={() => setViewing(employee)}
-                            className="rounded-xl bg-blue-600 px-3 py-2 text-xs font-semibold hover:bg-blue-700 cursor-pointer"
-                          >
-                            User profile
-                          </button>
+                            text="User profile"
+                            className="rounded-xl bg-blue-600 px-3 py-2 text-xs hover:bg-blue-700"
+                          />
                         </div>
                       </td>
                     </tr>
@@ -401,18 +396,16 @@ export default function AdminEmployees() {
               </label>
             </div>
             <div className="mt-6 flex justify-end gap-3">
-              <button
+              <Button
                 onClick={() => setEditing(null)}
-                className="rounded-2xl border border-slate-700 px-5 py-3 font-semibold text-slate-300 hover:bg-slate-800"
-              >
-                Cancel
-              </button>
-              <button
+                text="Cancel"
+                className="border border-slate-700 px-5 py-3 text-slate-300 hover:bg-slate-800"
+              />
+              <Button
                 onClick={updateEmployee}
-                className="rounded-2xl bg-blue-600 px-5 py-3 font-bold hover:bg-blue-700"
-              >
-                Save changes
-              </button>
+                text="Save changes"
+                className="bg-blue-600 px-5 py-3 hover:bg-blue-700"
+              />
             </div>
           </div>
         </div>
@@ -468,12 +461,11 @@ export default function AdminEmployees() {
               </div>
             </div>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
-              <button
+              <Button
                 onClick={() => setViewing(null)}
-                className="rounded-2xl bg-blue-600 px-5 py-3 font-bold hover:bg-blue-700 cursor-pointer"
-              >
-                Close
-              </button>
+                text="Close"
+                className="bg-blue-600 px-5 py-3 hover:bg-blue-700"
+              />
             </div>
           </div>
         </div>

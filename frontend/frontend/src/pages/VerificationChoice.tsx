@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Mail, ScanFace } from "lucide-react";
+import Button from "../components/common/Button";
 
 export default function VerificationChoice() {
   const navigate = useNavigate();
@@ -62,16 +63,15 @@ export default function VerificationChoice() {
           </button>
         </div>
 
-        <button
+        <Button
           type="button"
           onClick={() => {
             localStorage.clear();
             navigate("/", { replace: true });
           }}
-          className="mt-6 w-full rounded-2xl border border-slate-700 py-3 text-sm text-slate-400 transition hover:bg-slate-800 hover:text-slate-200 cursor-pointer"
-        >
-          Back to login
-        </button>
+          text="Back to login"
+          className="mt-6 w-full border border-slate-700 py-3 text-sm text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+        />
       </div>
     </div>
   );

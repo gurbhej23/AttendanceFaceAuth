@@ -2,20 +2,17 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import Webcam from "react-webcam";
-import API, { FACE_REQUEST_TIMEOUT_MS } from "../services/api";
-import Input from "../components/Input";
-import Button from "../components/Button";
-import MessageOverlay from "../components/MessageOverlay";
+import API, { FACE_REQUEST_TIMEOUT_MS } from "../../services/api";
+import Input from "../../components/common/Input";
+import Button from "../../components/common/Button";
+import MessageOverlay from "../../components/chat/MessageOverlay";
 import {
   BadgeCheck,
   BriefcaseBusiness,
   ChevronDown,
-  FileText,
-  KeyRound,
+  FileText, 
   Mail,
-  Phone,
-  ScanFace,
-  ShieldCheck,
+  Phone, 
   UserRound,
 } from "lucide-react";
 
@@ -172,10 +169,10 @@ export default function Register() {
             const idx = (y * W + x) * 4;
             blur += Math.abs(
               -4 * data[idx] +
-                data[((y - 1) * W + x) * 4] +
-                data[((y + 1) * W + x) * 4] +
-                data[(y * W + (x - 1)) * 4] +
-                data[(y * W + (x + 1)) * 4],
+              data[((y - 1) * W + x) * 4] +
+              data[((y + 1) * W + x) * 4] +
+              data[(y * W + (x - 1)) * 4] +
+              data[(y * W + (x + 1)) * 4],
             );
           }
         if (blur / (W * H) < 4.5)
@@ -232,8 +229,8 @@ export default function Register() {
       const lineY = ovalY - ovalRY + scanOffset * ovalRY * 2;
       const halfW = Math.sqrt(
         Math.max(0, 1 - Math.pow((lineY - ovalY) / ovalRY, 2)) *
-          ovalRX *
-          ovalRX,
+        ovalRX *
+        ovalRX,
       );
       ctx.save();
       const grad = ctx.createLinearGradient(
@@ -334,7 +331,7 @@ export default function Register() {
         const successMessage = credentials
           ? `${response.data.message}\n\nEmployee ID: ${credentials.employee_id}\nTemporary password: ${credentials.password}`
           : response.data.message ||
-            `Your Employee ID and password have been sent to ${formData.email}.`;
+          `Your Employee ID and password have been sent to ${formData.email}.`;
         setOverlay({
           title: "Registration successful",
           message: successMessage,
@@ -420,18 +417,16 @@ export default function Register() {
             ].map(([number, label, active]) => (
               <div
                 key={String(label)}
-                className={`flex items-center gap-3 rounded-2xl border p-3 text-sm ${
-                  active
+                className={`flex items-center gap-3 rounded-2xl border p-3 text-sm ${active
                     ? "border-blue-400/40 bg-blue-500/15 text-blue-200"
                     : "border-slate-700 bg-slate-950/50 text-slate-400"
-                }`}
+                  }`}
               >
                 <span
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                    active
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${active
                       ? "bg-linear-to-r from-blue-600 to-cyan-500 text-white"
                       : "bg-slate-800 text-slate-400"
-                  }`}
+                    }`}
                 >
                   {number}
                 </span>
@@ -642,11 +637,10 @@ export default function Register() {
             <button
               type="button"
               onClick={() => setVerifyMethod("email")}
-              className={`flex items-center gap-3 rounded-2xl border p-4 text-left text-sm font-semibold transition ${
-                verifyMethod === "email"
+              className={`flex items-center gap-3 rounded-2xl border p-4 text-left text-sm font-semibold transition ${verifyMethod === "email"
                   ? "border-blue-400/50 bg-blue-500/15 text-blue-200"
                   : "border-slate-700 bg-slate-950/50 text-slate-400 hover:border-slate-500"
-              }`}
+                }`}
             >
               <Mail size={20} />
               Email OTP
@@ -664,18 +658,17 @@ export default function Register() {
                   "SMS verification is not available yet. Please use Email OTP.",
                 );
               }}
-              className={`flex items-center gap-3 rounded-2xl border p-4 text-left text-sm font-semibold transition ${
-                verifyMethod === "phone"
+              className={`flex items-center gap-3 rounded-2xl border p-4 text-left text-sm font-semibold transition ${verifyMethod === "phone"
                   ? "border-cyan-400/50 bg-cyan-500/15 text-cyan-200"
                   : "border-slate-700 bg-slate-950/50 text-slate-400 hover:border-slate-500"
-              }`}
+                }`}
             >
               <Phone size={20} />
               SMS OTP
             </button>
           </div>
 
-          <div className="mt-6 space-y-3">
+          {/* <div className="mt-6 space-y-3">
             <div className="flex items-start gap-3 rounded-2xl border border-slate-700 bg-slate-950/50 p-4">
               <ShieldCheck className="mt-0.5 text-blue-300" size={20} />
               <p className="text-sm leading-6 text-slate-300">
@@ -694,7 +687,7 @@ export default function Register() {
                 Employee ID and password are issued after registration.
               </p>
             </div>
-          </div>
+          </div> */}
 
           <Button
             text={loading ? "Sending OTP..." : "Verify & Continue"}
@@ -920,11 +913,10 @@ export default function Register() {
                 <button
                   type="button"
                   onClick={() => setVerifyMethod("email")}
-                  className={`p-3 rounded-2xl border text-sm font-medium transition-all ${
-                    verifyMethod === "email"
+                  className={`p-3 rounded-2xl border text-sm font-medium transition-all ${verifyMethod === "email"
                       ? "border-blue-500 bg-blue-500/20 text-blue-300"
                       : "border-slate-700 bg-slate-900/50 text-slate-400 hover:border-slate-500"
-                  }`}
+                    }`}
                 >
                   📧 Email OTP
                 </button>
@@ -941,11 +933,10 @@ export default function Register() {
                       "SMS verification is not available yet. Please use Email OTP.",
                     );
                   }}
-                  className={`p-3 rounded-2xl border text-sm font-medium transition-all ${
-                    verifyMethod === "phone"
+                  className={`p-3 rounded-2xl border text-sm font-medium transition-all ${verifyMethod === "phone"
                       ? "border-cyan-500 bg-cyan-500/20 text-cyan-300"
                       : "border-slate-700 bg-slate-900/50 text-slate-400 hover:border-slate-500"
-                  }`}
+                    }`}
                 >
                   📱 SMS OTP
                 </button>
@@ -1055,18 +1046,16 @@ export default function Register() {
               ].map(([number, label, active]) => (
                 <div
                   key={String(label)}
-                  className={`flex items-center gap-3 rounded-2xl border p-3 text-sm ${
-                    active
+                  className={`flex items-center gap-3 rounded-2xl border p-3 text-sm ${active
                       ? "border-blue-400/40 bg-blue-500/15 text-blue-200"
                       : "border-slate-700 bg-slate-950/50 text-slate-400"
-                  }`}
+                    }`}
                 >
                   <span
-                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                      active
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${active
                         ? "bg-linear-to-r from-blue-600 to-cyan-500 text-white"
                         : "bg-slate-800 text-slate-400"
-                    }`}
+                      }`}
                   >
                     {number}
                   </span>
@@ -1197,7 +1186,7 @@ export default function Register() {
           <section className="rounded-[28px] border border-white/12 bg-white/8 p-6 shadow-inner">
             <p className="text-lg font-semibold text-white">Verification</p>
 
-            <div className="mt-6 space-y-3">
+            {/* <div className="mt-6 space-y-3">
               <div className="flex items-start gap-3 rounded-2xl border border-slate-700 bg-slate-950/50 p-4">
                 <ShieldCheck className="mt-0.5 text-blue-300" size={20} />
                 <p className="text-sm leading-6 text-slate-300">
@@ -1216,7 +1205,7 @@ export default function Register() {
                   Employee ID and password are issued after registration.
                 </p>
               </div>
-            </div>
+            </div> */}
           </section>
         </div>
       </div>
@@ -1252,15 +1241,14 @@ export default function Register() {
       </div>
 
       <div
-        className={`relative w-full max-w-xl aspect-video rounded-4xl overflow-hidden ring-4 shadow-lg transition-all ${
-          borderStatus === "success"
+        className={`relative w-full max-w-xl aspect-video rounded-4xl overflow-hidden ring-4 shadow-lg transition-all ${borderStatus === "success"
             ? "ring-green-500 shadow-green-500/40"
             : borderStatus === "error"
               ? "ring-red-500 shadow-red-500/40"
               : borderStatus === "scanning"
                 ? "ring-yellow-400 shadow-yellow-400/30"
                 : "ring-white/30"
-        }`}
+          }`}
       >
         {!capturedImage ? (
           <Webcam
@@ -1307,39 +1295,38 @@ export default function Register() {
       </div>
 
       <p
-        className={`mt-4 text-lg font-medium ${
-          borderStatus === "success"
+        className={`mt-4 text-lg font-medium ${borderStatus === "success"
             ? "text-green-400"
             : borderStatus === "error"
               ? "text-red-400"
               : borderStatus === "scanning"
                 ? "text-yellow-300"
                 : "text-white"
-        }`}
+          }`}
       >
         {message}
       </p>
 
       {borderStatus === "success" ? (
-        <button
+        <Button
           onClick={handleRegisterSubmit}
           disabled={loading}
-          className="mt-6 px-8 py-3 bg-green-600 hover:bg-green-700 text-white rounded-2xl font-bold disabled:opacity-50 transition"
-        >
-          {loading ? "Registering..." : "Complete Registration →"}
-        </button>
+          loading={loading}
+          text={loading ? "Registering..." : "Complete Registration →"}
+          className="mt-6 bg-green-600 px-8 py-3 text-white hover:bg-green-700"
+        />
       ) : (
-        <button
+        <Button
           onClick={() => {
             setBorderStatus("scanning");
             setMessage("Position your face in the oval");
             captureFace();
           }}
           disabled={!cameraReady || borderStatus === "scanning"}
-          className="mt-6 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold disabled:opacity-50 transition"
-        >
-          {borderStatus === "scanning" ? "Checking..." : "Capture Face"}
-        </button>
+          loading={borderStatus === "scanning"}
+          text={borderStatus === "scanning" ? "Checking..." : "Capture Face"}
+          className="mt-6 bg-blue-600 px-8 py-3 text-white hover:bg-blue-700"
+        />
       )}
 
       {capturedImage && borderStatus !== "success" && (

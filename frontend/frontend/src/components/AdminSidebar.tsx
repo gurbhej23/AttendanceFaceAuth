@@ -1,4 +1,5 @@
 import { LogOut, X } from "lucide-react";
+import Button from "./common/Button";
 
 export interface AdminNavItem {
   icon: React.ReactNode;
@@ -39,10 +40,11 @@ export default function AdminSidebar({
         }`}
       title={item.label}
     >
-      <span className="relative grid h-10 w-10 shrink-0 place-items-center rounded-xl transition-transform duration-300 group-hover/item:scale-110 ">
+      <span className="relative grid h-10 w-10 shrink-0 place-items-center rounded-xl transition-transform duration-300 group-hover/item:scale-100 ">
         {item.icon}
         {item.badgeCount != null && item.badgeCount > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white ring-slate-950 ">
+          <span className="absolute -right-2 -top-2.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white ring-slate-950 transition-all duration-500 group-hover:translate-y-5 group-hover:translate-x-42">
+
             {item.badgeCount > 99 ? "99+" : item.badgeCount}
           </span>
         )}
@@ -89,30 +91,34 @@ export default function AdminSidebar({
               <p className="text-xs text-slate-400">{adminRole}</p>
             </div>
           </div>
-          <button
+          <Button
             type="button"
             onClick={onMobileClose}
+            text={<X size={20} />}
+            unstyled
             className="rounded-xl p-2 text-slate-400 transition hover:bg-white/10 hover:text-white"
-          >
-            <X size={20} />
-          </button>
+            aria-label="Close menu"
+          />
         </div>
 
         <nav className="flex flex-1 flex-col gap-5">{items.map((item) => navButton(item, true))}</nav>
 
-        <button
+        <Button
           type="button"
           onClick={() => {
             onLogout();
             onMobileClose();
           }}
-          className="mt-4 flex h-11 items-center gap-3 rounded-2xl bg-red-600/90 px-3 text-sm font-bold text-white transition hover:bg-red-600 active:scale-[0.98]"
-        >
-          <span className="grid h-9 w-9 place-items-center rounded-xl">
-            <LogOut size={18} />
-          </span>
-          Logout
-        </button>
+          text={
+            <>
+              <span className="grid h-9 w-9 place-items-center rounded-xl">
+                <LogOut size={18} />
+              </span>
+              Logout
+            </>
+          }
+          className="mt-4 flex h-11 items-center gap-3 bg-red-600/90 px-3 text-sm text-white hover:bg-red-600 active:scale-[0.98]"
+        />
       </aside>
 
       {/* Desktop hover-expand sidebar */}
@@ -137,19 +143,22 @@ export default function AdminSidebar({
           {items.map((item) => navButton(item, false))}
         </nav>
 
-        <button
+        <Button
           type="button"
           onClick={onLogout}
-          className="mt-auto flex h-11 items-center gap-3 rounded-2xl bg-red-600/90 px-1.5 text-sm font-bold text-white transition-all duration-300 hover:bg-red-600 hover:shadow-lg active:scale-[0.98] cursor-pointer"
           title="Logout"
-        >
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl">
-            <LogOut size={18} />
-          </span>
-          <span className="whitespace-nowrap opacity-0 transition-all duration-500 group-hover:opacity-100">
-            Logout
-          </span>
-        </button>
+          text={
+            <>
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl">
+                <LogOut size={18} />
+              </span>
+              <span className="whitespace-nowrap opacity-0 transition-all duration-500 group-hover:opacity-100">
+                Logout
+              </span>
+            </>
+          }
+          className="mt-auto flex h-11 items-center gap-3 bg-red-600/90 px-1.5 text-sm text-white transition-all duration-300 hover:bg-red-600 hover:shadow-lg active:scale-[0.98]"
+        />
       </aside>
     </>
   );

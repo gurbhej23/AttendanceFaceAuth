@@ -6,16 +6,16 @@ import {
   Users,
   ChevronUp,
 } from "lucide-react";
-import API from "../services/api";
+import API from "../../services/api";
 import DirectChatPopup from "./DirectChatPopup";
 import GroupChatPopup from "./GroupChatPopup";
-import IncomingCallModal from "./IncomingCallModal";
+import IncomingCallModal from "../call/IncomingCallModal";
 import VideoCallWindow, {
   type ActiveCall,
   type CallParticipant,
-} from "./VideoCallWindow";
-import NotificationBadge from "./NotificationBadge";
-import { useUnreadMessages } from "../hooks/useUnreadMessages";
+} from "../call/VideoCallWindow";
+import NotificationBadge from "../common/NotificationBadge";
+import { useUnreadMessages } from "../../hooks/useUnreadMessages";
 import {
   clearCallSession,
   loadCallSession,
@@ -23,17 +23,17 @@ import {
   endedCallMessage,
   saveCallSession,
   type CallMode,
-} from "../utils/callHelpers";
-import type { ChatGroup, ChatMessage, Contact, OpenChat } from "../utils/chatHelpers";
-import { chatKey, getMediaUrl, getWsUrl } from "../utils/chatHelpers";
-import { listenNotificationAction } from "../utils/notificationActions";
+} from "../../utils/callHelpers";
+import type { ChatGroup, ChatMessage, Contact, OpenChat } from "../../utils/chatHelpers";
+import { chatKey, getMediaUrl, getWsUrl } from "../../utils/chatHelpers";
+import { listenNotificationAction } from "../../utils/notificationActions";
 import {
   playCallEndSound,
   startIncomingRingtone,
   stopIncomingRingtone,
-} from "../utils/callSounds";
-import Button from "./Button";
-import Input from "./Input";
+} from "../../utils/callSounds";
+import Button from "../common/Button";
+import Input from "../common/Input";
 
 const HIDDEN_PATHS = new Set([
   "/",
@@ -94,6 +94,7 @@ export default function MessagingDrawer() {
     return { ...saved, restored: true };
   });
   const [incomingCall, setIncomingCall] = useState<ActiveCall | null>(null);
+  const [groupAddedNotice, setGroupAddedNotice] = useState<string | null>(null);
   const activeCallRef = useRef<ActiveCall | null>(null);
   const incomingCallRef = useRef<ActiveCall | null>(null);
   const openCallChatRef = useRef<(call: ActiveCall) => void>(() => undefined);
@@ -321,7 +322,25 @@ export default function MessagingDrawer() {
             stopIncomingRingtone();
             playCallEndSound();
             setIncomingCall(null);
-            openCallChatRef.current({ ...incoming, startedByMe: false });
+            if (incoming.callType === "direct") {
+              openCallChatRef.current({ ...incoming, startedByMe: false });
+            }
+          }
+        } else if (data.type === "group_added") {
+          const group = data.group as ChatGroup | undefined;
+          const notice = String(data.message || "You were added to a group");
+          if (group?.id) {
+            setGroups((cur) =>
+              cur.some((g) => g.id === group.id) ? cur : [group, ...cur],
+            );
+            setTab("group");
+            setExpanded(true);
+            setGroupAddedNotice(notice);
+            window.setTimeout(() => setGroupAddedNotice(null), 6000);
+            window.dispatchEvent(
+              new CustomEvent("group_added", { detail: group }),
+            );
+            refreshUnread();
           }
         } else if (data.type === "call_error") {
           setActiveCall(null);
@@ -497,6 +516,9 @@ export default function MessagingDrawer() {
     (group: ChatGroup, callMode: CallMode) => {
       if (activeCall) return;
       const members = group.member_details || [];
+      const memberIds = members
+        .map((m) => m.employee_id)
+        .filter((id) => id && id !== employeeId);
       const callId = `group-${group.id}-${employeeId}-${Date.now()}`;
       const nextCall: ActiveCall = {
         callId,
@@ -507,7 +529,7 @@ export default function MessagingDrawer() {
         callerName: employeeName,
         groupId: group.id,
         groupName: group.group_name,
-        peerIds: [],
+        peerIds: memberIds,
         participants: [meParticipant, ...members],
         startedByMe: true,
       };
@@ -773,12 +795,18 @@ export default function MessagingDrawer() {
 
   const drawerPanel = (
     <div
-      className={`flex flex-col overflow-hidden border border-slate-700/60 bg-slate-900/98 shadow-2xl backdrop-blur-xl ${
+      className={`flex flex-col overflow-hidden border border-slate-700/60 bg-slate-800/98 shadow-2xl backdrop-blur-xl ${
         isMobile
           ? "max-h-[min(85dvh,640px)] w-full border-b-0"
           : "max-h-[min(75vh,520px)] w-full border-b-0"
       }`}
     >
+      {groupAddedNotice && (
+        <div className="border-b border-emerald-500/30 bg-emerald-500/15 px-4 py-2.5 text-center text-sm font-medium text-emerald-200">
+          {groupAddedNotice}
+        </div>
+      )}
+
       <div className="border-b border-slate-800 p-3">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
@@ -858,7 +886,7 @@ export default function MessagingDrawer() {
                     </div>
                   )}
                   {contact.is_online && (
-                    <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-slate-900 bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]" />
+                    <span className="absolute bottom-0.5 right-0 h-3 w-3 rounded-full border-2 border-slate-900 bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]" />
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -935,17 +963,17 @@ export default function MessagingDrawer() {
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full md:rounded-none border border-cyan-800 bg-slate-900/95 shadow-xl shadow-cyan-950/40 backdrop-blur-xl text-cyan-500 hover:scale-105 active:scale-95 md:border-slate-800 md:h-12 md:w-full md:max-w-none md:justify-start md:gap-3 md:px-4 md:py-0 md:hover:scale-100 cursor-pointer transition"
+        className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full md:rounded-none border border-cyan-800 bg-slate-800 shadow-xl shadow-cyan-950/40 backdrop-blur-xl text-cyan-500 hover:scale-105 active:scale-95 md:border-slate-700 md:hover:bg-slate-700 md:h-12 md:w-full md:max-w-none md:justify-start md:gap-3 md:px-4 md:hover:scale-100 cursor-pointer transition"
         aria-label={expanded ? "Close messages" : "Open messages"}
       >
         <div className="relative flex items-center gap-3">
-          <MessageSquare className="h-6 w-6 md:hidden" />
+          <MessageSquare className="h-8 w-8 md:hidden" />
           <div className="relative hidden md:block">
             {profileImg ? (
               <img
                 src={profileImg}
                 alt={employeeName}
-                className="h-8 w-8 rounded-full object-cover"
+                className="h-10 w-10 rounded-full object-cover"
               />
             ) : (
               <div className="grid h-8 w-8 place-items-center rounded-full bg-cyan-700 text-xs font-bold text-white">

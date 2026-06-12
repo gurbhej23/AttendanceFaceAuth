@@ -1,3 +1,5 @@
+import Button from "../common/Button";
+
 interface ModalProps {
   title: string;
   children: React.ReactNode;
@@ -11,12 +13,12 @@ export default function Modal({ title, children, onClose }: ModalProps) {
         <div className="flex justify-between items-center mb-5">
           <h2 className="text-2xl text-white font-bold">{title}</h2>
 
-          <button
+          <Button
+            text="✕"
             onClick={onClose}
-            className="text-slate-400 hover:text-white text-xl"
-          >
-            ✕
-          </button>
+            unstyled
+            className="text-xl text-slate-400 hover:text-white"
+          />
         </div>
 
         {children}

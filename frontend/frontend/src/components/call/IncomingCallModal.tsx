@@ -1,7 +1,8 @@
 import { Phone, PhoneOff, Users, Video } from "lucide-react";
+import Button from "../common/Button";
 import type { ActiveCall } from "./VideoCallWindow";
-import { formatMemberRole, type CallMode } from "../utils/callHelpers";
-import { getMediaUrl } from "../utils/chatHelpers";
+import { formatMemberRole, type CallMode } from "../../utils/callHelpers";
+import { getMediaUrl } from "../../utils/chatHelpers";
 
 interface Props {
   call: ActiveCall;
@@ -70,22 +71,28 @@ export default function IncomingCallModal({ call, onAccept, onDecline }: Props) 
         </div>
 
         <div className="flex gap-3 border-t border-white/10 p-4">
-          <button
+          <Button
             type="button"
             onClick={onDecline}
-            className="flex flex-1 flex-col items-center justify-center gap-1 rounded-2xl bg-red-600/90 px-4 py-4 text-sm font-bold text-white transition hover:bg-red-600"
-          >
-            <PhoneOff size={22} />
-            Decline
-          </button>
-          <button
+            text={
+              <>
+                <PhoneOff size={22} />
+                Decline
+              </>
+            }
+            className="flex flex-1 flex-col items-center justify-center gap-1 bg-red-600/90 px-4 py-4 text-sm text-white hover:bg-red-600"
+          />
+          <Button
             type="button"
             onClick={onAccept}
-            className="flex flex-1 flex-col items-center justify-center gap-1 rounded-2xl bg-emerald-600 px-4 py-4 text-sm font-bold text-white transition hover:bg-emerald-500"
-          >
-            {mode === "audio" ? <Phone size={22} /> : <Video size={22} />}
-            Accept
-          </button>
+            text={
+              <>
+                {mode === "audio" ? <Phone size={22} /> : <Video size={22} />}
+                Accept
+              </>
+            }
+            className="flex flex-1 flex-col items-center justify-center gap-1 bg-emerald-600 px-4 py-4 text-sm text-white hover:bg-emerald-500"
+          />
         </div>
       </div>
     </div>

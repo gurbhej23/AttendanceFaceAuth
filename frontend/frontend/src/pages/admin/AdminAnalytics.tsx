@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import API from "../services/api";
-import Button from "../components/Button";
+import API from "../../services/api";
+import Button from "../../components/common/Button";
 
 interface AnalyticsData {
   total_employees: number;

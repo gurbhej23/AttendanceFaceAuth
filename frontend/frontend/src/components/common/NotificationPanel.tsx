@@ -7,7 +7,8 @@ import {
   Users,
   X,
 } from "lucide-react";
-import type { DashboardNotification, NotificationType } from "../hooks/useDashboardNotifications";
+  import Button from "./Button";
+import type { DashboardNotification, NotificationType } from "../../hooks/useDashboardNotifications";
 
 interface Props {
   open: boolean;
@@ -88,14 +89,14 @@ export default function NotificationPanel({
               </span>
             )}
           </div>
-          <button
+          <Button
             type="button"
             onClick={onClose}
-            className="cursor-pointer rounded-xl p-2 text-slate-400 transition hover:bg-white/10 hover:text-white"
+            text={<X size={18} />}
+            unstyled
+            className="rounded-xl p-2 text-slate-400 transition hover:bg-white/10 hover:text-white"
             aria-label="Close"
-          >
-            <X size={18} />
-          </button>
+          />
         </div>
 
         <div className="max-h-[min(70vh,420px)] overflow-y-auto p-3">
@@ -152,15 +153,12 @@ export default function NotificationPanel({
 
         {notifications.length > 0 && unreadCount > 0 && (
           <div className="border-t border-white/10 p-3">
-            <button
+            <Button
               type="button"
-              onClick={() => {
-                onMarkAllRead();
-              }}
-              className="w-full cursor-pointer rounded-2xl bg-sky-600/90 py-3 text-sm font-semibold text-white transition hover:bg-sky-600"
-            >
-              Mark all as read
-            </button>
+              onClick={onMarkAllRead}
+              text="Mark all as read"
+              className="w-full bg-sky-600/90 py-3 text-sm text-white hover:bg-sky-600"
+            />
           </div>
         )}
       </div>

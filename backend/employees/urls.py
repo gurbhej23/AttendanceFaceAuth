@@ -23,6 +23,7 @@ from .views import (
     list_groups,
     create_group,
     group_history,
+    group_chat_history_clear,
     group_message_send,
     add_group_member,
     remove_group_member,
@@ -69,6 +70,11 @@ urlpatterns = [
     path("chat-groups/", list_groups, name="chat-groups"),
     path("chat-groups/create/", create_group, name="chat-groups-create"),
     path("chat-groups/history/", group_history, name="chat-groups-history"),
+    path(
+        "chat-groups/history/clear/",
+        group_chat_history_clear,
+        name="chat-groups-history-clear",
+    ),
     path("chat-groups/message/send/", group_message_send, name="chat-groups-send"),
     path("chat-unread-count/", chat_unread_count, name="chat-unread-count"),
     path(

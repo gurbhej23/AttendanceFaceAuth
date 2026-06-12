@@ -23,6 +23,7 @@ from .models import (
     ChatMessage,
     ChatGroup,
     Employee,
+    GroupChatClearState,
     GroupMessage,
     RegistrationOTP,
 )
@@ -361,6 +362,22 @@ def get_chat_cleared_at(employee_id: str, contact_id: str):
     return state.cleared_at if state else None
 
 
+def get_group_cleared_at(employee_id: str, group_id: str):
+    state = GroupChatClearState.objects(
+        employee_id=employee_id, group_id=group_id
+    ).first()
+    return state.cleared_at if state else None
+
+
+def is_group_message_visible_to_reader(
+    message: GroupMessage, reader_id: str, group_id: str
+) -> bool:
+    cleared_at = get_group_cleared_at(reader_id, group_id)
+    if not cleared_at:
+        return True
+    return message.created_at > cleared_at
+
+
 def is_message_visible_to_reader(message: ChatMessage, reader_id: str) -> bool:
     contact_id = (
         message.sender_id
@@ -412,6 +429,10 @@ def count_unread_messages(employee: Employee) -> dict:
         for message in GroupMessage.objects(group_id=group_id, is_deleted=False):
             if message.sender_id == employee.employee_id:
                 continue
+            if not is_group_message_visible_to_reader(
+                message, employee.employee_id, group_id
+            ):
+                continue
             read_by = getattr(message, "read_by", []) or []
             if employee.employee_id not in read_by:
                 unread_in_group += 1
@@ -442,6 +463,22 @@ def can_access_group(employee: Employee, group: ChatGroup) -> bool:
 
 def can_manage_group(employee: Employee) -> bool:
     return employee.role in ("admin", "hr")
+
+
+def broadcast_employee_event(employee_id: str, payload: dict) -> None:
+    try:
+        from asgiref.sync import async_to_sync
+        from channels.layers import get_channel_layer
+
+        channel_layer = get_channel_layer()
+        if not channel_layer or not employee_id:
+            return
+        async_to_sync(channel_layer.group_send)(
+            f"chat_{employee_id}",
+            {"type": "chat.raw", "payload": payload},
+        )
+    except Exception:
+        pass
 
 
 def broadcast_group_event(group_id: str, event_type: str, message_payload: dict) -> None:
@@ -1462,6 +1499,9 @@ def group_history(request):
 
     mark_group_messages_read(group, employee_id)
     messages = GroupMessage.objects(group_id=group_id).order_by("created_at")
+    cleared_at = get_group_cleared_at(employee_id, group_id)
+    if cleared_at:
+        messages = [message for message in messages if message.created_at > cleared_at]
     return Response(
         {
             "success": True,
@@ -1471,6 +1511,46 @@ def group_history(request):
             ],
         }
     )
+
+
+@api_view(["DELETE"])
+def group_chat_history_clear(request):
+    employee_id = str(request.data.get("employee_id", "")).strip()
+    group_id = str(request.data.get("group_id", "")).strip()
+    if not employee_id or not group_id:
+        return Response(
+            {"success": False, "error": "employee_id and group_id are required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    employee = find_employee(employee_id)
+    group = ChatGroup.objects(id=group_id).first()
+    if not employee or not group:
+        return Response(
+            {"success": False, "error": "Employee or group not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if not can_access_group(employee, group):
+        return Response(
+            {"success": False, "error": "Access denied"},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    now = datetime.now(pytz.UTC)
+    existing = GroupChatClearState.objects(
+        employee_id=employee_id, group_id=group_id
+    ).first()
+    if existing:
+        existing.cleared_at = now
+        existing.save()
+    else:
+        GroupChatClearState(
+            employee_id=employee_id,
+            group_id=group_id,
+            cleared_at=now,
+        ).save()
+    return Response({"success": True})
 
 
 @api_view(["POST"])
@@ -1771,6 +1851,14 @@ def add_group_member(request):
         group = ChatGroup.objects(id=group_id).first()
         system_message = group_message_payload(sys_msg, group)
         broadcast_group_event(str(group.id), "message", system_message)
+        broadcast_employee_event(
+            member_id,
+            {
+                "type": "group_added",
+                "group": group_payload(group),
+                "message": f"{admin.name} added you to {group.group_name}",
+            },
+        )
 
     return Response(
         {

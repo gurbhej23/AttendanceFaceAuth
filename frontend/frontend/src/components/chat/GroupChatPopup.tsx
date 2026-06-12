@@ -5,6 +5,7 @@ import {
   MoreVertical,
   Phone,
   Settings,
+  Trash2,
   UserPlus,
   Video,
   Users,
@@ -14,9 +15,9 @@ import GroupChatSection, {
   type GroupChatHeaderActions,
   type GroupChatHeaderStatus,
 } from "./GroupChatSection";
-import type { ChatGroup, Contact } from "../utils/chatHelpers";
-import { getMediaUrl } from "../utils/chatHelpers";
-import Button from "./Button";
+import type { ChatGroup, Contact } from "../../utils/chatHelpers";
+import { getMediaUrl } from "../../utils/chatHelpers";
+import Button from "../common/Button";
 
 interface Props {
   group: ChatGroup;
@@ -88,13 +89,13 @@ export default function GroupChatPopup({
             {group.group_name}
           </span>
         </button>
-        <button
+        <Button
           type="button"
           onClick={onClose}
+          text={<X className="h-4 w-4" />}
+          unstyled
           className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
-        >
-          <X className="h-4 w-4" />
-        </button>
+        />
       </div>
     );
   }
@@ -104,7 +105,7 @@ export default function GroupChatPopup({
       className={`flex flex-col overflow-hidden bg-slate-900 ${
         fullScreen
           ? "h-[100dvh] w-full"
-          : "h-[min(70vh,480px)] w-[min(calc(100vw-1.5rem),360px)] rounded-2xl border border-b-0 border-violet-700/40 shadow-2xl shadow-black/50 sm:rounded-t-2xl"
+          : "h-[min(70vh,480px)] w-[min(calc(100vw-1.5rem),450px)] rounded-2xl border border-b-0 border-violet-700/40 shadow-2xl shadow-black/50 sm:rounded-t-2xl"
       }`}
     >
       <div className="flex shrink-0 items-center gap-2 border-b border-slate-800 px-3 py-3">
@@ -152,78 +153,104 @@ export default function GroupChatPopup({
         </div>
         {headerActions && (
           <div className="relative shrink-0">
-            <button
+            <Button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 setShowHeaderMenu((v) => !v);
               }}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-800 hover:text-white cursor-pointer"
+              text={<MoreVertical className="h-4 w-4" />}
+              unstyled
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-800 hover:text-white"
               aria-label="Group options"
-            >
-              <MoreVertical className="h-4 w-4" />
-            </button>
+            />
             {showHeaderMenu && (
               <div
                 onClick={(e) => e.stopPropagation()}
                 className="absolute right-0 top-9 z-50 w-44 overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl"
               >
-                <button
+                <Button
                   type="button"
                   onClick={() => {
                     setShowHeaderMenu(false);
                     headerActions.openMembers();
                   }}
-                  className="flex w-full items-center gap-2 px-4 py-2.5 text-slate-300 text-left text-sm hover:bg-slate-800 cursor-pointer"
-                >
-                  <Users size={15} /> View members
-                </button>
+                  text={
+                    <>
+                      <Users size={15} /> View members
+                    </>
+                  }
+                  unstyled
+                  className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-300 hover:bg-slate-800"
+                />
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setShowHeaderMenu(false);
+                    headerActions.openClearChat();
+                  }}
+                  text={
+                    <>
+                      <Trash2 size={15} /> Clear chat
+                    </>
+                  }
+                  unstyled
+                  className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-red-300 hover:bg-red-500/10"
+                />
                 {isStaffRole && (
                   <>
-                    <button
+                    <Button
                       type="button"
                       onClick={() => {
                         setShowHeaderMenu(false);
                         headerActions.openAddMembers();
                       }}
-                      className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-300 hover:bg-slate-800 cursor-pointer"
-                    >
-                      <UserPlus size={15} /> Add members
-                    </button>
-                    <button
+                      text={
+                        <>
+                          <UserPlus size={15} /> Add members
+                        </>
+                      }
+                      unstyled
+                      className="flex w-full items-center gap-2 border-t border-slate-800 px-4 py-2.5 text-left text-sm text-slate-300 hover:bg-slate-800"
+                    />
+                    <Button
                       type="button"
                       onClick={() => {
                         setShowHeaderMenu(false);
                         headerActions.openManage();
                       }}
-                      className="flex w-full items-center gap-2 px-4 py-2.5 text-slate-300 text-left text-sm hover:bg-slate-800 cursor-pointer"
-                    >
-                      <Settings size={15} /> Manage group
-                    </button>
+                      text={
+                        <>
+                          <Settings size={15} /> Manage group
+                        </>
+                      }
+                      unstyled
+                      className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-slate-300 hover:bg-slate-800"
+                    />
                   </>
                 )}
               </div>
             )}
           </div>
         )}
-        <button
+        <Button
           type="button"
           onClick={() => onStartGroupVoiceCall?.(group)}
           disabled={!canStartGroupCall}
-          className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+          text={<Phone className="h-4 w-4" />}
+          unstyled
+          className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
           title="Start group voice call"
-        >
-          <Phone className="h-4 w-4" />
-        </button>
-        <button
+        />
+        <Button
           type="button"
           onClick={() => onStartGroupVideoCall?.(group)}
           disabled={!canStartGroupCall}
-          className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+          text={<Video className="h-4 w-4" />}
+          unstyled
+          className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
           title="Start group video call"
-        >
-          <Video className="h-4 w-4" />
-        </button>
+        />
         {!fullScreen && (
           <>
             <Button

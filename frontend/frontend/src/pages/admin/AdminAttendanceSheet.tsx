@@ -1,15 +1,15 @@
 // src/pages/AdminAttendanceSheet.tsx
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import API from "../services/api";
-import Button from "../components/Button";
-import AdminSidebar from "../components/AdminSidebar";
-import NotificationPanel from "../components/NotificationPanel";
+import API from "../../services/api";
+import Button from "../../components/common/Button";
+import AdminSidebar from "../../components/AdminSidebar";
+import NotificationPanel from "../../components/common/NotificationPanel";
 import {
   useDashboardNotifications,
   type DashboardNotification,
-} from "../hooks/useDashboardNotifications";
-import { dispatchNotificationAction } from "../utils/notificationActions";
+} from "../../hooks/useDashboardNotifications";
+import { dispatchNotificationAction } from "../../utils/notificationActions";
 import axios from "axios";
 import {
   Bell,
@@ -19,6 +19,7 @@ import {
   Menu,
   User,
 } from "lucide-react";
+import Input from "../../components/common/Input";
 
 interface SheetRecord {
   employee_id: string;
@@ -455,14 +456,13 @@ export default function AdminAttendanceSheet() {
             {/* HEADER */}
             <div className="mb-4 flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/5 px-4 py-5 shadow-2xl backdrop-blur-xl sm:px-6 md:flex-row md:items-center md:justify-between">
               <div className="flex items-center gap-3">
-                <button
+                <Button
+                  text={<Menu size={22} />}
                   type="button"
                   onClick={() => setShowMenu(true)}
                   className="rounded-xl border border-white/10 bg-white/10 p-2.5 text-white transition hover:bg-white/15 lg:hidden"
                   aria-label="Open menu"
-                >
-                  <Menu size={22} />
-                </button>
+                />
                 <div>
                   <h1 className="text-2xl font-bold text-white sm:text-3xl">
                     Admin Dashboard
@@ -474,7 +474,7 @@ export default function AdminAttendanceSheet() {
               </div>
               <div className="flex justify-center md:justify-end">
                 {activeTab === "attendance" && (
-                  <input
+                  <Input
                     type="date"
                     value={selectedDate}
                     max={today}
@@ -491,29 +491,24 @@ export default function AdminAttendanceSheet() {
 
             {/* TABS */}
             <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
-              <button
+              <Button
+                text="📋 Attendance Sheet "
                 onClick={() => setActiveTab("attendance")}
                 className={`w-full rounded-xl px-5 py-2.5 text-sm font-semibold transition sm:w-auto ${activeTab === "attendance"
-                    ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
-                    : "border border-slate-700 bg-slate-800 text-slate-400 hover:text-white"
+                  ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
+                  : "border border-slate-700 bg-slate-800 text-slate-400 hover:text-white"
                   }`}
-              >
-                📋 Attendance Sheet
-              </button>
-              <button
+              />
+
+              <Button
+                text="🏖️ Leave Requests"
                 onClick={() => setActiveTab("leaves")}
+                badgeCount={pendingCount}
                 className={`relative w-full rounded-xl px-5 py-2.5 text-sm font-semibold transition sm:w-auto ${activeTab === "leaves"
-                    ? "bg-purple-600 text-white shadow-lg shadow-purple-600/20"
-                    : "border border-slate-700 bg-slate-800 text-slate-400 hover:text-white"
+                  ? "bg-purple-600 text-white shadow-lg shadow-purple-600/20"
+                  : "border border-slate-700 bg-slate-800 text-slate-400 hover:text-white"
                   }`}
-              >
-                🏖️ Leave Requests
-                {pendingCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                    {pendingCount > 9 ? "9+" : pendingCount}
-                  </span>
-                )}
-              </button>
+              />
             </div>
 
             {activeTab === "attendance" && (
@@ -556,19 +551,22 @@ export default function AdminAttendanceSheet() {
                       text: "text-orange-400",
                     },
                   ].map(({ filter, label, value, color, text }) => (
-                    <button
+                    <Button
+                      text={
+                        <>
+                          <p className={`text-sm ${text}`}>{label}</p>
+                          <p className="text-3xl text-white font-bold mt-2">
+                            {value}
+                          </p>
+                        </>
+                      }
                       key={filter}
                       onClick={() => setStatusFilter(filter as StatusFilter)}
                       className={`text-left bg-slate-800 border p-5 rounded-2xl transition hover:scale-[1.02] cursor-pointer ${statusFilter === filter
                         ? color.replace("/30", "")
                         : color
                         }`}
-                    >
-                      <p className={`text-sm ${text}`}>{label}</p>
-                      <p className="text-3xl text-white font-bold mt-2">
-                        {value}
-                      </p>
-                    </button>
+                    />
                   ))}
                 </div>
 
@@ -578,7 +576,7 @@ export default function AdminAttendanceSheet() {
                     <h2 className="text-xl text-white text-center font-bold">
                       {sheet?.sheet_name || "Attendance Sheet"}
                     </h2>
-                    <input
+                    <Input
                       type="search"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
@@ -693,12 +691,11 @@ export default function AdminAttendanceSheet() {
                               </td>
                               <td className="px-5 py-4">
                                 {record.reason && record.reason !== "--" ? (
-                                  <button
+                                  <Button
+                                    text={record.reason}
                                     onClick={() => setViewReason(record.reason)}
                                     className="text-slate-400 max-w-35 truncate block hover:text-blue-400 underline underline-offset-2 transition cursor-pointer text-sm"
-                                  >
-                                    {record.reason}
-                                  </button>
+                                  />
                                 ) : (
                                   <span className="text-slate-600">--</span>
                                 )}
@@ -762,7 +759,17 @@ export default function AdminAttendanceSheet() {
                     };
                     const active = leaveFilter === f;
                     return (
-                      <button
+                      <Button
+                        text={
+                          <>
+                            {labels[f]}
+                            {f === "leave_pending" && pendingCount > 0 && (
+                              <span className="ml-1.5 bg-red-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5">
+                                {pendingCount}
+                              </span>
+                            )}
+                          </>
+                        }
                         key={f}
                         onClick={() => setLeaveFilter(f)}
                         className={`px-4 py-2 rounded-xl text-sm font-semibold transition cursor-pointer ${active
@@ -775,21 +782,14 @@ export default function AdminAttendanceSheet() {
                                 : "bg-slate-600 text-white"
                           : "bg-slate-800 text-slate-400 border border-slate-700 hover:text-white"
                           }`}
-                      >
-                        {labels[f]}
-                        {f === "leave_pending" && pendingCount > 0 && (
-                          <span className="ml-1.5 bg-red-500 text-white text-xs font-bold rounded-full px-1.5 py-0.5">
-                            {pendingCount}
-                          </span>
-                        )}
-                      </button>
+                      />
                     );
                   })}
                 </div>
 
                 {/* Search */}
                 <div className="mb-5">
-                  <input
+                  <Input
                     type="search"
                     value={leaveSearch}
                     onChange={(e) => setLeaveSearch(e.target.value)}
@@ -798,169 +798,176 @@ export default function AdminAttendanceSheet() {
                   />
                 </div>
 
-                {leaveLoading ? (
-                  <div className="bg-slate-800 border border-slate-700 rounded-3xl p-12 text-center text-slate-400">
-                    Loading leave requests...
-                  </div>
-                ) : filteredLeaves.length === 0 ? (
-                  <div className="bg-slate-800 border border-slate-700 rounded-3xl p-12 text-center">
-                    <div className="text-5xl mb-4">🏖️</div>
-                    <p className="text-slate-300 text-lg font-semibold">
-                      No leave requests found
-                    </p>
-                    <p className="text-slate-500 mt-1 text-sm">
-                      {leaveFilter === "leave_pending"
-                        ? "No pending requests at this time"
-                        : "No records matching your filter"}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="bg-slate-800 border border-slate-700 rounded-3xl overflow-hidden">
-                    <div className="p-5 border-b border-slate-700 flex items-center justify-between">
-                      <h2 className="text-xl text-white font-bold">
-                        Leave Requests
-                      </h2>
-                      <span className="text-slate-400 text-sm">
-                        {filteredLeaves.length} record
-                        {filteredLeaves.length !== 1 ? "s" : ""}
-                      </span>
+                {
+                  leaveLoading ? (
+                    <div className="bg-slate-800 border border-slate-700 rounded-3xl p-12 text-center text-slate-400">
+                      Loading leave requests...
                     </div>
+                  ) : filteredLeaves.length === 0 ? (
+                    <div className="bg-slate-800 border border-slate-700 rounded-3xl p-12 text-center">
+                      <div className="text-5xl mb-4">🏖️</div>
+                      <p className="text-slate-300 text-lg font-semibold">
+                        No leave requests found
+                      </p>
+                      <p className="text-slate-500 mt-1 text-sm">
+                        {leaveFilter === "leave_pending"
+                          ? "No pending requests at this time"
+                          : "No records matching your filter"}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="bg-slate-800 border border-slate-700 rounded-3xl overflow-hidden">
+                      <div className="p-5 border-b border-slate-700 flex items-center justify-between">
+                        <h2 className="text-xl text-white font-bold">
+                          Leave Requests
+                        </h2>
+                        <span className="text-slate-400 text-sm">
+                          {filteredLeaves.length} record
+                          {filteredLeaves.length !== 1 ? "s" : ""}
+                        </span>
+                      </div>
 
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-white">
-                        <thead className="bg-slate-700/50 border-b border-slate-700 text-xs text-slate-400 uppercase tracking-wider text-center">
-                          <tr>
-                            <th className="px-5 py-4">Employee</th>
-                            <th className="px-5 py-4">Department</th>
-                            <th className="px-5 py-4">Leave Date</th>
-                            <th className="px-5 py-4">Type</th>
-                            <th className="px-5 py-4">Reason</th>
-                            <th className="px-5 py-4">Status</th>
-                            {leaveFilter === "leave_pending" && (
-                              <th className="px-5 py-4">Actions</th>
-                            )}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredLeaves.map((record) => (
-                            <tr
-                              key={record.id}
-                              className="border-b border-slate-700 hover:bg-slate-700/40 transition text-center"
-                            >
-                              {/* Employee */}
-                              <td className="px-5 py-4">
-                                <div className="flex items-center gap-3 text-left">
-                                  <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-slate-700">
-                                    {record.profile_img ? (
-                                      <img
-                                        src={getMediaUrl(record.profile_img)}
-                                        alt={record.employee_name}
-                                        className="h-full w-full object-cover"
-                                      />
-                                    ) : (
-                                      <div className="flex h-full w-full items-center justify-center bg-purple-600 font-bold text-white text-sm">
-                                        {record.employee_name?.charAt(0)}
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div>
-                                    <p className="font-semibold text-sm">
-                                      {record.employee_name}
-                                    </p>
-                                    <p className="text-xs text-slate-400">
-                                      {record.employee_id}
-                                    </p>
-                                  </div>
-                                </div>
-                              </td>
-
-                              {/* Department */}
-                              <td className="px-5 py-4 text-slate-300">
-                                <p className="text-sm">
-                                  {record.department || "--"}
-                                </p>
-                                <p className="text-xs text-slate-500">
-                                  {record.designation || ""}
-                                </p>
-                              </td>
-
-                              {/* Leave Date */}
-                              <td className="px-5 py-4">
-                                <span className="bg-slate-700 text-slate-200 px-3 py-1 rounded-lg font-mono text-sm">
-                                  {record.date}
-                                </span>
-                              </td>
-
-                              {/* Type */}
-                              <td className="px-5 py-4">
-                                <span
-                                  className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${leaveTypeBadge(record.leave_type)}`}
-                                >
-                                  {leaveTypeIcon(record.leave_type)}{" "}
-                                  {record.leave_type || "casual"}
-                                </span>
-                              </td>
-
-                              {/* Reason */}
-                              <td className="px-5 py-4 max-w-50">
-                                {record.reason && record.reason !== "--" ? (
-                                  <button
-                                    onClick={() => setViewReason(record.reason)}
-                                    className="text-slate-400 truncate block w-full hover:text-blue-400 underline underline-offset-2 transition cursor-pointer text-sm text-left"
-                                    title={record.reason}
-                                  >
-                                    {record.reason}
-                                  </button>
-                                ) : (
-                                  <span className="text-slate-600">--</span>
-                                )}
-                              </td>
-
-                              {/* Status badge */}
-                              <td className="px-5 py-4">
-                                <span
-                                  className={`px-3 py-3 rounded-full font-semibold ${statusClass(record.status)}`}
-                                >
-                                  {statusLabel(record.status)}
-                                </span>
-                              </td>
-
-                              {/* Actions — only for pending tab */}
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-white">
+                          <thead className="bg-slate-700/50 border-b border-slate-700 text-xs text-slate-400 uppercase tracking-wider text-center">
+                            <tr>
+                              <th className="px-5 py-4">Employee</th>
+                              <th className="px-5 py-4">Department</th>
+                              <th className="px-5 py-4">Leave Date</th>
+                              <th className="px-5 py-4">Type</th>
+                              <th className="px-5 py-4">Reason</th>
+                              <th className="px-5 py-4">Status</th>
                               {leaveFilter === "leave_pending" && (
-                                <td className="px-5 py-4">
-                                  <div className="flex items-center justify-center gap-2">
-                                    <button
-                                      onClick={() =>
-                                        handleLeaveAction(record.id, "approve")
-                                      }
-                                      disabled={!!actionLoading}
-                                      className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-4 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer"
-                                    >
-                                      {actionLoading === record.id + "approve"
-                                        ? "..."
-                                        : "✅ Approve"}
-                                    </button>
-                                    <button
-                                      onClick={() =>
-                                        handleLeaveAction(record.id, "reject")
-                                      }
-                                      disabled={!!actionLoading}
-                                      className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-4 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer"
-                                    >
-                                      {actionLoading === record.id + "reject"
-                                        ? "..."
-                                        : "❌ Reject"}
-                                    </button>
-                                  </div>
-                                </td>
+                                <th className="px-5 py-4">Actions</th>
                               )}
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {filteredLeaves.map((record) => (
+                              <tr
+                                key={record.id}
+                                className="border-b border-slate-700 hover:bg-slate-700/40 transition text-center"
+                              >
+                                {/* Employee */}
+                                <td className="px-5 py-4">
+                                  <div className="flex items-center gap-3 text-left">
+                                    <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-slate-700">
+                                      {record.profile_img ? (
+                                        <img
+                                          src={getMediaUrl(record.profile_img)}
+                                          alt={record.employee_name}
+                                          className="h-full w-full object-cover"
+                                        />
+                                      ) : (
+                                        <div className="flex h-full w-full items-center justify-center bg-purple-600 font-bold text-white text-sm">
+                                          {record.employee_name?.charAt(0)}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div>
+                                      <p className="font-semibold text-sm">
+                                        {record.employee_name}
+                                      </p>
+                                      <p className="text-xs text-slate-400">
+                                        {record.employee_id}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </td>
+
+                                {/* Department */}
+                                <td className="px-5 py-4 text-slate-300">
+                                  <p className="text-sm">
+                                    {record.department || "--"}
+                                  </p>
+                                  <p className="text-xs text-slate-500">
+                                    {record.designation || ""}
+                                  </p>
+                                </td>
+
+                                {/* Leave Date */}
+                                <td className="px-5 py-4">
+                                  <span className="bg-slate-700 text-slate-200 px-3 py-1 rounded-lg font-mono text-sm">
+                                    {record.date}
+                                  </span>
+                                </td>
+
+                                {/* Type */}
+                                <td className="px-5 py-4">
+                                  <span
+                                    className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${leaveTypeBadge(record.leave_type)}`}
+                                  >
+                                    {leaveTypeIcon(record.leave_type)}{" "}
+                                    {record.leave_type || "casual"}
+                                  </span>
+                                </td>
+
+                                {/* Reason */}
+                                <td className="px-5 py-4 max-w-50">
+                                  {record.reason && record.reason !== "--" ? (
+                                    <Button
+                                      text={record.reason}
+                                      onClick={() => setViewReason(record.reason)}
+                                      className="text-slate-400 truncate block w-full hover:text-blue-400 underline underline-offset-2 transition cursor-pointer text-sm text-left"
+                                      title={record.reason}
+                                    />
+                                  ) : (
+                                    <span className="text-slate-600">--</span>
+                                  )}
+                                </td>
+
+                                {/* Status badge */}
+                                <td className="px-5 py-4">
+                                  <span
+                                    className={`px-3 py-3 rounded-full font-semibold ${statusClass(record.status)}`}
+                                  >
+                                    {statusLabel(record.status)}
+                                  </span>
+                                </td>
+
+                                {/* Actions — only for pending tab */}
+                                {leaveFilter === "leave_pending" && (
+                                  <td className="px-5 py-4">
+                                    <div className="flex items-center justify-center gap-2">
+                                      <Button
+                                        text={
+                                          <>
+                                            {actionLoading === record.id + "approve"
+                                              ? "..."
+                                              : "✅ Approve"}
+                                          </>
+                                        }
+                                        onClick={() =>
+                                          handleLeaveAction(record.id, "approve")
+                                        }
+                                        disabled={!!actionLoading}
+                                        className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-4 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer"
+                                      />
+                                      <Button
+                                        text={
+                                          <>
+                                            {actionLoading === record.id + "reject"
+                                              ? "..."
+                                              : "❌ Reject"}
+                                          </>
+                                        }
+                                        onClick={() =>
+                                          handleLeaveAction(record.id, "reject")
+                                        }
+                                        disabled={!!actionLoading}
+                                        className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-4 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer"
+                                      />
+                                    </div>
+                                  </td>
+                                )}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )
+                }
               </>
             )}
           </div>
