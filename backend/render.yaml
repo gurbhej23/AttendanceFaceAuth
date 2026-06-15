@@ -4,7 +4,8 @@ services:
     runtime: python
     rootDir: backend
     buildCommand: chmod +x build.sh && ./build.sh
-    startCommand: gunicorn config.wsgi:application --config gunicorn.conf.py --log-file - --log-level info
+    # Daphne (ASGI) is required for WebSocket call/chat signaling. Gunicorn WSGI cannot upgrade connections.
+    startCommand: daphne -b 0.0.0.0 -p $PORT config.asgi:application
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
@@ -12,3 +13,9 @@ services:
         value: 100
       - key: RENDER
         value: "true"
+      # Optional: attach a Render Redis instance and set REDIS_URL for multi-instance channel layers.
+      # - key: REDIS_URL
+      #   fromService:
+      #     type: redis
+      #     name: attendance-redis
+      #     property: connectionString

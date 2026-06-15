@@ -13,6 +13,7 @@ pymongo==4.17.0
 dnspython==2.7.0
 
 channels==4.3.2
+channels-redis==4.2.1
 daphne==4.2.1
 
 gunicorn==25.3.0

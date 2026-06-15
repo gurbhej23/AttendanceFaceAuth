@@ -12,10 +12,10 @@ def _should_preload_face_model() -> bool:
     if preload_env in ("1", "true", "yes"):
         return True
 
-    # Render / gunicorn: bind HTTP port first; load FaceNet on first face request.
+    # Render: bind HTTP/WebSocket port first; load FaceNet on first face request.
     if os.environ.get("RENDER"):
         return False
-    if any("gunicorn" in arg for arg in sys.argv):
+    if any("gunicorn" in arg or "daphne" in arg for arg in sys.argv):
         return False
 
     # Local `runserver` only (optional warm-up).

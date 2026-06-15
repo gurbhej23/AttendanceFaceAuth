@@ -63,10 +63,21 @@ export const formatGroupSystemMessage = (
 };
 
 export const getApiRoot = () => {
+  const configured = import.meta.env.VITE_API_URL?.trim();
+  if (configured) {
+    if (!configured.startsWith("http")) {
+      console.warn(
+        "[chat] VITE_API_URL must be an absolute URL in production (e.g. https://your-api.onrender.com/api) so WebSocket calls work.",
+      );
+      return window.location.origin;
+    }
+    const url = new URL(configured);
+    url.pathname = url.pathname.replace(/\/api\/?$/, "");
+    return url.toString().replace(/\/$/, "");
+  }
+
   const base =
-    import.meta.env.VITE_API_URL ||
-    API.defaults.baseURL ||
-    "http://localhost:8000/api";
+    API.defaults.baseURL || "http://localhost:8000/api";
   if (!base.startsWith("http")) return window.location.origin;
   const url = new URL(base);
   url.pathname = url.pathname.replace(/\/api\/?$/, "");
@@ -76,10 +87,16 @@ export const getApiRoot = () => {
 export const getMediaUrl = (path?: string | null) => {
   if (!path) return "";
   if (path.startsWith("http")) return path;
-  return `http://localhost:8000${path.startsWith("/") ? path : `/${path}`}`;
+  const root = getApiRoot();
+  return `${root}${path.startsWith("/") ? path : `/${path}`}`;
 };
 
 export const getWsUrl = (employeeId: string) => {
+  const explicit = import.meta.env.VITE_WS_URL?.trim();
+  if (explicit) {
+    const base = explicit.replace(/\/$/, "");
+    return `${base}/ws/chat/${employeeId}/`;
+  }
   const root = getApiRoot();
   return `${root.replace(/^http:/, "ws:").replace(/^https:/, "wss:")}/ws/chat/${employeeId}/`;
 };
@@ -163,6 +180,11 @@ export const formatGroupOnlineLabel = (
 };
 
 export const getGroupWsUrl = (groupId: string, employeeId: string) => {
+  const explicit = import.meta.env.VITE_WS_URL?.trim();
+  if (explicit) {
+    const base = explicit.replace(/\/$/, "");
+    return `${base}/ws/group/${groupId}/${employeeId}/`;
+  }
   const root = getApiRoot();
   return `${root.replace(/^http:/, "ws:").replace(/^https:/, "wss:")}/ws/group/${groupId}/${employeeId}/`;
 };

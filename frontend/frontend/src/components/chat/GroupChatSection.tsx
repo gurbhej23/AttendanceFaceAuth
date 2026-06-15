@@ -21,6 +21,8 @@ import {
   formatGroupSystemMessage,
   formatGroupTypingLabel,
   formatMemberLabel,
+  getGroupWsUrl,
+  getMediaUrl,
 } from "../../utils/chatHelpers";
 import { isCallLogMessage } from "../../utils/callHelpers";
 import Button from "../common/Button";
@@ -65,28 +67,6 @@ export interface GroupChatHeaderStatus {
   onlineCount: number;
   memberCount: number;
 }
-
-const getApiRoot = () => {
-  const base =
-    import.meta.env.VITE_API_URL ||
-    API.defaults.baseURL ||
-    "http://localhost:8000/api";
-  if (!base.startsWith("http")) return window.location.origin;
-  const url = new URL(base);
-  url.pathname = url.pathname.replace(/\/api\/?$/, "");
-  return url.toString().replace(/\/$/, "");
-};
-
-const getMediaUrl = (path?: string | null) => {
-  if (!path) return "";
-  if (path.startsWith("http")) return path;
-  return `http://localhost:8000${path.startsWith("/") ? path : `/${path}`}`;
-};
-
-const getGroupWsUrl = (groupId: string, employeeId: string) => {
-  const root = getApiRoot();
-  return `${root.replace(/^http:/, "ws:").replace(/^https:/, "wss:")}/ws/group/${groupId}/${employeeId}/`;
-};
 
 const getError = (err: unknown, fallback: string) => {
   const e = err as { response?: { data?: { error?: string } } };
