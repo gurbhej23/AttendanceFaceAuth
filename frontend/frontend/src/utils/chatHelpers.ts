@@ -76,19 +76,47 @@ export const getApiRoot = () => {
     return url.toString().replace(/\/$/, "");
   }
 
-  const base =
-    API.defaults.baseURL || "http://localhost:8000/api";
-  if (!base.startsWith("http")) return window.location.origin;
+  const base = API.defaults.baseURL || "http://localhost:8000/api";
+  if (!base.startsWith("http")) {
+    // Vite proxies /api to Django; media + websockets still live on the backend host.
+    if (import.meta.env.DEV) {
+      return (
+        import.meta.env.VITE_DEV_API_ORIGIN?.trim() || "http://localhost:8000"
+      );
+    }
+    return window.location.origin;
+  }
   const url = new URL(base);
   url.pathname = url.pathname.replace(/\/api\/?$/, "");
   return url.toString().replace(/\/$/, "");
 };
 
-export const getMediaUrl = (path?: string | null) => {
+export const normalizeMediaPath = (path?: string | null): string => {
   if (!path) return "";
-  if (path.startsWith("http")) return path;
+  let normalized = path.replace(/\\/g, "/");
+  if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
+    return normalized;
+  }
+  const marker = "/media/";
+  const idx = normalized.toLowerCase().indexOf(marker);
+  if (idx >= 0) {
+    normalized = normalized.slice(idx);
+  } else if (normalized.startsWith("media/")) {
+    normalized = `/${normalized}`;
+  } else if (!normalized.startsWith("/media/")) {
+    normalized = `/media/${normalized.replace(/^\/+/, "")}`;
+  }
+  return normalized;
+};
+
+export const getMediaUrl = (path?: string | null) => {
+  const normalized = normalizeMediaPath(path);
+  if (!normalized) return "";
+  if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
+    return normalized;
+  }
   const root = getApiRoot();
-  return `${root}${path.startsWith("/") ? path : `/${path}`}`;
+  return `${root}${normalized.startsWith("/") ? normalized : `/${normalized}`}`;
 };
 
 export const getWsUrl = (employeeId: string) => {

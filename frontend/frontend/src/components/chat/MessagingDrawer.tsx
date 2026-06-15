@@ -97,6 +97,7 @@ export default function MessagingDrawer() {
   const [groupAddedNotice, setGroupAddedNotice] = useState<string | null>(null);
   const activeCallRef = useRef<ActiveCall | null>(null);
   const incomingCallRef = useRef<ActiveCall | null>(null);
+  const contactsRef = useRef<Contact[]>([]);
   const openCallChatRef = useRef<(call: ActiveCall) => void>(() => undefined);
 
   const setActiveCall = useCallback(
@@ -215,6 +216,10 @@ export default function MessagingDrawer() {
   }, [expanded, visible, loadData]);
 
   useEffect(() => {
+    contactsRef.current = contacts;
+  }, [contacts]);
+
+  useEffect(() => {
     if (!employeeId || !visible) return;
 
     let active = true;
@@ -279,8 +284,8 @@ export default function MessagingDrawer() {
         } else if (data.type === "message" || data.type === "read") {
           refreshUnread();
         } else if (data.type === "call_invite") {
-          const caller = data.caller as CallParticipant | undefined;
-          const callerId = String(data.sender_id || caller?.employee_id || "");
+          const callerFromWs = data.caller as CallParticipant | undefined;
+          const callerId = String(data.sender_id || callerFromWs?.employee_id || "");
           const callId = String(data.call_id || "");
           if (!callerId || !callId || callerId === employeeId) return;
           if (activeCallRef.current) {
@@ -297,6 +302,20 @@ export default function MessagingDrawer() {
             return;
           }
 
+          const knownContact = contactsRef.current.find(
+            (c) => c.employee_id === callerId,
+          );
+          const caller: CallParticipant = {
+            employee_id: callerId,
+            name:
+              callerFromWs?.name ||
+              knownContact?.name ||
+              String(data.caller_name || callerId),
+            role: callerFromWs?.role || knownContact?.role,
+            profile_img:
+              callerFromWs?.profile_img || knownContact?.profile_img || "",
+          };
+
           const callType = data.call_type === "group" ? "group" : "direct";
           const callMode = data.call_mode === "audio" ? "audio" : "video";
           setIncomingCall({
@@ -306,13 +325,13 @@ export default function MessagingDrawer() {
             title:
               callType === "group"
                 ? String(data.group_name || "Group call")
-                : caller?.name || String(data.caller_name || "Video call"),
+                : caller.name,
             callerId,
-            callerName: caller?.name || String(data.caller_name || callerId),
+            callerName: caller.name,
             groupId: data.group_id ? String(data.group_id) : undefined,
             groupName: data.group_name ? String(data.group_name) : undefined,
             peerIds: [callerId],
-            participants: [meParticipant, caller || { employee_id: callerId, name: callerId }],
+            participants: [meParticipant, caller],
             startedByMe: false,
           });
         } else if (data.type === "call_end") {
@@ -707,6 +726,8 @@ export default function MessagingDrawer() {
       participant: {
         employee_id: employeeId,
         name: employeeName,
+        role,
+        profile_img: meParticipant.profile_img || "",
       },
     });
     setActiveCall({ ...call, startedByMe: false });

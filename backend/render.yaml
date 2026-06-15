@@ -4,8 +4,8 @@ services:
     runtime: python
     rootDir: backend
     buildCommand: chmod +x build.sh && ./build.sh
-    # Daphne (ASGI) is required for WebSocket call/chat signaling. Gunicorn WSGI cannot upgrade connections.
-    startCommand: daphne -b 0.0.0.0 -p $PORT config.asgi:application
+    # Gunicorn binds PORT immediately; UvicornWorker serves ASGI/WebSockets.
+    startCommand: ./start.sh
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9

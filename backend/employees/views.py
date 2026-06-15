@@ -192,19 +192,7 @@ def chat_datetime_iso(value) -> str:
     return value.astimezone(pytz.UTC).isoformat()
 
 
-def media_url(path: str) -> str:
-    if not path:
-        return ""
-    normalized = path.replace("\\", "/")
-    if normalized.startswith(("http://", "https://")):
-        return normalized
-    if normalized.startswith("/media/"):
-        rel = normalized[len("/media/") :]
-        return normalized if (settings.MEDIA_ROOT / rel).exists() else ""
-    if normalized.startswith("media/"):
-        rel = normalized[len("media/") :]
-        return f"/{normalized}" if (settings.MEDIA_ROOT / rel).exists() else ""
-    return f"{settings.MEDIA_URL}{normalized.lstrip('/')}"
+from .media_utils import media_url
 
 
 def save_base64_cv(data_url: str, original_name: str = "") -> str:

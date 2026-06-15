@@ -6,7 +6,8 @@ threads = int(os.getenv("GUNICORN_THREADS", "2"))
 timeout = int(os.getenv("GUNICORN_TIMEOUT", "120"))
 graceful_timeout = int(os.getenv("GUNICORN_GRACEFUL_TIMEOUT", "30"))
 keepalive = 5
-worker_class = "sync"
+# ASGI worker for Django Channels WebSockets (calls + chat).
+worker_class = "uvicorn.workers.UvicornWorker"
 # Bind the port before loading Django/TensorFlow in workers (critical on Render).
 preload_app = False
 max_requests = 1000

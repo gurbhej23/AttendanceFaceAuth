@@ -5,6 +5,7 @@ from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 
 from .models import ChatGroup, ChatMessage, Employee, GroupMessage
+from .media_utils import normalize_media_path
 
 
 def chat_datetime_iso(value):
@@ -134,7 +135,9 @@ def employee_call_profile(employee_id):
         "employee_id": employee.employee_id,
         "name": employee.name,
         "role": employee.role,
-        "profile_img": employee.profile_img or employee.photo_path or "",
+        "profile_img": normalize_media_path(
+            employee.profile_img or employee.photo_path or ""
+        ),
     }
 
 

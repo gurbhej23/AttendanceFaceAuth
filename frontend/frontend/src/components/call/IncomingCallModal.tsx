@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Phone, PhoneOff, Users, Video } from "lucide-react";
 import Button from "../common/Button";
 import type { ActiveCall } from "./VideoCallWindow";
@@ -14,6 +15,9 @@ export default function IncomingCallModal({ call, onAccept, onDecline }: Props) 
   const caller = call.participants.find((p) => p.employee_id === call.callerId);
   const mode = (call.callMode || "video") as CallMode;
   const isGroup = call.callType === "group";
+  const [imgFailed, setImgFailed] = useState(false);
+  const callerPhoto =
+    caller?.profile_img && !imgFailed ? getMediaUrl(caller.profile_img) : "";
 
   return (
     <div className="fixed inset-0 z-[75] flex items-center justify-center bg-black/70 p-4 backdrop-blur-md">
@@ -28,10 +32,11 @@ export default function IncomingCallModal({ call, onAccept, onDecline }: Props) 
                 isGroup ? "border-violet-500/60 bg-violet-600/20" : "border-emerald-500/60 bg-emerald-600/20"
               }`}
             >
-              {caller?.profile_img ? (
+              {callerPhoto ? (
                 <img
-                  src={getMediaUrl(caller.profile_img)}
+                  src={callerPhoto}
                   alt={call.callerName}
+                  onError={() => setImgFailed(true)}
                   className="h-full w-full object-cover"
                 />
               ) : isGroup ? (

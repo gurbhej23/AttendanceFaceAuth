@@ -113,6 +113,42 @@ const toIceCandidate = (value: unknown): RTCIceCandidateInit | null => {
   return null;
 };
 
+function CallAvatar({
+  name,
+  profileImg,
+  size = "md",
+  className = "",
+}: {
+  name: string;
+  profileImg?: string;
+  size?: "sm" | "md" | "lg";
+  className?: string;
+}) {
+  const [failed, setFailed] = useState(false);
+  const dim =
+    size === "lg" ? "h-24 w-24 text-3xl" : size === "sm" ? "h-12 w-12 text-lg" : "h-20 w-20 text-2xl";
+  const src = profileImg && !failed ? getMediaUrl(profileImg) : "";
+
+  if (src) {
+    return (
+      <img
+        src={src}
+        alt={name}
+        onError={() => setFailed(true)}
+        className={`${dim} rounded-full object-cover ring-2 ring-white/10 ${className}`}
+      />
+    );
+  }
+
+  return (
+    <div
+      className={`grid ${dim} place-items-center rounded-full bg-cyan-700 font-bold text-white ring-2 ring-white/10 ${className}`}
+    >
+      {name.charAt(0) || "?"}
+    </div>
+  );
+}
+
 function VideoTile({
   stream,
   name,
@@ -162,17 +198,7 @@ function VideoTile({
       )}
       {!hasVideo && (
         <div className="grid h-full min-h-44 place-items-center bg-gradient-to-br from-slate-900 to-slate-950">
-          {profileImg ? (
-            <img
-              src={getMediaUrl(profileImg)}
-              alt={name}
-              className="h-20 w-20 rounded-full object-cover ring-2 ring-white/10"
-            />
-          ) : (
-            <div className="grid h-20 w-20 place-items-center rounded-full bg-cyan-700 text-2xl font-bold text-white ring-2 ring-white/10">
-              {name.charAt(0)}
-            </div>
-          )}
+          <CallAvatar name={name} profileImg={profileImg} />
           {audioOnly && (
             <div className="absolute bottom-12 flex gap-1">
               {[0, 1, 2].map((i) => (
@@ -841,6 +867,24 @@ export default function VideoCallWindow({
       }));
   }, [employeeId, participants, remoteStreams]);
 
+  const selfParticipant = useMemo(
+    () =>
+      participants[employeeId] ||
+      call.participants.find((p) => p.employee_id === employeeId),
+    [call.participants, employeeId, participants],
+  );
+
+  const waitingPeer = useMemo(() => {
+    if (call.callType !== "direct") return null;
+    const peerId = call.startedByMe ? call.peerIds[0] : call.callerId;
+    if (!peerId) return null;
+    return (
+      participants[peerId] ||
+      call.participants.find((p) => p.employee_id === peerId) ||
+      null
+    );
+  }, [call, participants]);
+
   const statusText = callStatusLabel(status, callMode);
   const showTimer = isConnected && elapsed > 0;
 
@@ -925,20 +969,44 @@ export default function VideoCallWindow({
             stream={localStream || undefined}
             name={`${employeeName} (You)`}
             muted
+            profileImg={selfParticipant?.profile_img}
             audioOnly={audioOnly && !cameraOn}
           />
           {remoteTiles.length === 0 ? (
             <div className="grid min-h-44 place-items-center rounded-2xl border border-dashed border-slate-700 bg-slate-900/70 p-6 text-center">
               {call.startedByMe ? (
                 <>
-                  <span className="mb-3 h-12 w-12 animate-ping rounded-full bg-cyan-500/20" />
+                  {waitingPeer ? (
+                    <CallAvatar
+                      name={waitingPeer.name || waitingPeer.employee_id}
+                      profileImg={waitingPeer.profile_img}
+                      size="lg"
+                      className="mb-3"
+                    />
+                  ) : (
+                    <span className="mb-3 h-12 w-12 animate-ping rounded-full bg-cyan-500/20" />
+                  )}
                   <p className="text-sm text-slate-300">
                     {audioOnly ? "Calling..." : "Ringing..."}
                   </p>
-                  <p className="mt-1 text-xs text-slate-500">Waiting for answer</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {waitingPeer?.name
+                      ? `Waiting for ${waitingPeer.name}`
+                      : "Waiting for answer"}
+                  </p>
                 </>
               ) : (
-                <p className="text-sm text-slate-400">Connecting to participants...</p>
+                <>
+                  {waitingPeer && (
+                    <CallAvatar
+                      name={waitingPeer.name || waitingPeer.employee_id}
+                      profileImg={waitingPeer.profile_img}
+                      size="lg"
+                      className="mb-3"
+                    />
+                  )}
+                  <p className="text-sm text-slate-400">Connecting to participants...</p>
+                </>
               )}
             </div>
           ) : (
