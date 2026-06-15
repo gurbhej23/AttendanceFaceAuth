@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import API from "../../services/api";
 import Input from "../../components/common/Input";
 import Button from "../../components/common/Button";
+import { isAdminOrHR } from "../../utils/auth";
 
 const DEPARTMENTS = ["IT", "HR", "Finance", "Operations", "Sales", "Marketing"];
 const JOB_ROLES = [
@@ -77,7 +78,7 @@ export default function AdminEmployees() {
   }, [search, status, role]);
 
   useEffect(() => {
-    if (!["admin", "hr"].includes(localStorage.getItem("role") || "")) {
+    if (!isAdminOrHR()) {
       navigate("/", { replace: true });
       return;
     }
@@ -88,7 +89,9 @@ export default function AdminEmployees() {
   const stats = useMemo(() => {
     const active = employees.filter((e) => e.is_active).length;
     const staff = employees.filter((e) => e.role !== "employee").length;
-    const departments = new Set(employees.map((e) => e.department).filter(Boolean));
+    const departments = new Set(
+      employees.map((e) => e.department).filter(Boolean),
+    );
     return { active, staff, departments: departments.size };
   }, [employees]);
 
@@ -154,7 +157,10 @@ export default function AdminEmployees() {
             ["Active accounts", stats.active],
             ["HR / Admin", stats.staff],
           ].map(([label, value]) => (
-            <div key={label} className="flex flex-row md:flex-col md:items-center gap-3 rounded-3xl border border-slate-800 bg-slate-900 p-3">
+            <div
+              key={label}
+              className="flex flex-row md:flex-col md:items-center gap-3 rounded-3xl border border-slate-800 bg-slate-900 p-3"
+            >
               <p className="text-sm text-slate-400">{label}</p>
               <p className="mt-2 text-3xl font-bold">{value}</p>
             </div>
@@ -172,7 +178,9 @@ export default function AdminEmployees() {
             />
             <select
               value={status}
-              onChange={(e) => setStatus(e.target.value as "active" | "inactive" | "all")}
+              onChange={(e) =>
+                setStatus(e.target.value as "active" | "inactive" | "all")
+              }
               className="rounded-2xl border border-slate-700 bg-slate-950 p-3 outline-none focus:border-blue-500"
             >
               <option value="active">Active</option>
@@ -213,7 +221,9 @@ export default function AdminEmployees() {
           </div>
 
           {loading ? (
-            <div className="p-10 text-center text-slate-400">Loading employees...</div>
+            <div className="p-10 text-center text-slate-400">
+              Loading employees...
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left">
@@ -229,26 +239,12 @@ export default function AdminEmployees() {
                 </thead>
                 <tbody>
                   {visibleEmployees.map((employee) => (
-                    <tr key={employee.employee_id} className="border-t border-slate-800 text-center">
+                    <tr
+                      key={employee.employee_id}
+                      className="border-t border-slate-800 text-center"
+                    >
                       <td className="px-5 py-4">
                         <div className="">
-                          {/* <button
-                            onClick={() => setViewing(employee)}
-                            className="h-11 w-11 overflow-hidden rounded-2xl bg-slate-800"
-                            title="View profile"
-                          >
-                            {employee.profile_img ? (
-                              <img
-                                src={getMediaUrl(employee.profile_img)}
-                                alt={employee.name}
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center bg-blue-600 font-bold">
-                                {employee.name.charAt(0)}
-                              </div>
-                            )}
-                          </button> */}
                           <div>
                             <button
                               onClick={() => setViewing(employee)}
@@ -305,7 +301,10 @@ export default function AdminEmployees() {
                   ))}
                   {visibleEmployees.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="px-5 py-10 text-center text-slate-500">
+                      <td
+                        colSpan={6}
+                        className="px-5 py-10 text-center text-slate-500"
+                      >
                         No employees found
                       </td>
                     </tr>
@@ -373,7 +372,9 @@ export default function AdminEmployees() {
                 Access
                 <select
                   value={editing.role}
-                  onChange={(e) => setEditing({ ...editing, role: e.target.value })}
+                  onChange={(e) =>
+                    setEditing({ ...editing, role: e.target.value })
+                  }
                   className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 p-3 text-white outline-none focus:border-blue-500"
                 >
                   <option value="employee">Employee</option>
@@ -386,7 +387,10 @@ export default function AdminEmployees() {
                 <select
                   value={editing.is_active ? "active" : "inactive"}
                   onChange={(e) =>
-                    setEditing({ ...editing, is_active: e.target.value === "active" })
+                    setEditing({
+                      ...editing,
+                      is_active: e.target.value === "active",
+                    })
                   }
                   className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 p-3 text-white outline-none focus:border-blue-500"
                 >

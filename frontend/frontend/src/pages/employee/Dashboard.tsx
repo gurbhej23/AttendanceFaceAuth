@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import API from "../../services/api";
 import Button from "../../components/common/Button";
 import Input from "../../components/common/Input";
-import Table from "../../components/common/Table";
 import AdminSidebar from "../../components/AdminSidebar";
 import NotificationPanel from "../../components/common/NotificationPanel";
 import {
@@ -13,11 +12,10 @@ import {
 } from "../../hooks/useDashboardNotifications";
 import { dispatchNotificationAction } from "../../utils/notificationActions";
 import { getCurrentLocation } from "../../services/attendanceSecurity";
+import LogOutModal from "../../components/modal/LogOutModal";
 import {
   Bell,
-  Briefcase,
   CalendarDays,
-  Menu,
   ScanLine,
   TimerOff,
   TriangleAlert,
@@ -25,6 +23,9 @@ import {
   UserRoundPen,
   X,
 } from "lucide-react";
+import WelcomeCard from "../../components/dashboard/WelcomeCard";
+import StatusCard from "../../components/dashboard/StatusCards";
+import AttendanceTable from "../../components/dashboard/AttendanceTable";
 
 interface AttendanceRecord {
   employee_id: string;
@@ -60,13 +61,6 @@ interface LeaveRequest {
 const getLocalDate = () => {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-};
-
-const getGreeting = () => {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  return "Good evening";
 };
 
 const getApiError = (err: unknown, fallback: string): string => {
@@ -211,6 +205,7 @@ export default function Dashboard() {
   const [myLeaveRequests, setMyLeaveRequests] = useState<LeaveRequest[]>([]);
   const [employeeDepartment, setEmployeeDepartment] = useState("");
   const [employeeDesignation, setEmployeeDesignation] = useState("");
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   // Late alert state
   const [lateAlert, setLateAlert] = useState<{
@@ -379,6 +374,10 @@ export default function Dashboard() {
   const handleLogout = () => {
     localStorage.clear();
     navigate("/", { replace: true });
+  };
+
+  const handleLogoutModal = () => {
+    setShowLogoutModal(true);
   };
 
   const requireEmployeeId = () => {
@@ -585,7 +584,7 @@ export default function Dashboard() {
 
       <AdminSidebar
         items={sidebarItems}
-        onLogout={handleLogout}
+        onLogout={handleLogoutModal}
         mobileOpen={showMenu}
         onMobileClose={() => setShowMenu(false)}
         adminName={employeeName || "Employee"}
@@ -596,252 +595,41 @@ export default function Dashboard() {
       <div
         className={`mx-auto max-w-8xl transition-all duration-500 ease-out lg:ml-22 ${anyModalOpen || showWelcomePrompt ? "blur-sm pointer-events-none select-none" : ""}`}
       >
-
         {/* WELCOME CARD */}
-        <div className="relative mb-4 overflow-hidden rounded-3xl border border-white/10 bg-white/5 shadow-2xl backdrop-blur-xl">
-          <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-blue-500/10 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-12 left-1/3 h-32 w-32 rounded-full bg-cyan-500/10 blur-3xl" />
 
-          <div className="relative p-4 sm:p-6">
-            <div className="flex gap-5 lg:flex-row lg:justify-between">
-              <div className="flex min-w-0 items-start gap-4">
-                <Button
-                  type="button"
-                  onClick={() => setShowMenu(true)}
-                  text={<Menu size={22} />}
-                  unstyled
-                  className="rounded-xl border border-white/10 bg-white/10 p-2.5 text-white transition hover:bg-white/15 lg:hidden"
-                  aria-label="Open menu"
-                />
-                <button
-                  type="button"
-                  onClick={() => navigate("/profile")}
-                  className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl border border-white/15 bg-slate-800 shadow-lg transition hover:border-blue-400/40"
-                  title="View profile"
-                >
-                  {profileImg ? (
-                    <img
-                      src={profileImg}
-                      alt={employeeName || "Employee"}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="grid h-full w-full place-items-center bg-linear-to-br from-blue-600 to-cyan-500 text-2xl font-bold text-white">
-                      {(employeeName || "E").charAt(0)}
-                    </div>
-                  )}
-                </button>
-
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-slate-400">{getGreeting()},</p>
-                  <h1 className="truncate text-2xl font-bold text-white sm:text-3xl">
-                    {employeeName || "Employee"}
-                  </h1>
-                  <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-400">
-                    {employeeDepartment && (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1">
-                        <Briefcase className="h-3.5 w-3.5" />
-                        {employeeDepartment}
-                      </span>
-                    )}
-                    {employeeDesignation && (
-                      <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1">
-                        {employeeDesignation}
-                      </span>
-                    )}
-                    {employeeId && (
-                      <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 font-mono text-xs text-slate-300">
-                        {employeeId}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <WelcomeCard
+          employeeName={employeeName}
+          employeeId={employeeId}
+          employeeDepartment={employeeDepartment}
+          employeeDesignation={employeeDesignation}
+          profileImg={profileImg}
+          onProfileClick={() => navigate("/profile")}
+          onMenuClick={() => setShowMenu(true)}
+          setShowMenu={setShowMenu}
+        />
 
         {/* TOP CARDS */}
-        <div className="grid grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-5 mb-4">
-          <div className="col-span-2 xl:col-span-1 bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-4 sm:p-5 shadow-xl">
-            <p className="text-slate-400 text-sm mb-3">Selected Date</p>
-            <Input
-              type="date"
-              value={selectedDate}
-              max={today}
-              onChange={(e) =>
-                setSelectedDate(e.target.value > today ? today : e.target.value)
-              }
-              className="w-full p-4 rounded-2xl bg-slate-900/70 text-white border border-slate-700 focus:border-blue-500 outline-none"
-            />
-          </div>
 
-          <div
-            className={`bg-linear-to-br ${cardStyle.bg} border ${cardStyle.border} rounded-3xl p-5 shadow-xl`}
-          >
-            <p className={`${cardStyle.text} text-sm`}>Today's Status</p>
-            <div className="flex items-center justify-between mt-3">
-              <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white capitalize">
-                {todayStatus || "Not Marked"}
-              </h2>
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl">
-                {cardStyle.icon}
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-linear-to-br from-blue-500/20 to-cyan-500/10 border border-blue-500/20 rounded-3xl p-5 shadow-xl">
-            <p className="text-blue-300 text-sm">Working Hours</p>
-            <div className="flex items-center justify-between mt-3">
-              <h2 className="text-2xl sm:text-3xl font-bold text-white">
-                {todayRecord?.duration || "--"}
-              </h2>
-              <div className="w-14 h-14 rounded-2xl bg-blue-500/20 flex items-center justify-center text-2xl">
-                ⏰
-              </div>
-            </div>
-          </div>
-        </div>
+        <StatusCard
+          selectedDate={selectedDate}
+          today={today}
+          setSelectedDate={setSelectedDate}
+          todayStatus={todayStatus}
+          todayRecord={todayRecord}
+          cardStyle={cardStyle}
+        />
 
         {/* TABLE */}
-        <div className="bg-white/5 backdrop-blur-xl rounded-4xl shadow-2xl border border-white/10 overflow-hidden">
-          <div className="p-6 border-b border-white/10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h2 className="text-2xl sm:text-3xl text-white font-bold">
-                Attendance Records
-              </h2>
-              <p className="text-slate-400 mt-1">
-                Your daily attendance history
-              </p>
-            </div>
-            <div className="bg-slate-900/70 border border-slate-700 px-4 py-3 rounded-2xl text-slate-300 text-sm">
-              Total Records:{" "}
-              <span className="text-white font-bold">{records.length}</span>
-            </div>
-          </div>
+        <AttendanceTable
+          records={records}
+          loading={loading}
+          setViewReason={setViewReason}
+          setShowReasonModal={setShowReasonModal}
+          getStatusBadgeClass={getStatusBadgeClass}
+          getMediaUrl={getMediaUrl}
+        />
 
-          {loading ? (
-            <div className="p-10 text-center">
-              <div className="animate-spin rounded-full h-14 w-14 border-b-2 border-blue-500 mx-auto" />
-              <p className="text-slate-400 mt-5 text-lg">Loading records...</p>
-            </div>
-          ) : records.length === 0 ? (
-            <div className="p-12 text-center">
-              <div className="text-6xl mb-4">📭</div>
-              <p className="text-slate-300 text-xl font-semibold">
-                No attendance records
-              </p>
-              <p className="text-slate-500 mt-2">
-                No attendance found for selected date
-              </p>
-            </div>
-          ) : (
-            <div className="w-full overflow-x-auto">
-              <Table
-                headers={[
-                  "Profile",
-                  "Employee",
-                  "ID",
-                  "Check In",
-                  "Check Out",
-                  "Duration",
-                  "Status",
-                  "Reason",
-                  "Date",
-                  "CV",
-                ]}
-              >
-                {records.map((record, idx) => (
-                  <tr
-                    key={idx}
-                    className="border-b border-white/5 hover:bg-white/5 transition-all duration-200 text-center"
-                  >
-                    <td className="px-4 py-4">
-                      <div className="mx-auto h-10 w-10 overflow-hidden rounded-full border border-white/10 bg-slate-800">
-                        {record.profile_img ? (
-                          <button onClick={() => navigate("/profile")}>
-                            <img
-                              src={getMediaUrl(record.profile_img)}
-                              alt={record.employee_name}
-                              className="h-full w-full object-cover cursor-pointer"
-                            />
-                          </button>
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-blue-500 to-cyan-400 text-white font-bold text-sm">
-                            {record.employee_name?.charAt(0)}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-left">
-                      <p className="text-white font-semibold">
-                        {record.employee_name}
-                      </p>
-                      <p className="text-xs text-slate-400">Employee</p>
-                    </td>
-                    <td className=" text-sm text-slate-300 font-medium">
-                      {record.employee_id}
-                    </td>
-                    <td className="px-4 py-4">
-                      <span className="bg-green-500/10 text-green-300 px-1 py-1.5 rounded-xl font-mono text-sm">
-                        {record.check_in}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4">
-                      <span className="bg-red-500/10 text-red-300 px-3 py-1.5 rounded-xl font-mono text-sm">
-                        {record.check_out}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 text-slate-300 font-semibold">
-                      {record.duration}
-                    </td>
-                    <td className="px-4 py-4">
-                      <span
-                        className={`px-3 py-1 rounded-full text-sm font-semibold capitalize ${getStatusBadgeClass(record.status)}`}
-                      >
-                        {record.status.replace("_", " ")}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4">
-                      {record.reason && record.reason !== "--" ? (
-                        <button
-                          onClick={() => {
-                            setViewReason(record.reason ?? null);
-                            setShowReasonModal(true);
-                          }}
-                          className="text-slate-400 max-w-30 truncate block hover:text-blue-400 underline underline-offset-2 transition cursor-pointer text-sm"
-                        >
-                          {record.reason}
-                        </button>
-                      ) : (
-                        <span className="text-slate-600">--</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-4 text-slate-500 font-medium">
-                      {record.date}
-                    </td>
-                    <td className="px-5 py-4">
-                      {record.cv_file ? (
-                        <a
-                          href={getMediaUrl(record.cv_file)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-xs font-semibold text-blue-400 hover:text-blue-300"
-                        >
-                          View CV
-                        </a>
-                      ) : (
-                        <span className="text-slate-600 text-xs">--</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </Table>
-            </div>
-          )}
-
-
-        </div>{monthlySummary && (
+        {monthlySummary && (
           <div className="px-3 pt-5 pb-12">
             <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -893,20 +681,21 @@ export default function Dashboard() {
                   bg: "bg-blue-500/10 border-blue-500/20",
                 },
               ].map(({ label, value, color, bg }) => (
-                <div
-                  key={label}
-                  className={`rounded-2xl border p-4 ${bg}`}
-                >
+                <div key={label} className={`rounded-2xl border p-4 ${bg}`}>
                   <p className="text-xs text-slate-400">{label}</p>
-                  <p className={`mt-1 text-2xl font-bold ${color}`}>
-                    {value}
-                  </p>
+                  <p className={`mt-1 text-2xl font-bold ${color}`}>{value}</p>
                 </div>
               ))}
             </div>
           </div>
         )}
       </div>
+
+      <LogOutModal
+        open={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onLogout={handleLogout}
+      />
 
       {/* ── WELCOME MODAL ── */}
       {showWelcomePrompt && (
@@ -1058,7 +847,8 @@ export default function Dashboard() {
               min={today}
               onChange={(e) => {
                 setLeaveDate(e.target.value);
-                if (leaveEndDate < e.target.value) setLeaveEndDate(e.target.value);
+                if (leaveEndDate < e.target.value)
+                  setLeaveEndDate(e.target.value);
               }}
               className="w-full p-4 rounded-2xl bg-slate-900/70 text-white border border-slate-700 focus:border-purple-500 outline-none mb-4"
             />

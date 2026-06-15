@@ -34,6 +34,7 @@ export default function AdminLogin() {
 
         if (role !== "admin" && role !== "hr") {
           setError("Access denied. Admin or HR role required.");
+          setLoading(false)
           return;
         }
 
@@ -52,14 +53,7 @@ export default function AdminLogin() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleLogin();
-    }
-  };
+  }; 
 
   return (
     <div className="relative flex flex-col gap-5 min-h-screen items-center justify-center overflow-hidden bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] p-6">
@@ -115,8 +109,7 @@ export default function AdminLogin() {
                   name="username"
                   onChange={(e) =>
                     setFormData({ ...formData, employee_id: e.target.value })
-                  }
-                  onKeyDown={handleKeyPress}
+                  } 
                   className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 p-4 pl-12 text-white outline-none transition placeholder:text-slate-500 focus:border-blue-500"
                 />
               </div>
@@ -135,8 +128,7 @@ export default function AdminLogin() {
                   name="password"
                   onChange={(e) =>
                     setFormData({ ...formData, password: e.target.value })
-                  }
-                  onKeyDown={handleKeyPress}
+                  } 
                   className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 p-4 pr-14 text-white outline-none transition placeholder:text-slate-500 focus:border-blue-500"
                 />
                 <Button

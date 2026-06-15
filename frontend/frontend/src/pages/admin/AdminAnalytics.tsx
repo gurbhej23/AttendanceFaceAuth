@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../../services/api";
 import Button from "../../components/common/Button";
+import Input from "../../components/common/Input";
 
 interface AnalyticsData {
   total_employees: number;
@@ -101,7 +102,7 @@ export default function AdminAnalytics() {
                 </option>
               ))}
             </select>
-            <input
+            <Input
               value={year}
               onChange={(event) => setYear(event.target.value)}
               className="w-28 rounded-xl border border-slate-700 bg-slate-800 p-3 text-white outline-none focus:border-blue-500"
