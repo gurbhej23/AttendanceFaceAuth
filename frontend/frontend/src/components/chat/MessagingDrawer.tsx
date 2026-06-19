@@ -95,6 +95,8 @@ export default function MessagingDrawer() {
   });
   const [incomingCall, setIncomingCall] = useState<ActiveCall | null>(null);
   const [groupAddedNotice, setGroupAddedNotice] = useState<string | null>(null);
+  const [wsConnected, setWsConnected] = useState(false);
+  const [callSignalError, setCallSignalError] = useState("");
   const activeCallRef = useRef<ActiveCall | null>(null);
   const incomingCallRef = useRef<ActiveCall | null>(null);
   const contactsRef = useRef<Contact[]>([]);
@@ -139,7 +141,12 @@ export default function MessagingDrawer() {
 
   const { summary, refreshUnread } = useUnreadMessages(employeeId, 15000);
   const isMobile = useIsMobile();
-  const visible = Boolean(employeeId) && !HIDDEN_PATHS.has(location.pathname);
+  const token = localStorage.getItem("token");
+  const isLoggedIn = Boolean(
+    employeeId && token && token !== "undefined",
+  );
+  const visible = isLoggedIn && !HIDDEN_PATHS.has(location.pathname);
+  const socketEnabled = visible;
 
   const activeChat = openChats[openChats.length - 1] ?? null;
   const activeChatKey = activeChat ? chatKey(activeChat) : "";
@@ -220,7 +227,10 @@ export default function MessagingDrawer() {
   }, [contacts]);
 
   useEffect(() => {
-    if (!employeeId || !visible) return;
+    if (!employeeId || !socketEnabled) {
+      setWsConnected(false);
+      return;
+    }
 
     let active = true;
     let socket: WebSocket | null = null;
@@ -235,17 +245,29 @@ export default function MessagingDrawer() {
     const connectSocket = () => {
       if (!active) return;
       clearReconnectTimer();
-      socket = new WebSocket(getWsUrl(employeeId));
+
+      const url = getWsUrl(employeeId);
+      if (!url) {
+        setWsConnected(false);
+        return;
+      }
+
+      socket = new WebSocket(url);
       socketRef.current = socket;
 
       socket.onopen = () => {
+        setWsConnected(true);
         loadContacts();
       };
       socket.onclose = () => {
+        setWsConnected(false);
         if (!active) return;
         reconnectTimerRef.current = window.setTimeout(connectSocket, 2000);
       };
-      socket.onerror = () => socket?.close();
+      socket.onerror = () => {
+        setWsConnected(false);
+        socket?.close();
+      };
       socket.onmessage = (event) => {
         let data: Record<string, unknown>;
         try {
@@ -362,6 +384,8 @@ export default function MessagingDrawer() {
             refreshUnread();
           }
         } else if (data.type === "call_error") {
+          setCallSignalError(String(data.error || "Call could not be started."));
+          window.setTimeout(() => setCallSignalError(""), 5000);
           setActiveCall(null);
         }
       };
@@ -384,8 +408,9 @@ export default function MessagingDrawer() {
         if (socket.readyState === WebSocket.OPEN) socket.close();
       }
       socketRef.current = null;
+      setWsConnected(false);
     };
-  }, [broadcastWs, employeeId, loadContacts, refreshUnread, sendCallEvent, visible]);
+  }, [broadcastWs, employeeId, loadContacts, refreshUnread, sendCallEvent, socketEnabled]);
 
   const unreadByContact = useMemo(() => {
     const map: Record<string, number> = {};
@@ -492,9 +517,20 @@ export default function MessagingDrawer() {
     return map;
   }, [groups]);
 
+  const requireCallSocket = useCallback(() => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) return true;
+    setCallSignalError(
+      "Call server not connected. Wait a moment and try again, or refresh the page.",
+    );
+    window.setTimeout(() => setCallSignalError(""), 5000);
+    return false;
+  }, []);
+
   const startDirectCall = useCallback(
     (contact: Contact, callMode: CallMode) => {
       if (activeCall) return;
+      if (!requireCallSocket()) return;
+
       const callId = `direct-${employeeId}-${contact.employee_id}-${Date.now()}`;
       const nextCall: ActiveCall = {
         callId,
@@ -507,8 +543,8 @@ export default function MessagingDrawer() {
         participants: [meParticipant, contact],
         startedByMe: true,
       };
-      setActiveCall(nextCall);
-      sendCallEvent({
+
+      const sent = sendCallEvent({
         type: "call_invite",
         call_id: callId,
         call_type: "direct",
@@ -517,8 +553,22 @@ export default function MessagingDrawer() {
         caller_name: employeeName,
         title: employeeName,
       });
+      if (!sent) {
+        setCallSignalError("Could not send call invite. Reconnecting...");
+        window.setTimeout(() => setCallSignalError(""), 5000);
+        return;
+      }
+
+      setActiveCall(nextCall);
     },
-    [activeCall, employeeId, employeeName, meParticipant, sendCallEvent],
+    [
+      activeCall,
+      employeeId,
+      employeeName,
+      meParticipant,
+      requireCallSocket,
+      sendCallEvent,
+    ],
   );
 
   const startDirectVideoCall = useCallback(
@@ -534,6 +584,8 @@ export default function MessagingDrawer() {
   const startGroupCall = useCallback(
     (group: ChatGroup, callMode: CallMode) => {
       if (activeCall) return;
+      if (!requireCallSocket()) return;
+
       const members = group.member_details || [];
       const memberIds = members
         .map((m) => m.employee_id)
@@ -552,8 +604,8 @@ export default function MessagingDrawer() {
         participants: [meParticipant, ...members],
         startedByMe: true,
       };
-      setActiveCall(nextCall);
-      sendCallEvent({
+
+      const sent = sendCallEvent({
         type: "call_invite",
         call_id: callId,
         call_type: "group",
@@ -563,8 +615,22 @@ export default function MessagingDrawer() {
         caller_name: employeeName,
         title: group.group_name,
       });
+      if (!sent) {
+        setCallSignalError("Could not send group call invite. Reconnecting...");
+        window.setTimeout(() => setCallSignalError(""), 5000);
+        return;
+      }
+
+      setActiveCall(nextCall);
     },
-    [activeCall, employeeId, employeeName, meParticipant, sendCallEvent],
+    [
+      activeCall,
+      employeeId,
+      employeeName,
+      meParticipant,
+      requireCallSocket,
+      sendCallEvent,
+    ],
   );
 
   const startGroupVideoCall = useCallback(
@@ -984,7 +1050,7 @@ export default function MessagingDrawer() {
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full md:rounded-none border border-cyan-800 bg-slate-800 shadow-xl shadow-cyan-950/40 backdrop-blur-xl text-cyan-500 hover:scale-105 active:scale-95 md:border-slate-700 md:hover:bg-slate-700 md:h-12 md:w-full md:max-w-none md:justify-start md:gap-3 md:px-4 md:hover:scale-100 cursor-pointer transition"
+        className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full md:rounded-none border border-cyan-800 bg-slate-800 shadow-xl shadow-cyan-950/40 backdrop-blur-xl text-cyan-500 hover:scale-105 active:scale-95 md:border-slate-700 md:hover:bg-slate-700 md:h-14 md:w-full md:max-w-none md:justify-start md:gap-3 md:px-4 md:hover:scale-100 md:rounded-t-2xl cursor-pointer transition"
         aria-label={expanded ? "Close messages" : "Open messages"}
       >
         <div className="relative flex items-center gap-3">
@@ -997,7 +1063,7 @@ export default function MessagingDrawer() {
                 className="h-10 w-10 rounded-full object-cover"
               />
             ) : (
-              <div className="grid h-8 w-8 place-items-center rounded-full bg-cyan-700 text-xs font-bold text-white">
+              <div className="grid h-10 w-10 place-items-center rounded-full bg-cyan-700 text-xs font-bold text-white">
                 {employeeName.charAt(0)}
               </div>
             )}
@@ -1005,6 +1071,12 @@ export default function MessagingDrawer() {
           <span className="hidden text-sm font-semibold text-white md:inline">
             Messages
           </span>
+          <span
+            className={`absolute bottom-0.5 left-7.5 h-2.5 w-2.5 rounded-full ring-1 ring-slate-900 ${
+              wsConnected ? "bg-emerald-400" : "bg-amber-400"
+            }`}
+            title={wsConnected ? "Call & chat connected" : "Connecting..."}
+          />
           {summary.total > 0 && (
             <span className="absolute -left-1 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-bold text-white ring-1 ring-slate-900">
               {summary.total > 99 ? "99+" : summary.total}
@@ -1026,6 +1098,12 @@ export default function MessagingDrawer() {
 
   return (
     <>
+      {callSignalError && (
+        <div className="fixed left-1/2 top-5 z-[90] max-w-md -translate-x-1/2 rounded-2xl border border-red-500/40 bg-red-950/95 px-4 py-3 text-center text-sm text-red-200 shadow-xl">
+          {callSignalError}
+        </div>
+      )}
+
       {incomingCall && (
         <IncomingCallModal
           call={incomingCall}

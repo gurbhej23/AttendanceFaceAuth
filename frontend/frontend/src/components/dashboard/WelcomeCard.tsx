@@ -33,7 +33,7 @@ function WelcomeCard({
     <div className="relative mb-4 overflow-hidden rounded-3xl border border-white/10 bg-white/5">
       <h1>
         {" "}
-        <div className="relative mb-4 overflow-hidden rounded-3xl border border-white/10 bg-white/5 shadow-2xl backdrop-blur-xl">
+        <div className="relative overflow-hidden rounded-3xl bg-white/5 shadow-2xl backdrop-blur-xl">
           <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-blue-500/10 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-12 left-1/3 h-32 w-32 rounded-full bg-cyan-500/10 blur-3xl" />
 

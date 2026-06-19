@@ -156,6 +156,18 @@ DEFAULT_FROM_EMAIL = SENDGRID_FROM_EMAIL
 USE_I18N = True
 USE_TZ = True
 
+# Render reverse proxy (required for HTTPS + WebSocket behind load balancer)
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# WebSocket Origin validation — set CHANNEL_ALLOWED_ORIGINS on Render if needed.
+_ws_origins = os.getenv("CHANNEL_ALLOWED_ORIGINS", "").strip()
+CHANNEL_ALLOWED_ORIGINS = [
+    o.strip().rstrip("/")
+    for o in _ws_origins.split(",")
+    if o.strip()
+]
+
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"

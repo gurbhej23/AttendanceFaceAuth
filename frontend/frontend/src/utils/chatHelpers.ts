@@ -62,33 +62,45 @@ export const formatGroupSystemMessage = (
   return message;
 };
 
-export const getApiRoot = () => {
-  const configured = import.meta.env.VITE_API_URL?.trim();
-  if (configured) {
-    if (!configured.startsWith("http")) {
-      console.warn(
-        "[chat] VITE_API_URL must be an absolute URL in production (e.g. https://your-api.onrender.com/api) so WebSocket calls work.",
-      );
-      return window.location.origin;
-    }
-    const url = new URL(configured);
+export const resolveBackendOrigin = (): string => {
+  const apiUrl = import.meta.env.VITE_API_URL?.trim();
+  if (apiUrl?.startsWith("http")) {
+    const url = new URL(apiUrl);
     url.pathname = url.pathname.replace(/\/api\/?$/, "");
-    return url.toString().replace(/\/$/, "");
+    return url.origin;
   }
 
-  const base = API.defaults.baseURL || "http://localhost:8000/api";
-  if (!base.startsWith("http")) {
-    // Vite proxies /api to Django; media + websockets still live on the backend host.
-    if (import.meta.env.DEV) {
-      return (
-        import.meta.env.VITE_DEV_API_ORIGIN?.trim() || "http://localhost:8000"
-      );
-    }
-    return window.location.origin;
+  const wsUrl = import.meta.env.VITE_WS_URL?.trim();
+  if (wsUrl) {
+    return wsUrl
+      .replace(/\/$/, "")
+      .replace(/^wss:/i, "https:")
+      .replace(/^ws:/i, "http:")
+      .replace(/\/ws\/?$/, "");
   }
-  const url = new URL(base);
-  url.pathname = url.pathname.replace(/\/api\/?$/, "");
-  return url.toString().replace(/\/$/, "");
+
+  const base = API.defaults.baseURL || "";
+  if (base.startsWith("http")) {
+    const url = new URL(base);
+    url.pathname = url.pathname.replace(/\/api\/?$/, "");
+    return url.origin;
+  }
+
+  if (import.meta.env.DEV) {
+    return import.meta.env.VITE_DEV_API_ORIGIN?.trim() || "http://localhost:8000";
+  }
+
+  return "";
+};
+
+export const getApiRoot = () => {
+  const origin = resolveBackendOrigin();
+  if (!origin && !import.meta.env.DEV) {
+    console.error(
+      "[chat] Missing VITE_API_URL on Vercel. Set it to your Render URL, e.g. https://your-app.onrender.com/api",
+    );
+  }
+  return origin || window.location.origin;
 };
 
 export const normalizeMediaPath = (path?: string | null): string => {
@@ -120,13 +132,25 @@ export const getMediaUrl = (path?: string | null) => {
 };
 
 export const getWsUrl = (employeeId: string) => {
+  const id = encodeURIComponent(employeeId);
   const explicit = import.meta.env.VITE_WS_URL?.trim();
   if (explicit) {
-    const base = explicit.replace(/\/$/, "");
-    return `${base}/ws/chat/${employeeId}/`;
+    const base = explicit
+      .replace(/\/$/, "")
+      .replace(/^http:/i, "ws:")
+      .replace(/^https:/i, "wss:");
+    return `${base}/ws/chat/${id}/`;
   }
-  const root = getApiRoot();
-  return `${root.replace(/^http:/, "ws:").replace(/^https:/, "wss:")}/ws/chat/${employeeId}/`;
+
+  const origin = resolveBackendOrigin();
+  if (!origin) {
+    console.error(
+      "[chat] Cannot open WebSocket: set VITE_API_URL or VITE_WS_URL to your Render backend.",
+    );
+    return "";
+  }
+
+  return `${origin.replace(/^http:/i, "ws:").replace(/^https:/i, "wss:")}/ws/chat/${id}/`;
 };
 
 export const formatMessageDate = (ds: string) => {
@@ -208,11 +232,19 @@ export const formatGroupOnlineLabel = (
 };
 
 export const getGroupWsUrl = (groupId: string, employeeId: string) => {
+  const gid = encodeURIComponent(groupId);
+  const eid = encodeURIComponent(employeeId);
   const explicit = import.meta.env.VITE_WS_URL?.trim();
   if (explicit) {
-    const base = explicit.replace(/\/$/, "");
-    return `${base}/ws/group/${groupId}/${employeeId}/`;
+    const base = explicit
+      .replace(/\/$/, "")
+      .replace(/^http:/i, "ws:")
+      .replace(/^https:/i, "wss:");
+    return `${base}/ws/group/${gid}/${eid}/`;
   }
-  const root = getApiRoot();
-  return `${root.replace(/^http:/, "ws:").replace(/^https:/, "wss:")}/ws/group/${groupId}/${employeeId}/`;
+
+  const origin = resolveBackendOrigin();
+  if (!origin) return "";
+
+  return `${origin.replace(/^http:/i, "ws:").replace(/^https:/i, "wss:")}/ws/group/${gid}/${eid}/`;
 };

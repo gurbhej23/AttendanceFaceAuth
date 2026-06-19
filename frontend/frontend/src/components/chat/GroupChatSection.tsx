@@ -1636,10 +1636,7 @@ export default function GroupChatSection({
                         >
                           {member.name.charAt(0)}
                         </div>
-                      )}
-                      {liveMember.is_online && (
-                        <span className="absolute z-999 bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-slate-950 bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]" />
-                      )}
+                      )} 
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-slate-300">
