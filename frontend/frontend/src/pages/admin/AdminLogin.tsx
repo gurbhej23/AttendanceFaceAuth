@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../../services/api";
+import { notifyAuthChanged } from "../../hooks/useEmployeeSession";
 import Button from "../../components/common/Button";
 import { Eye, EyeOff, ShieldUser, UserRound } from "lucide-react";
 
@@ -42,6 +43,7 @@ export default function AdminLogin() {
         localStorage.setItem("employee_id", empId);
         localStorage.setItem("employee_name", empName);
         localStorage.setItem("role", role);
+        notifyAuthChanged();
 
         navigate("/attendance-sheet", { replace: true });
       } else {

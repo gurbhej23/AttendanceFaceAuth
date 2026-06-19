@@ -16,6 +16,7 @@ import VideoCallWindow, {
 } from "../call/VideoCallWindow";
 import NotificationBadge from "../common/NotificationBadge";
 import { useUnreadMessages } from "../../hooks/useUnreadMessages";
+import { useEmployeeSession } from "../../hooks/useEmployeeSession";
 import {
   clearCallSession,
   loadCallSession,
@@ -66,9 +67,7 @@ function useIsMobile() {
 
 export default function MessagingDrawer() {
   const location = useLocation();
-  const employeeId = localStorage.getItem("employee_id") || "";
-  const employeeName = localStorage.getItem("employee_name") || "You";
-  const role = localStorage.getItem("role") || "employee";
+  const { employeeId, employeeName, role, isLoggedIn } = useEmployeeSession();
   const isStaffRole = role === "admin" || role === "hr";
   const profileImg = getMediaUrl(localStorage.getItem("profile_img"));
 
@@ -97,6 +96,9 @@ export default function MessagingDrawer() {
   const [groupAddedNotice, setGroupAddedNotice] = useState<string | null>(null);
   const [wsConnected, setWsConnected] = useState(false);
   const [callSignalError, setCallSignalError] = useState("");
+  const [presenceById, setPresenceById] = useState<
+    Record<string, { is_online: boolean; last_seen?: string }>
+  >({});
   const activeCallRef = useRef<ActiveCall | null>(null);
   const incomingCallRef = useRef<ActiveCall | null>(null);
   const contactsRef = useRef<Contact[]>([]);
@@ -139,12 +141,11 @@ export default function MessagingDrawer() {
     return undefined;
   }, [incomingCall, activeCall]);
 
-  const { summary, refreshUnread } = useUnreadMessages(employeeId, 15000);
-  const isMobile = useIsMobile();
-  const token = localStorage.getItem("token");
-  const isLoggedIn = Boolean(
-    employeeId && token && token !== "undefined",
+  const { summary, refreshUnread } = useUnreadMessages(
+    employeeId,
+    wsConnected ? 30000 : 4000,
   );
+  const isMobile = useIsMobile();
   const visible = isLoggedIn && !HIDDEN_PATHS.has(location.pathname);
   const socketEnabled = visible;
 
@@ -185,12 +186,59 @@ export default function MessagingDrawer() {
     [],
   );
 
+  const presenceByIdRef = useRef(presenceById);
+  presenceByIdRef.current = presenceById;
+
   const loadContacts = useCallback(async () => {
+    if (!employeeId) return;
     const res = await API.get("/employees/chat-contacts/", {
       params: { employee_id: employeeId },
     });
-    setContacts(res.data.contacts || []);
+    const list = (res.data.contacts || []) as Contact[];
+    const presence = presenceByIdRef.current;
+    setContacts(
+      list.map((contact) => {
+        const live = presence[contact.employee_id];
+        if (!live) return contact;
+        return {
+          ...contact,
+          is_online: live.is_online,
+          last_seen: live.last_seen ?? contact.last_seen,
+        };
+      }),
+    );
   }, [employeeId]);
+
+  const loadContactsRef = useRef(loadContacts);
+  loadContactsRef.current = loadContacts;
+  const refreshUnreadRef = useRef(refreshUnread);
+  refreshUnreadRef.current = refreshUnread;
+  const reconnectAttemptRef = useRef(0);
+  const heartbeatTimerRef = useRef<number | null>(null);
+
+  const applyPresence = useCallback(
+    (id: string, isOnline: boolean, lastSeen?: string) => {
+      setPresenceById((cur) => ({
+        ...cur,
+        [id]: {
+          is_online: isOnline,
+          last_seen: lastSeen || cur[id]?.last_seen,
+        },
+      }));
+      setContacts((cur) =>
+        cur.map((contact) =>
+          contact.employee_id === id
+            ? {
+                ...contact,
+                is_online: isOnline,
+                last_seen: lastSeen || contact.last_seen,
+              }
+            : contact,
+        ),
+      );
+    },
+    [],
+  );
 
   const loadData = useCallback(async () => {
     if (!employeeId) return;
@@ -204,7 +252,19 @@ export default function MessagingDrawer() {
           params: { employee_id: employeeId },
         }),
       ]);
-      setContacts(contactsRes.data.contacts || []);
+      const list = (contactsRes.data.contacts || []) as Contact[];
+      const presence = presenceByIdRef.current;
+      setContacts(
+        list.map((contact) => {
+          const live = presence[contact.employee_id];
+          if (!live) return contact;
+          return {
+            ...contact,
+            is_online: live.is_online,
+            last_seen: live.last_seen ?? contact.last_seen,
+          };
+        }),
+      );
       setGroups(groupsRes.data.groups || []);
       refreshUnread();
     } catch {
@@ -223,6 +283,12 @@ export default function MessagingDrawer() {
   }, [expanded, visible, loadData]);
 
   useEffect(() => {
+    if (socketEnabled && employeeId) {
+      void loadContactsRef.current();
+    }
+  }, [socketEnabled, employeeId]);
+
+  useEffect(() => {
     contactsRef.current = contacts;
   }, [contacts]);
 
@@ -235,6 +301,13 @@ export default function MessagingDrawer() {
     let active = true;
     let socket: WebSocket | null = null;
 
+    const clearHeartbeat = () => {
+      if (heartbeatTimerRef.current) {
+        window.clearInterval(heartbeatTimerRef.current);
+        heartbeatTimerRef.current = null;
+      }
+    };
+
     const clearReconnectTimer = () => {
       if (reconnectTimerRef.current) {
         window.clearTimeout(reconnectTimerRef.current);
@@ -245,6 +318,7 @@ export default function MessagingDrawer() {
     const connectSocket = () => {
       if (!active) return;
       clearReconnectTimer();
+      clearHeartbeat();
 
       const url = getWsUrl(employeeId);
       if (!url) {
@@ -256,13 +330,23 @@ export default function MessagingDrawer() {
       socketRef.current = socket;
 
       socket.onopen = () => {
+        reconnectAttemptRef.current = 0;
         setWsConnected(true);
-        loadContacts();
+        void loadContactsRef.current();
+        heartbeatTimerRef.current = window.setInterval(() => {
+          if (socket?.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ type: "ping" }));
+          }
+        }, 25000);
       };
       socket.onclose = () => {
         setWsConnected(false);
+        clearHeartbeat();
         if (!active) return;
-        reconnectTimerRef.current = window.setTimeout(connectSocket, 2000);
+        const attempt = reconnectAttemptRef.current;
+        reconnectAttemptRef.current = attempt + 1;
+        const delay = Math.min(500 * 2 ** attempt, 5000);
+        reconnectTimerRef.current = window.setTimeout(connectSocket, delay);
       };
       socket.onerror = () => {
         setWsConnected(false);
@@ -292,19 +376,28 @@ export default function MessagingDrawer() {
             }, 3000);
           }
         } else if (data.type === "presence") {
+          applyPresence(
+            String(data.employee_id),
+            Boolean(data.is_online),
+            (data.last_seen as string) || undefined,
+          );
+        } else if (data.type === "presence_snapshot") {
+          const onlineIds = new Set((data.online_ids as string[]) || []);
+          setPresenceById((cur) => {
+            const next = { ...cur };
+            onlineIds.forEach((id) => {
+              next[id] = { is_online: true, last_seen: next[id]?.last_seen };
+            });
+            return next;
+          });
           setContacts((cur) =>
-            cur.map((contact) =>
-              contact.employee_id === data.employee_id
-                ? {
-                    ...contact,
-                    is_online: Boolean(data.is_online),
-                    last_seen: (data.last_seen as string) || contact.last_seen,
-                  }
-                : contact,
-            ),
+            cur.map((contact) => ({
+              ...contact,
+              is_online: onlineIds.has(contact.employee_id),
+            })),
           );
         } else if (data.type === "message" || data.type === "read") {
-          refreshUnread();
+          refreshUnreadRef.current();
         } else if (data.type === "call_invite") {
           const callerFromWs = data.caller as CallParticipant | undefined;
           const callerId = String(data.sender_id || callerFromWs?.employee_id || "");
@@ -391,11 +484,11 @@ export default function MessagingDrawer() {
       };
     };
 
-    const timer = window.setTimeout(connectSocket, 150);
+    connectSocket();
     return () => {
       active = false;
-      window.clearTimeout(timer);
       clearReconnectTimer();
+      clearHeartbeat();
       Object.values(typingTimersRef.current).forEach((timerId) =>
         window.clearTimeout(timerId),
       );
@@ -410,7 +503,7 @@ export default function MessagingDrawer() {
       socketRef.current = null;
       setWsConnected(false);
     };
-  }, [broadcastWs, employeeId, loadContacts, refreshUnread, sendCallEvent, socketEnabled]);
+  }, [applyPresence, broadcastWs, employeeId, sendCallEvent, socketEnabled]);
 
   const unreadByContact = useMemo(() => {
     const map: Record<string, number> = {};
@@ -1075,7 +1168,11 @@ export default function MessagingDrawer() {
             className={`absolute bottom-0.5 left-7.5 h-2.5 w-2.5 rounded-full ring-1 ring-slate-900 ${
               wsConnected ? "bg-emerald-400" : "bg-amber-400"
             }`}
-            title={wsConnected ? "Call & chat connected" : "Connecting..."}
+            title={
+              wsConnected
+                ? "Live chat connected"
+                : "Connecting to chat server…"
+            }
           />
           {summary.total > 0 && (
             <span className="absolute -left-1 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-bold text-white ring-1 ring-slate-900">

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../../services/api";
+import { notifyAuthChanged } from "../../hooks/useEmployeeSession";
 import MessageOverlay from "../../components/chat/MessageOverlay";
 import Button from "../../components/common/Button";
 import { ArrowLeft, Mail } from "lucide-react";
@@ -93,6 +94,7 @@ export default function EmailOtpVerification() {
         if (res.data.cv_file) {
           localStorage.setItem("cv_file", res.data.cv_file);
         }
+        notifyAuthChanged();
 
         setOverlay({
           title: "Email verified",

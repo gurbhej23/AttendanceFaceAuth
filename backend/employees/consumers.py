@@ -176,6 +176,22 @@ def can_group_call(caller_id, group_id):
     return caller.employee_id in group.members
 
 
+@sync_to_async
+def get_online_contact_ids(employee_id: str) -> list[str]:
+    employee = Employee.objects(employee_id=employee_id).first()
+    if not employee:
+        return []
+    if employee.role in ("admin", "hr"):
+        contacts = Employee.objects(
+            is_active=True, is_online=True, employee_id__ne=employee_id
+        )
+    else:
+        contacts = Employee.objects(
+            is_active=True, is_online=True, role__in=["admin", "hr"]
+        )
+    return [contact.employee_id for contact in contacts]
+
+
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
 
@@ -186,6 +202,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.accept()
         last_seen = await set_presence(self.employee_id, True)
         await self.broadcast_presence(True, last_seen)
+        online_ids = await get_online_contact_ids(self.employee_id)
+        await self.send(
+            text_data=json.dumps(
+                {"type": "presence_snapshot", "online_ids": online_ids}
+            )
+        )
 
     async def disconnect(self, close_code):
         await self.channel_layer.group_discard(self.group_name, self.channel_name)
@@ -202,6 +224,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return
 
         event_type = data.get("type", "message")
+        if event_type == "ping":
+            await self.send(text_data=json.dumps({"type": "pong"}))
+            return
+
         if event_type == "typing":
             await self.broadcast_simple(
                 str(data.get("recipient_id", "")).strip(),

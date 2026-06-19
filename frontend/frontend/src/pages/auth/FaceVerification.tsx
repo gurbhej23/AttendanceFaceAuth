@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, useCallback } from "react";
 import Webcam from "react-webcam";
 import { useNavigate } from "react-router-dom";
 import API, { FACE_REQUEST_TIMEOUT_MS } from "../../services/api";
+import { notifyAuthChanged } from "../../hooks/useEmployeeSession";
 import MessageOverlay from "../../components/chat/MessageOverlay";
 import Button from "../../components/common/Button";
 import {
@@ -303,6 +304,7 @@ export default function VerifyFace() {
         if (response.data.cv_file) {
           localStorage.setItem("cv_file", response.data.cv_file);
         }
+        notifyAuthChanged();
 
         setOverlay({
           title: "Face verified",
