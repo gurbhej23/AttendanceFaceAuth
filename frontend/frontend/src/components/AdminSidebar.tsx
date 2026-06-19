@@ -43,7 +43,7 @@ export default function AdminSidebar({
       <span className="relative grid h-10 w-10 shrink-0 place-items-center rounded-xl transition-transform duration-300 group-hover/item:scale-100 ">
         {item.icon}
         {item.badgeCount != null && item.badgeCount > 0 && (
-          <span className="absolute -right-2 -top-2.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white ring-slate-950 transition-all duration-500 group-hover:translate-y-5 group-hover:translate-x-42">
+          <span className="absolute -right-55 md:-right-2 md:-top-2.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white ring-slate-950 transition-all duration-500 group-hover:translate-y-5 group-hover:translate-x-42">
 
             {item.badgeCount > 99 ? "99+" : item.badgeCount}
           </span>

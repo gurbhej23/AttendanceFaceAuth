@@ -26,7 +26,7 @@ import {
   type CallMode,
 } from "../../utils/callHelpers";
 import type { ChatGroup, ChatMessage, Contact, OpenChat } from "../../utils/chatHelpers";
-import { chatKey, getMediaUrl, getWsUrl } from "../../utils/chatHelpers";
+import { chatKey, getMediaUrl, getWsUrl, resolveBackendOrigin } from "../../utils/chatHelpers";
 import { listenNotificationAction } from "../../utils/notificationActions";
 import {
   playCallEndSound,
@@ -315,7 +315,7 @@ export default function MessagingDrawer() {
       }
     };
 
-    const connectSocket = () => {
+    const connectSocket = async () => {
       if (!active) return;
       clearReconnectTimer();
       clearHeartbeat();
@@ -323,8 +323,26 @@ export default function MessagingDrawer() {
       const url = getWsUrl(employeeId);
       if (!url) {
         setWsConnected(false);
+        setCallSignalError(
+          "Chat server URL missing. Set VITE_API_URL on Vercel to your Render backend /api URL.",
+        );
+        window.setTimeout(() => setCallSignalError(""), 6000);
         return;
       }
+
+      // Wake Render free-tier instance before WebSocket handshake.
+      if (!import.meta.env.DEV) {
+        const root = resolveBackendOrigin();
+        if (root) {
+          try {
+            await fetch(`${root}/`, { method: "GET", cache: "no-store" });
+          } catch {
+            /* server may still be starting */
+          }
+        }
+      }
+
+      if (!active) return;
 
       socket = new WebSocket(url);
       socketRef.current = socket;
@@ -346,7 +364,9 @@ export default function MessagingDrawer() {
         const attempt = reconnectAttemptRef.current;
         reconnectAttemptRef.current = attempt + 1;
         const delay = Math.min(500 * 2 ** attempt, 5000);
-        reconnectTimerRef.current = window.setTimeout(connectSocket, delay);
+        reconnectTimerRef.current = window.setTimeout(() => {
+          void connectSocket();
+        }, delay);
       };
       socket.onerror = () => {
         setWsConnected(false);
@@ -484,7 +504,7 @@ export default function MessagingDrawer() {
       };
     };
 
-    connectSocket();
+    void connectSocket();
     return () => {
       active = false;
       clearReconnectTimer();
@@ -1165,7 +1185,7 @@ export default function MessagingDrawer() {
             Messages
           </span>
           <span
-            className={`absolute bottom-0.5 left-7.5 h-2.5 w-2.5 rounded-full ring-1 ring-slate-900 ${
+            className={`absolute bottom-0.5 left-5.5 h-3 w-3 rounded-full ring-1 ring-slate-900 ${
               wsConnected ? "bg-emerald-400" : "bg-amber-400"
             }`}
             title={

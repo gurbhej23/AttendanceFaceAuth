@@ -4,8 +4,10 @@ services:
     runtime: python
     rootDir: backend
     buildCommand: chmod +x build.sh && ./build.sh
-    # Gunicorn binds PORT immediately; UvicornWorker serves ASGI/WebSockets.
+    # Daphne serves WebSockets reliably on Render.
     startCommand: ./start.sh
+    healthCheckPath: /
+    healthCheckGracePeriod: 300
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9

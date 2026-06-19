@@ -36,6 +36,9 @@ _extra_hosts = os.getenv("ALLOWED_HOSTS_EXTRA", "").strip()
 if _extra_hosts:
     ALLOWED_HOSTS.extend(h.strip() for h in _extra_hosts.split(",") if h.strip())
 
+# Explicit hostname used by the live Render service
+ALLOWED_HOSTS.append("attendancefaceauth.onrender.com")
+
 INSTALLED_APPS = [
     "daphne",
     "django.contrib.admin",
@@ -107,6 +110,7 @@ DATABASES = {
 
 CORS_ALLOWED_ORIGINS = [
     "https://attendance-face-auth.vercel.app",
+    "https://attendancefaceauth.vercel.app",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "http://localhost:3000",
