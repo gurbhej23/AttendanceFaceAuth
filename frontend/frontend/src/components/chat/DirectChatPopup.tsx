@@ -7,16 +7,13 @@ import {
   MoreVertical,
   Pencil,
   Trash2,
-  Phone,
   User,
-  Video,
   X,
 } from "lucide-react";
 import API from "../../services/api";
 import EmojiPicker from "./EmojiPicker";
 import Button from "../common/Button";
 import type { ChatMessage, Contact } from "../../utils/chatHelpers";
-import { isCallLogMessage } from "../../utils/callHelpers";
 import {
   formatLastSeen,
   formatMessageDate,
@@ -104,9 +101,6 @@ interface Props {
   fullScreen?: boolean;
   refreshUnread: () => void;
   typing: boolean;
-  onStartVideoCall?: (contact: Contact) => void;
-  onStartVoiceCall?: (contact: Contact) => void;
-  canStartVideoCall?: boolean;
 }
 
 export default function DirectChatPopup({
@@ -120,9 +114,6 @@ export default function DirectChatPopup({
   fullScreen = false,
   refreshUnread,
   typing,
-  onStartVideoCall,
-  onStartVoiceCall,
-  canStartVideoCall = true,
 }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -484,24 +475,6 @@ export default function DirectChatPopup({
               lastSeen={contact.last_seen}
             />
           </div>
-          <Button
-            type="button"
-            onClick={() => onStartVoiceCall?.(contact)}
-            disabled={!canStartVideoCall}
-            text={<Phone className="h-4 w-4" />}
-            unstyled
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-            title="Start voice call"
-          />
-          <Button
-            type="button"
-            onClick={() => onStartVideoCall?.(contact)}
-            disabled={!canStartVideoCall}
-            text={<Video className="h-4 w-4" />}
-            unstyled
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-            title="Start video call"
-          />
           <div className="relative">
             <Button
               type="button"
@@ -579,32 +552,12 @@ export default function DirectChatPopup({
         <div className="pro-chat-scroll min-h-0 flex-1 space-y-2 p-3 pb-2">
           {messages.map((msg, index) => {
             const mine = msg.sender_id === employeeId;
-            const isCallLog = isCallLogMessage(msg.message);
             const showDate =
               index === 0 ||
               formatMessageDate(messages[index - 1].created_at) !==
               formatMessageDate(msg.created_at);
             const isMenuOpen = menuMsgId === msg.id;
             const isEditing = editingMsgId === msg.id;
-
-            if (isCallLog) {
-              return (
-                <div key={msg.id}>
-                  {showDate && (
-                    <div className="my-3 text-center text-[10px] text-slate-500">
-                      <span className="rounded-full bg-slate-800 px-2 py-1">
-                        {formatMessageDate(msg.created_at)}
-                      </span>
-                    </div>
-                  )}
-                  <div className="flex justify-center px-2 py-1">
-                    <p className="max-w-[90%] rounded-full border border-slate-700/80 bg-slate-800/90 px-4 py-1.5 text-center text-xs text-slate-300">
-                      {msg.message}
-                    </p>
-                  </div>
-                </div>
-              );
-            }
 
             return (
               <div key={msg.id}>

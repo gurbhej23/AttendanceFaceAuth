@@ -1599,8 +1599,6 @@ def chat_unread_count(request):
 
 @api_view(["GET"])
 def dashboard_notifications(request):
-    from datetime import timedelta
-
     from attendance.models import AttendanceRecord
 
     employee_id = request.query_params.get("employee_id", "").strip()
@@ -1613,45 +1611,9 @@ def dashboard_notifications(request):
 
     notifications = []
     counts = count_unread_messages(employee)
-    call_senders: set[str] = set()
-
-    cutoff = datetime.now(pytz.UTC) - timedelta(days=14)
-    call_messages = ChatMessage.objects(
-        recipient_id=employee.employee_id,
-        is_deleted=False,
-        created_at__gte=cutoff,
-    ).order_by("-created_at")
-
-    for msg in call_messages:
-        if not is_message_visible_to_reader(msg, employee.employee_id):
-            continue
-        text_lower = msg.message.lower()
-        is_missed = "missed" in text_lower and "call" in text_lower
-        is_declined = "call declined" in text_lower
-        is_ended = "call ended" in text_lower
-        if not (is_missed or is_declined or is_ended):
-            continue
-        ntype = "call_ended"
-        if is_missed:
-            ntype = "missed_call"
-        elif is_declined:
-            ntype = "call_declined"
-        call_senders.add(msg.sender_id)
-        notifications.append(
-            {
-                "id": f"call-msg-{msg.id}",
-                "type": ntype,
-                "title": msg.sender_name or msg.sender_id,
-                "message": msg.message,
-                "contact_id": msg.sender_id,
-                "time": chat_datetime_iso(msg.created_at),
-            }
-        )
 
     for contact in counts.get("direct_contacts", []):
         sender_id = contact.get("employee_id", "")
-        if sender_id in call_senders:
-            continue
         unread = int(contact.get("unread", 0) or 0)
         if unread <= 0:
             continue

@@ -4,9 +4,6 @@ import API from "../services/api";
 export type NotificationType =
   | "message"
   | "group_message"
-  | "missed_call"
-  | "call_declined"
-  | "call_ended"
   | "leave_request"
   | "leave_status";
 

@@ -2,8 +2,6 @@ import {
   Bell,
   CalendarDays,
   MessageSquare,
-  PhoneMissed,
-  PhoneOff,
   Users,
   X,
 } from "lucide-react";
@@ -32,21 +30,6 @@ const typeMeta: Record<
     icon: Users,
     label: "Group",
     accent: "bg-violet-500/20 text-violet-300",
-  },
-  missed_call: {
-    icon: PhoneMissed,
-    label: "Missed call",
-    accent: "bg-red-500/20 text-red-300",
-  },
-  call_declined: {
-    icon: PhoneOff,
-    label: "Call declined",
-    accent: "bg-orange-500/20 text-orange-300",
-  },
-  call_ended: {
-    icon: PhoneOff,
-    label: "Call ended",
-    accent: "bg-slate-500/20 text-slate-300",
   },
   leave_request: {
     icon: CalendarDays,
@@ -105,7 +88,7 @@ export default function NotificationPanel({
               <Bell size={32} className="mx-auto mb-3 text-slate-600" />
               <p className="text-sm font-medium text-slate-400">No notifications yet</p>
               <p className="mt-1 text-xs text-slate-500">
-                Messages, calls, and leave updates will appear here.
+                Messages and leave updates will appear here.
               </p>
             </div>
           ) : (

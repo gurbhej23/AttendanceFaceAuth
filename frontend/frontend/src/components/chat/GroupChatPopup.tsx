@@ -3,11 +3,9 @@ import {
   ArrowLeft,
   Minus,
   MoreVertical,
-  Phone,
   Settings,
   Trash2,
   UserPlus,
-  Video,
   Users,
   X,
 } from "lucide-react";
@@ -30,9 +28,6 @@ interface Props {
   fullScreen?: boolean;
   refreshUnread: () => void;
   unreadByGroup: Record<string, number>;
-  onStartGroupVideoCall?: (group: ChatGroup) => void;
-  onStartGroupVoiceCall?: (group: ChatGroup) => void;
-  canStartGroupCall?: boolean;
 }
 
 export default function GroupChatPopup({
@@ -46,9 +41,6 @@ export default function GroupChatPopup({
   fullScreen = false,
   refreshUnread,
   unreadByGroup,
-  onStartGroupVideoCall,
-  onStartGroupVoiceCall,
-  canStartGroupCall,
 }: Props) {
   const [headerActions, setHeaderActions] =
     useState<GroupChatHeaderActions | null>(null);
@@ -233,24 +225,6 @@ export default function GroupChatPopup({
             )}
           </div>
         )}
-        <Button
-          type="button"
-          onClick={() => onStartGroupVoiceCall?.(group)}
-          disabled={!canStartGroupCall}
-          text={<Phone className="h-4 w-4" />}
-          unstyled
-          className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-          title="Start group voice call"
-        />
-        <Button
-          type="button"
-          onClick={() => onStartGroupVideoCall?.(group)}
-          disabled={!canStartGroupCall}
-          text={<Video className="h-4 w-4" />}
-          unstyled
-          className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-          title="Start group video call"
-        />
         {!fullScreen && (
           <>
             <Button

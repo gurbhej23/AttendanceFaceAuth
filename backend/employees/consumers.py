@@ -5,8 +5,6 @@ from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 
 from .models import ChatGroup, ChatMessage, Employee, GroupMessage
-from .media_utils import normalize_media_path
-
 
 def chat_datetime_iso(value):
     if not value:
@@ -122,61 +120,6 @@ def mark_read(reader_id, contact_id):
 
 
 @sync_to_async
-def employee_call_profile(employee_id):
-    employee = Employee.objects(employee_id=employee_id).first()
-    if not employee:
-        return {
-            "employee_id": employee_id,
-            "name": employee_id,
-            "role": "",
-            "profile_img": "",
-        }
-    return {
-        "employee_id": employee.employee_id,
-        "name": employee.name,
-        "role": employee.role,
-        "profile_img": normalize_media_path(
-            employee.profile_img or employee.photo_path or ""
-        ),
-    }
-
-
-@sync_to_async
-def group_call_members(group_id, caller_id):
-    group = ChatGroup.objects(id=group_id).first()
-    caller = Employee.objects(employee_id=caller_id).first()
-    if not group or not caller:
-        return []
-    if caller.role not in ("admin", "hr") and caller_id not in group.members:
-        return []
-    return [member_id for member_id in group.members if member_id != caller_id]
-
-
-@sync_to_async
-def can_direct_call(caller_id, recipient_id):
-    caller = Employee.objects(employee_id=caller_id).first()
-    recipient = Employee.objects(employee_id=recipient_id).first()
-    if not caller or not recipient or not caller.is_active or not recipient.is_active:
-        return False
-    if caller.employee_id == recipient.employee_id:
-        return False
-    if caller.role in ("admin", "hr"):
-        return True
-    return recipient.role in ("admin", "hr")
-
-
-@sync_to_async
-def can_group_call(caller_id, group_id):
-    group = ChatGroup.objects(id=group_id).first()
-    caller = Employee.objects(employee_id=caller_id).first()
-    if not group or not caller or not caller.is_active:
-        return False
-    if caller.role in ("admin", "hr"):
-        return True
-    return caller.employee_id in group.members
-
-
-@sync_to_async
 def get_online_contact_ids(employee_id: str) -> list[str]:
     employee = Employee.objects(employee_id=employee_id).first()
     if not employee:
@@ -279,10 +222,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.broadcast_message_event("react", payload)
             return
 
-        if event_type.startswith("call_"):
-            await self.handle_call_event(event_type, data)
-            return
-
         recipient_id = str(data.get("recipient_id", "")).strip()
         text = str(data.get("message", "")).strip()
         if not recipient_id or not text:
@@ -322,78 +261,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 },
             },
         )
-
-    async def handle_call_event(self, event_type, data):
-        call_id = str(data.get("call_id", "")).strip()
-        if not call_id:
-            return
-
-        if event_type == "call_invite":
-            call_type = str(data.get("call_type", "direct")).strip()
-            if call_type == "group":
-                group_id = str(data.get("group_id", "")).strip()
-                if not group_id or not await can_group_call(
-                    self.employee_id, group_id
-                ):
-                    await self.send(
-                        text_data=json.dumps(
-                            {
-                                "type": "call_error",
-                                "call_id": call_id,
-                                "error": "You cannot start a group call in this group",
-                            }
-                        )
-                    )
-                    return
-            else:
-                recipient_id = str(data.get("recipient_id", "")).strip()
-                if not recipient_id or not await can_direct_call(
-                    self.employee_id, recipient_id
-                ):
-                    await self.send(
-                        text_data=json.dumps(
-                            {
-                                "type": "call_error",
-                                "call_id": call_id,
-                                "error": "You cannot call this contact",
-                            }
-                        )
-                    )
-                    return
-
-        payload = {
-            **data,
-            "type": event_type,
-            "call_id": call_id,
-            "sender_id": self.employee_id,
-        }
-        payload["caller"] = await employee_call_profile(self.employee_id)
-
-        if str(data.get("call_type")) == "group":
-            group_id = str(data.get("group_id", "")).strip()
-            if group_id:
-                members = await group_call_members(group_id, self.employee_id)
-                payload["group_id"] = group_id
-                if event_type == "call_invite":
-                    for member_id in members:
-                        await self.broadcast_simple(member_id, payload)
-                    return
-                if event_type == "call_end":
-                    for member_id in members:
-                        await self.broadcast_simple(member_id, payload)
-                    return
-
-        recipients = []
-        target_id = str(data.get("target_id", "")).strip()
-        recipient_id = str(data.get("recipient_id", "")).strip()
-        if target_id:
-            recipients.append(target_id)
-        elif recipient_id:
-            recipients.append(recipient_id)
-
-        for recipient in dict.fromkeys(recipients):
-            if recipient and recipient != self.employee_id:
-                await self.broadcast_simple(recipient, payload)
 
     async def chat_event(self, event):
         await self.send(

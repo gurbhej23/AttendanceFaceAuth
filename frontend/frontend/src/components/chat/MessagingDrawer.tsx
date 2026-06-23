@@ -9,30 +9,12 @@ import {
 import API from "../../services/api";
 import DirectChatPopup from "./DirectChatPopup";
 import GroupChatPopup from "./GroupChatPopup";
-import IncomingCallModal from "../call/IncomingCallModal";
-import VideoCallWindow, {
-  type ActiveCall,
-  type CallParticipant,
-} from "../call/VideoCallWindow";
 import NotificationBadge from "../common/NotificationBadge";
 import { useUnreadMessages } from "../../hooks/useUnreadMessages";
 import { useEmployeeSession } from "../../hooks/useEmployeeSession";
-import {
-  clearCallSession,
-  loadCallSession,
-  missedCallMessage,
-  endedCallMessage,
-  saveCallSession,
-  type CallMode,
-} from "../../utils/callHelpers";
-import type { ChatGroup, ChatMessage, Contact, OpenChat } from "../../utils/chatHelpers";
+import type { ChatGroup, Contact, OpenChat } from "../../utils/chatHelpers";
 import { chatKey, getMediaUrl, getWsUrl, resolveBackendOrigin } from "../../utils/chatHelpers";
 import { listenNotificationAction } from "../../utils/notificationActions";
-import {
-  playCallEndSound,
-  startIncomingRingtone,
-  stopIncomingRingtone,
-} from "../../utils/callSounds";
 import Button from "../common/Button";
 import Input from "../common/Input";
 
@@ -87,59 +69,13 @@ export default function MessagingDrawer() {
     {},
   );
   const [typingById, setTypingById] = useState<Record<string, boolean>>({});
-  const [activeCall, setActiveCallState] = useState<ActiveCall | null>(() => {
-    const saved = loadCallSession(employeeId);
-    if (!saved) return null;
-    return { ...saved, restored: true };
-  });
-  const [incomingCall, setIncomingCall] = useState<ActiveCall | null>(null);
   const [groupAddedNotice, setGroupAddedNotice] = useState<string | null>(null);
   const [wsConnected, setWsConnected] = useState(false);
-  const [callSignalError, setCallSignalError] = useState("");
+  const [connectionError, setConnectionError] = useState("");
   const [presenceById, setPresenceById] = useState<
     Record<string, { is_online: boolean; last_seen?: string }>
   >({});
-  const activeCallRef = useRef<ActiveCall | null>(null);
-  const incomingCallRef = useRef<ActiveCall | null>(null);
   const contactsRef = useRef<Contact[]>([]);
-  const openCallChatRef = useRef<(call: ActiveCall) => void>(() => undefined);
-
-  const setActiveCall = useCallback(
-    (call: ActiveCall | null) => {
-      setActiveCallState(call);
-      if (call) {
-        saveCallSession(employeeId, call);
-      } else {
-        clearCallSession(employeeId);
-      }
-    },
-    [employeeId],
-  );
-
-  const updateCallSession = useCallback(
-    (call: ActiveCall) => {
-      saveCallSession(employeeId, call);
-      setActiveCallState(call);
-    },
-    [employeeId],
-  );
-
-  useEffect(() => {
-    activeCallRef.current = activeCall;
-  }, [activeCall]);
-
-  useEffect(() => {
-    incomingCallRef.current = incomingCall;
-  }, [incomingCall]);
-
-  useEffect(() => {
-    if (incomingCall && !activeCall) {
-      startIncomingRingtone();
-      return () => stopIncomingRingtone();
-    }
-    stopIncomingRingtone();
-    return undefined;
-  }, [incomingCall, activeCall]);
 
   const { summary, refreshUnread } = useUnreadMessages(
     employeeId,
@@ -154,16 +90,6 @@ export default function MessagingDrawer() {
   const showMobileChat =
     isMobile && activeChat && !minimizedChats[activeChatKey];
 
-  const meParticipant = useMemo<CallParticipant>(
-    () => ({
-      employee_id: employeeId,
-      name: employeeName,
-      role,
-      profile_img: localStorage.getItem("profile_img") || "",
-    }),
-    [employeeId, employeeName, role],
-  );
-
   const registerHandler = useCallback(
     (handler: (data: Record<string, unknown>) => void) => {
       wsHandlers.current.add(handler);
@@ -175,16 +101,6 @@ export default function MessagingDrawer() {
   const broadcastWs = useCallback((data: Record<string, unknown>) => {
     wsHandlers.current.forEach((handler) => handler(data));
   }, []);
-
-  const sendCallEvent = useCallback(
-    (payload: Record<string, unknown>) => {
-      const socket = socketRef.current;
-      if (socket?.readyState !== WebSocket.OPEN) return false;
-      socket.send(JSON.stringify(payload));
-      return true;
-    },
-    [],
-  );
 
   const presenceByIdRef = useRef(presenceById);
   presenceByIdRef.current = presenceById;
@@ -323,10 +239,10 @@ export default function MessagingDrawer() {
       const url = getWsUrl(employeeId);
       if (!url) {
         setWsConnected(false);
-        setCallSignalError(
+        setConnectionError(
           "Chat server URL missing. Set VITE_API_URL on Vercel to your Render backend /api URL.",
         );
-        window.setTimeout(() => setCallSignalError(""), 6000);
+        window.setTimeout(() => setConnectionError(""), 6000);
         return;
       }
 
@@ -418,68 +334,6 @@ export default function MessagingDrawer() {
           );
         } else if (data.type === "message" || data.type === "read") {
           refreshUnreadRef.current();
-        } else if (data.type === "call_invite") {
-          const callerFromWs = data.caller as CallParticipant | undefined;
-          const callerId = String(data.sender_id || callerFromWs?.employee_id || "");
-          const callId = String(data.call_id || "");
-          if (!callerId || !callId || callerId === employeeId) return;
-          if (activeCallRef.current) {
-            sendCallEvent({
-              type: "call_decline",
-              call_id: callId,
-              call_type: data.call_type,
-              call_mode: data.call_mode,
-              group_id: data.group_id,
-              group_name: data.group_name,
-              target_id: callerId,
-              reason: "busy",
-            });
-            return;
-          }
-
-          const knownContact = contactsRef.current.find(
-            (c) => c.employee_id === callerId,
-          );
-          const caller: CallParticipant = {
-            employee_id: callerId,
-            name:
-              callerFromWs?.name ||
-              knownContact?.name ||
-              String(data.caller_name || callerId),
-            role: callerFromWs?.role || knownContact?.role,
-            profile_img:
-              callerFromWs?.profile_img || knownContact?.profile_img || "",
-          };
-
-          const callType = data.call_type === "group" ? "group" : "direct";
-          const callMode = data.call_mode === "audio" ? "audio" : "video";
-          setIncomingCall({
-            callId,
-            callType,
-            callMode,
-            title:
-              callType === "group"
-                ? String(data.group_name || "Group call")
-                : caller.name,
-            callerId,
-            callerName: caller.name,
-            groupId: data.group_id ? String(data.group_id) : undefined,
-            groupName: data.group_name ? String(data.group_name) : undefined,
-            peerIds: [callerId],
-            participants: [meParticipant, caller],
-            startedByMe: false,
-          });
-        } else if (data.type === "call_end") {
-          const callId = String(data.call_id || "");
-          const incoming = incomingCallRef.current;
-          if (incoming && incoming.callId === callId) {
-            stopIncomingRingtone();
-            playCallEndSound();
-            setIncomingCall(null);
-            if (incoming.callType === "direct") {
-              openCallChatRef.current({ ...incoming, startedByMe: false });
-            }
-          }
         } else if (data.type === "group_added") {
           const group = data.group as ChatGroup | undefined;
           const notice = String(data.message || "You were added to a group");
@@ -496,10 +350,6 @@ export default function MessagingDrawer() {
             );
             refreshUnread();
           }
-        } else if (data.type === "call_error") {
-          setCallSignalError(String(data.error || "Call could not be started."));
-          window.setTimeout(() => setCallSignalError(""), 5000);
-          setActiveCall(null);
         }
       };
     };
@@ -523,7 +373,7 @@ export default function MessagingDrawer() {
       socketRef.current = null;
       setWsConnected(false);
     };
-  }, [applyPresence, broadcastWs, employeeId, sendCallEvent, socketEnabled]);
+  }, [applyPresence, broadcastWs, employeeId, socketEnabled]);
 
   const unreadByContact = useMemo(() => {
     const map: Record<string, number> = {};
@@ -630,319 +480,6 @@ export default function MessagingDrawer() {
     return map;
   }, [groups]);
 
-  const requireCallSocket = useCallback(() => {
-    if (socketRef.current?.readyState === WebSocket.OPEN) return true;
-    setCallSignalError(
-      "Call server not connected. Wait a moment and try again, or refresh the page.",
-    );
-    window.setTimeout(() => setCallSignalError(""), 5000);
-    return false;
-  }, []);
-
-  const startDirectCall = useCallback(
-    (contact: Contact, callMode: CallMode) => {
-      if (activeCall) return;
-      if (!requireCallSocket()) return;
-
-      const callId = `direct-${employeeId}-${contact.employee_id}-${Date.now()}`;
-      const nextCall: ActiveCall = {
-        callId,
-        callType: "direct",
-        callMode,
-        title: contact.name,
-        callerId: employeeId,
-        callerName: employeeName,
-        peerIds: [contact.employee_id],
-        participants: [meParticipant, contact],
-        startedByMe: true,
-      };
-
-      const sent = sendCallEvent({
-        type: "call_invite",
-        call_id: callId,
-        call_type: "direct",
-        call_mode: callMode,
-        recipient_id: contact.employee_id,
-        caller_name: employeeName,
-        title: employeeName,
-      });
-      if (!sent) {
-        setCallSignalError("Could not send call invite. Reconnecting...");
-        window.setTimeout(() => setCallSignalError(""), 5000);
-        return;
-      }
-
-      setActiveCall(nextCall);
-    },
-    [
-      activeCall,
-      employeeId,
-      employeeName,
-      meParticipant,
-      requireCallSocket,
-      sendCallEvent,
-    ],
-  );
-
-  const startDirectVideoCall = useCallback(
-    (contact: Contact) => startDirectCall(contact, "video"),
-    [startDirectCall],
-  );
-
-  const startDirectVoiceCall = useCallback(
-    (contact: Contact) => startDirectCall(contact, "audio"),
-    [startDirectCall],
-  );
-
-  const startGroupCall = useCallback(
-    (group: ChatGroup, callMode: CallMode) => {
-      if (activeCall) return;
-      if (!requireCallSocket()) return;
-
-      const members = group.member_details || [];
-      const memberIds = members
-        .map((m) => m.employee_id)
-        .filter((id) => id && id !== employeeId);
-      const callId = `group-${group.id}-${employeeId}-${Date.now()}`;
-      const nextCall: ActiveCall = {
-        callId,
-        callType: "group",
-        callMode,
-        title: group.group_name,
-        callerId: employeeId,
-        callerName: employeeName,
-        groupId: group.id,
-        groupName: group.group_name,
-        peerIds: memberIds,
-        participants: [meParticipant, ...members],
-        startedByMe: true,
-      };
-
-      const sent = sendCallEvent({
-        type: "call_invite",
-        call_id: callId,
-        call_type: "group",
-        call_mode: callMode,
-        group_id: group.id,
-        group_name: group.group_name,
-        caller_name: employeeName,
-        title: group.group_name,
-      });
-      if (!sent) {
-        setCallSignalError("Could not send group call invite. Reconnecting...");
-        window.setTimeout(() => setCallSignalError(""), 5000);
-        return;
-      }
-
-      setActiveCall(nextCall);
-    },
-    [
-      activeCall,
-      employeeId,
-      employeeName,
-      meParticipant,
-      requireCallSocket,
-      sendCallEvent,
-    ],
-  );
-
-  const startGroupVideoCall = useCallback(
-    (group: ChatGroup) => startGroupCall(group, "video"),
-    [startGroupCall],
-  );
-
-  const startGroupVoiceCall = useCallback(
-    (group: ChatGroup) => startGroupCall(group, "audio"),
-    [startGroupCall],
-  );
-
-  const openCallChat = useCallback((call: ActiveCall) => {
-    if (call.callType !== "direct") return;
-    const contactId = call.startedByMe ? call.peerIds[0] : call.callerId;
-    if (!contactId) return;
-    openChat({ type: "direct", id: contactId });
-  }, []);
-
-  useEffect(() => {
-    openCallChatRef.current = openCallChat;
-  }, [openCallChat]);
-
-  const postDirectCallMessage = useCallback(
-    async (recipientId: string, message: string) => {
-      if (!recipientId) return null;
-      try {
-        const res = await API.post("/employees/chat-message/send/", {
-          sender_id: employeeId,
-          recipient_id: recipientId,
-          message,
-        });
-        if (res.data.success && res.data.message) {
-          broadcastWs({ type: "message", message: res.data.message });
-          refreshUnread();
-          return res.data.message as ChatMessage;
-        }
-      } catch {
-        /* silent */
-      }
-      return null;
-    },
-    [broadcastWs, employeeId, refreshUnread],
-  );
-
-  const sendDirectCallMessage = useCallback(
-    async (
-      call: ActiveCall,
-      targetId?: string,
-      reason: "missed" | "declined" = "missed",
-    ) => {
-      if (call.callType !== "direct") return;
-      const recipientId = targetId || call.peerIds[0];
-      if (!recipientId) return;
-      const mode = call.callMode || "video";
-      await postDirectCallMessage(recipientId, missedCallMessage(mode, reason));
-      openCallChat(call);
-    },
-    [openCallChat, postDirectCallMessage],
-  );
-
-  const sendDirectCallEndedMessage = useCallback(
-    async (call: ActiveCall, durationSeconds: number) => {
-      if (call.callType !== "direct") return;
-      const recipientId = call.peerIds[0];
-      if (!recipientId) return;
-      const mode = call.callMode || "video";
-      const duration =
-        durationSeconds >= 60
-          ? `${Math.floor(durationSeconds / 60)}m ${durationSeconds % 60}s`
-          : `${durationSeconds}s`;
-      await postDirectCallMessage(
-        recipientId,
-        `${endedCallMessage(mode)} · ${duration}`,
-      );
-      openCallChat(call);
-    },
-    [openCallChat, postDirectCallMessage],
-  );
-
-  const sendGroupCallMessage = useCallback(
-    async (call: ActiveCall, reason: "missed" | "declined" | "ended" = "missed") => {
-      if (call.callType !== "group" || !call.groupId) return;
-      const mode = call.callMode || "video";
-      const label =
-        reason === "ended"
-          ? endedCallMessage(mode)
-          : reason === "missed"
-            ? mode === "audio"
-              ? "Missed group voice call"
-              : "Missed group video call"
-            : mode === "audio"
-              ? "Group voice call declined"
-              : "Group video call declined";
-      try {
-        const res = await API.post("/employees/chat-groups/message/send/", {
-          sender_id: employeeId,
-          group_id: call.groupId,
-          message: label,
-        });
-        if (res.data.success) {
-          refreshUnread();
-        }
-      } catch {
-        /* silent */
-      }
-    },
-    [employeeId, refreshUnread],
-  );
-
-  const handleUnansweredCall = useCallback(
-    async (call: ActiveCall) => {
-      if (call.callType === "direct") {
-        await sendDirectCallMessage(call, call.peerIds[0], "missed");
-      } else {
-        await sendGroupCallMessage(call, "missed");
-      }
-    },
-    [sendDirectCallMessage, sendGroupCallMessage],
-  );
-
-  const handleCallEnded = useCallback(
-    (call: ActiveCall, durationSeconds: number) => {
-      if (call.callType === "direct") {
-        void sendDirectCallEndedMessage(call, durationSeconds);
-      } else {
-        void sendGroupCallMessage(call, "ended");
-      }
-    },
-    [sendDirectCallEndedMessage, sendGroupCallMessage],
-  );
-
-  const handleMissedCall = useCallback(
-    async (
-      call: ActiveCall,
-      targetId?: string,
-      reason: "missed" | "declined" = "missed",
-    ) => {
-      if (call.callType === "direct") {
-        await sendDirectCallMessage(call, targetId, reason);
-      }
-    },
-    [sendDirectCallMessage],
-  );
-
-  const acceptIncomingCall = () => {
-    if (!incomingCall || activeCall) return;
-    stopIncomingRingtone();
-    const call = incomingCall;
-    sendCallEvent({
-      type: "call_accept",
-      call_id: call.callId,
-      call_type: call.callType,
-      call_mode: call.callMode,
-      group_id: call.groupId,
-      group_name: call.groupName,
-      target_id: call.callerId,
-      caller_id: call.callerId,
-      participant: {
-        employee_id: employeeId,
-        name: employeeName,
-        role,
-        profile_img: meParticipant.profile_img || "",
-      },
-    });
-    setActiveCall({ ...call, startedByMe: false });
-    setIncomingCall(null);
-  };
-
-  const declineIncomingCall = useCallback(
-    async (reason: "declined" | "missed" | "busy" = "declined") => {
-      if (!incomingCall) return;
-      stopIncomingRingtone();
-      playCallEndSound();
-      const call = incomingCall;
-      sendCallEvent({
-        type: "call_decline",
-        call_id: call.callId,
-        call_type: call.callType,
-        call_mode: call.callMode,
-        group_id: call.groupId,
-        group_name: call.groupName,
-        target_id: call.callerId,
-        reason,
-      });
-      setIncomingCall(null);
-      if (reason === "missed" && call.callType === "direct") {
-        openCallChat({ ...call, startedByMe: false });
-      }
-    },
-    [incomingCall, openCallChat, sendCallEvent],
-  );
-
-  useEffect(() => {
-    if (!incomingCall) return;
-    const timer = window.setTimeout(() => declineIncomingCall("missed"), 30000);
-    return () => window.clearTimeout(timer);
-  }, [declineIncomingCall, incomingCall]);
-
   const renderChatPopup = (chat: OpenChat, fullScreen: boolean) => {
     const key = chatKey(chat);
     const minimized = Boolean(minimizedChats[key]);
@@ -964,9 +501,6 @@ export default function MessagingDrawer() {
           fullScreen={fullScreen}
           refreshUnread={refreshUnread}
           typing={Boolean(typingById[chat.id])}
-          onStartVideoCall={startDirectVideoCall}
-          onStartVoiceCall={startDirectVoiceCall}
-          canStartVideoCall={!activeCall}
         />
       );
     }
@@ -986,9 +520,6 @@ export default function MessagingDrawer() {
         fullScreen={fullScreen}
         refreshUnread={refreshUnread}
         unreadByGroup={unreadByGroup}
-        onStartGroupVideoCall={startGroupVideoCall}
-        onStartGroupVoiceCall={startGroupVoiceCall}
-        canStartGroupCall={!activeCall}
       />
     );
   };
@@ -1215,33 +746,10 @@ export default function MessagingDrawer() {
 
   return (
     <>
-      {callSignalError && (
+      {connectionError && (
         <div className="fixed left-1/2 top-5 z-[90] max-w-md -translate-x-1/2 rounded-2xl border border-red-500/40 bg-red-950/95 px-4 py-3 text-center text-sm text-red-200 shadow-xl">
-          {callSignalError}
+          {connectionError}
         </div>
-      )}
-
-      {incomingCall && (
-        <IncomingCallModal
-          call={incomingCall}
-          onAccept={acceptIncomingCall}
-          onDecline={() => declineIncomingCall("declined")}
-        />
-      )}
-
-      {activeCall && (
-        <VideoCallWindow
-          call={activeCall}
-          employeeId={employeeId}
-          employeeName={employeeName}
-          socketRef={socketRef}
-          registerHandler={registerHandler}
-          onClose={() => setActiveCall(null)}
-          onMissedCall={handleMissedCall}
-          onUnanswered={handleUnansweredCall}
-          onCallEnded={handleCallEnded}
-          onCallSessionUpdate={updateCallSession}
-        />
       )}
 
       {/* Mobile: backdrop when list open */}

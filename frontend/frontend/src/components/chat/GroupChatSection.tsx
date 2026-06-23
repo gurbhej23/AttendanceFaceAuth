@@ -24,7 +24,6 @@ import {
   getGroupWsUrl,
   getMediaUrl,
 } from "../../utils/chatHelpers";
-import { isCallLogMessage } from "../../utils/callHelpers";
 import Button from "../common/Button";
 
 interface ChatGroup {
@@ -983,8 +982,7 @@ export default function GroupChatSection({
               {messages.map((msg, index) => {
                 const isSystem =
                   msg.message_type === "system" || msg.sender_id === "system";
-                const isCallLog = isCallLogMessage(msg.message);
-                const mine = !isSystem && !isCallLog && msg.sender_id === employeeId;
+                const mine = !isSystem && msg.sender_id === employeeId;
                 const isEditing = editingMsgId === msg.id;
                 const isMenuOpen = menuMsgId === msg.id;
                 const showDate =
@@ -992,7 +990,7 @@ export default function GroupChatSection({
                   formatMessageDate(messages[index - 1].created_at) !==
                   formatMessageDate(msg.created_at);
 
-                if (isSystem || isCallLog) {
+                if (isSystem) {
                   return (
                     <div key={msg.id}>
                       {showDate && (
@@ -1004,19 +1002,13 @@ export default function GroupChatSection({
                       )}
                       <div className="flex justify-center px-2 py-1">
                         <p
-                          className={`max-w-[90%] rounded-full border px-4 py-1.5 text-center text-xs leading-relaxed ${
-                            isCallLog
-                              ? "border-slate-700/80 bg-slate-800/90 text-slate-300"
-                              : "border-violet-500/25 bg-violet-500/10 text-violet-200"
-                          }`}
+                          className="max-w-[90%] rounded-full border border-violet-500/25 bg-violet-500/10 px-4 py-1.5 text-center text-xs leading-relaxed text-violet-200"
                         >
-                          {isSystem
-                            ? formatGroupSystemMessage(
-                                msg.message,
-                                employeeId,
-                                localStorage.getItem("employee_name") || "",
-                              )
-                            : msg.message}
+                          {formatGroupSystemMessage(
+                            msg.message,
+                            employeeId,
+                            localStorage.getItem("employee_name") || "",
+                          )}
                         </p>
                       </div>
                     </div>
