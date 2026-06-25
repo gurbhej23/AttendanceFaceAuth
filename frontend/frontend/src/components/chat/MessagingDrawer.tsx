@@ -716,7 +716,7 @@ export default function MessagingDrawer() {
             Messages
           </span>
           <span
-            className={`absolute bottom-0.5 left-5.5 h-3 w-3 rounded-full ring-1 ring-slate-900 ${
+            className={`absolute bottom-0 left-7.5 h-3 w-3 rounded-full ring-1 ring-slate-900 ${
               wsConnected ? "bg-emerald-400" : "bg-amber-400"
             }`}
             title={

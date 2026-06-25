@@ -1,4 +1,5 @@
 import API from "../services/api";
+import { getBackendOrigin } from "../config/backend";
 
 export interface Contact {
   employee_id: string;
@@ -63,45 +64,16 @@ export const formatGroupSystemMessage = (
 };
 
 export const resolveBackendOrigin = (): string => {
-  const apiUrl = import.meta.env.VITE_API_URL?.trim();
-  if (apiUrl?.startsWith("http")) {
-    const url = new URL(apiUrl);
-    url.pathname = url.pathname.replace(/\/api\/?$/, "");
-    return url.origin;
-  }
-
-  const wsUrl = import.meta.env.VITE_WS_URL?.trim();
-  if (wsUrl) {
-    return wsUrl
-      .replace(/\/$/, "")
-      .replace(/^wss:/i, "https:")
-      .replace(/^ws:/i, "http:")
-      .replace(/\/ws\/?$/, "");
-  }
-
   const base = API.defaults.baseURL || "";
   if (base.startsWith("http")) {
     const url = new URL(base);
     url.pathname = url.pathname.replace(/\/api\/?$/, "");
     return url.origin;
   }
-
-  if (import.meta.env.DEV) {
-    return import.meta.env.VITE_DEV_API_ORIGIN?.trim() || "http://localhost:8000";
-  }
-
-  return "";
+  return getBackendOrigin();
 };
 
-export const getApiRoot = () => {
-  const origin = resolveBackendOrigin();
-  if (!origin && !import.meta.env.DEV) {
-    console.error(
-      "[chat] Missing VITE_API_URL on Vercel. Set it to your Render URL, e.g. https://your-app.onrender.com/api",
-    );
-  }
-  return origin || window.location.origin;
-};
+export const getApiRoot = () => resolveBackendOrigin();
 
 export const normalizeMediaPath = (path?: string | null): string => {
   if (!path) return "";

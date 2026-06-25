@@ -50,8 +50,17 @@ export default function AdminLogin() {
         setError(response.data.error || "Admin login failed");
       }
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: string } } };
-      setError(error.response?.data?.error || "Invalid credentials");
+      const error = err as {
+        response?: { data?: { error?: string } };
+        message?: string;
+      };
+      if (!error.response) {
+        setError(
+          "Cannot reach the server. Confirm the backend is running on Render, then redeploy the frontend.",
+        );
+      } else {
+        setError(error.response.data?.error || "Invalid credentials");
+      }
     } finally {
       setLoading(false);
     }

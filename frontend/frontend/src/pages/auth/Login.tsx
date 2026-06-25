@@ -71,8 +71,17 @@ export default function Login() {
         }, 1000);
       }
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: string } } };
-      setError(error.response?.data?.error || "Invalid credentials");
+      const error = err as {
+        response?: { data?: { error?: string } };
+        message?: string;
+      };
+      if (!error.response) {
+        setError(
+          "Cannot reach the server. Confirm the backend is running on Render, then redeploy the frontend.",
+        );
+      } else {
+        setError(error.response.data?.error || "Invalid credentials");
+      }
       setOverlay(null);
     } finally {
       setLoading(false);
