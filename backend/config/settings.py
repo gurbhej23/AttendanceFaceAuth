@@ -109,15 +109,18 @@ DATABASES = {
 }
 
 CORS_ALLOWED_ORIGINS = [
+    "https://attendanceauth.vercel.app",  # <--- Added your actual live Vercel domain!
     "https://attendance-face-auth.vercel.app",
-    "https://attendancefaceauth.vercel.app",
+    "https://attendance-face-auth-7wxl1qus7-gurbhej-singhs-projects.vercel.app",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
 ]
+
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = False
+
 CORS_ALLOW_METHODS = ["DELETE", "GET", "OPTIONS", "PATCH", "POST", "PUT"]
 CORS_ALLOW_HEADERS = [
     "accept",
