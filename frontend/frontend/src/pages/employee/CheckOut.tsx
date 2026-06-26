@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Webcam from "react-webcam";
 import { useNavigate } from "react-router-dom";
+import { CheckCircle2 } from "lucide-react";
 import API, { FACE_REQUEST_TIMEOUT_MS } from "../../services/api";
 import MessageOverlay from "../../components/chat/MessageOverlay";
 import Button from "../../components/common/Button";
@@ -131,7 +132,7 @@ export default function CheckOut() {
           <h1 className="mt-1 text-4xl font-bold text-white">Face Check-Out</h1>
         </div>
 
-        <div className="overflow-hidden rounded-3xl border border-slate-700 bg-slate-950">
+        <div className="overflow-hidden rounded-2xl border border-slate-700/50 bg-slate-950 shadow-inner">
           <Webcam
             ref={webcamRef}
             audio={false}
@@ -144,8 +145,30 @@ export default function CheckOut() {
         </div>
 
         {message && (
-          <div className="mt-5 rounded-2xl border border-blue-500/20 bg-blue-500/10 p-4 text-center text-sm text-blue-300">
-            {message}
+          <div
+            className={`mt-5 rounded-2xl border p-4 text-center text-sm ${
+              livenessDone
+                ? "border-green-500/25 bg-green-500/10 text-green-300"
+                : "border-blue-500/20 bg-blue-500/10 text-blue-300"
+            }`}
+            role="status"
+            aria-live="polite"
+          >
+            <span className="inline-flex items-center justify-center gap-2.5">
+              {livenessDone && (
+                <span
+                  className="relative flex h-5 w-5 shrink-0 items-center justify-center"
+                  aria-hidden
+                >
+                  <span className="absolute inline-flex h-2.5 w-2.5 animate-ping rounded-full bg-green-400/50" />
+                  <CheckCircle2
+                    className="relative h-5 w-5 text-green-400"
+                    strokeWidth={2.25}
+                  />
+                </span>
+              )}
+              <span>{message}</span>
+            </span>
           </div>
         )}
 
@@ -160,7 +183,7 @@ export default function CheckOut() {
                 ? "Verify & Check Out"
                 : `Complete Liveness (${livenessCount})`
           }
-          className="mt-6 w-full bg-linear-to-r from-blue-600 to-cyan-500 p-4 text-white transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-blue-500/30"
+          className="mt-6 w-full transform-gpu bg-linear-to-r from-blue-600 to-cyan-500 p-4 text-white transition-[transform,filter,box-shadow] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] hover:brightness-110 hover:shadow-xl hover:shadow-blue-500/30 active:scale-[0.98] disabled:hover:brightness-100 disabled:active:scale-100"
         />
 
         <button

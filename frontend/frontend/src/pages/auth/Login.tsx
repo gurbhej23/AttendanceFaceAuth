@@ -5,6 +5,16 @@ import { useNavigate, Link } from "react-router-dom";
 import API from "../../services/api";
 import Button from "../../components/common/Button";
 import MessageOverlay from "../../components/chat/MessageOverlay";
+import {
+  LOGIN_EYE_BUTTON,
+  LOGIN_INNER_PANEL,
+  LOGIN_INPUT,
+  LOGIN_OUTER_SHELL,
+  LOGIN_PASSWORD_INPUT,
+  LOGIN_ROLE_TOGGLE,
+  LOGIN_SUBMIT_BUTTON,
+  LOGIN_SUBTITLE,
+} from "../../components/auth/loginStyles";
 import { Eye, EyeOff, UserRound } from "lucide-react";
 
 export default function Login() {
@@ -96,7 +106,7 @@ export default function Login() {
   };
 
   return (
-    <div className="relative flex flex-col min-h-screen items-center justify-center overflow-hidden bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] p-6">
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] p-6">
       {overlay && (
         <MessageOverlay
           title={overlay.title}
@@ -106,7 +116,7 @@ export default function Login() {
         />
       )}
 
-      <div className="w-80 mb-5 grid grid-cols-2 gap-3 rounded-2xl border border-slate-800 bg-slate-950/70 p-2">
+      <div className={LOGIN_ROLE_TOGGLE}>
         <Button
           text="Employee"
           className="bg-linear-to-r from-blue-600 to-cyan-500 py-3 text-white shadow-lg shadow-blue-500/20 cursor-pointer"
@@ -119,11 +129,8 @@ export default function Login() {
         />
       </div>
 
-      {/* <div className="absolute -left-25 -top-30 h-87.5 w-87.5 rounded-full bg-blue-500/20 blur-3xl" />
-      <div className="absolute -bottom-30 -right-25 h-87.5 w-87.5 rounded-full bg-cyan-500/20 blur-3xl" /> */}
-
-      <div className="relative grid w-full max-w-3xl gap-5 rounded-[36px] border border-white/15 bg-white/8 p-5 shadow-2xl backdrop-blur-2xl lg:grid-cols-[270px_1fr]">
-        <section className="rounded-[28px] border border-white/12 bg-white/8 p-4 text-center shadow-inner">
+      <div className={`${LOGIN_OUTER_SHELL} lg:grid-cols-[270px_1fr]`}>
+        <section className={`${LOGIN_INNER_PANEL} p-4 text-center`}>
           <p className="text-lg font-semibold text-slate-100">Selected User</p>
 
           <div className="relative mx-auto mt-5 flex h-36 w-36 items-center justify-center rounded-full border border-cyan-300/30 bg-slate-950/70 shadow-xl shadow-cyan-500/10">
@@ -135,14 +142,12 @@ export default function Login() {
             <div className="flex h-24 w-24 items-center justify-center rounded-full bg-linear-to-br from-slate-700 to-slate-900 text-cyan-100">
               <UserRound size={58} strokeWidth={1.6} />
             </div>
-          </div> 
+          </div>
           <h1 className="mt-4 text-3xl font-bold text-white">Attendance</h1>
-          <p className="mt-1 text-xs text-slate-400">
-            Smart Face Recognition System
-          </p>
+          <p className={LOGIN_SUBTITLE}>Smart Face Recognition System</p>
         </section>
 
-        <section className="rounded-[28px] border border-white/12 bg-white/8 p-5 shadow-inner">
+        <section className={`${LOGIN_INNER_PANEL} flex flex-col justify-center p-5`}>
           <form
             className="space-y-5"
             onSubmit={(e) => {
@@ -151,7 +156,7 @@ export default function Login() {
             }}
           >
             <div>
-              <label className="mb-2 block text-sm text-slate-200">
+              <label className="mb-2 block text-sm font-medium text-slate-200">
                 Employee ID
               </label>
               <input
@@ -167,12 +172,12 @@ export default function Login() {
                   })
                 }
                 onKeyDown={handleKeyPress}
-                className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 p-4 text-white outline-none transition placeholder:text-slate-500 focus:border-blue-500"
+                className={LOGIN_INPUT}
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm text-slate-200">
+              <label className="mb-2 block text-sm font-medium text-slate-200">
                 Password
               </label>
 
@@ -190,14 +195,16 @@ export default function Login() {
                     })
                   }
                   onKeyDown={handleKeyPress}
-                  className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 p-4 pr-14 text-white outline-none transition placeholder:text-slate-500 focus:border-blue-500"
+                  className={LOGIN_PASSWORD_INPUT}
                 />
 
                 <Button
                   text={showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   type="button"
+                  unstyled
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
+                  className={LOGIN_EYE_BUTTON}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 />
               </div>
 
@@ -209,14 +216,15 @@ export default function Login() {
                 />
               </div>
             </div>
+
             {success && (
-              <div className="mb-5 rounded-2xl border border-green-500/30 bg-green-500/10 p-4 text-center text-sm text-green-300">
+              <div className="dash-squircle border border-green-500/30 bg-green-500/10 p-4 text-center text-sm text-green-300">
                 {success}
               </div>
             )}
 
             {error && (
-              <div className="mb-5 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-center text-sm text-red-300">
+              <div className="dash-squircle border border-red-500/30 bg-red-500/10 p-4 text-center text-sm text-red-300">
                 {error}
               </div>
             )}
@@ -225,7 +233,7 @@ export default function Login() {
               text={loading ? "Verifying..." : "Login"}
               type="submit"
               disabled={loading}
-              className="w-full bg-linear-to-r from-blue-600 to-cyan-500 p-4 text-white font-bold hover:scale-[1.01] hover:shadow-xl hover:shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className={LOGIN_SUBMIT_BUTTON}
             />
           </form>
 

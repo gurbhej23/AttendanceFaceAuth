@@ -76,6 +76,8 @@ export default function MessagingDrawer() {
     Record<string, { is_online: boolean; last_seen?: string }>
   >({});
   const contactsRef = useRef<Contact[]>([]);
+  const prevUnreadTotalRef = useRef(0);
+  const [fabAttention, setFabAttention] = useState(false);
 
   const { summary, refreshUnread } = useUnreadMessages(
     employeeId,
@@ -131,6 +133,17 @@ export default function MessagingDrawer() {
   refreshUnreadRef.current = refreshUnread;
   const reconnectAttemptRef = useRef(0);
   const heartbeatTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (summary.total > prevUnreadTotalRef.current) {
+      setFabAttention(true);
+      const timer = window.setTimeout(() => setFabAttention(false), 560);
+      prevUnreadTotalRef.current = summary.total;
+      return () => window.clearTimeout(timer);
+    }
+    prevUnreadTotalRef.current = summary.total;
+    return undefined;
+  }, [summary.total]);
 
   const applyPresence = useCallback(
     (id: string, isOnline: boolean, lastSeen?: string) => {
@@ -694,7 +707,9 @@ export default function MessagingDrawer() {
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full md:rounded-none border border-cyan-800 bg-slate-800 shadow-xl shadow-cyan-950/40 backdrop-blur-xl text-cyan-500 hover:scale-105 active:scale-95 md:border-slate-700 md:hover:bg-slate-700 md:h-14 md:w-full md:max-w-none md:justify-start md:gap-3 md:px-4 md:hover:scale-100 md:rounded-t-2xl cursor-pointer transition"
+        className={`relative flex h-14 w-14 shrink-0 cursor-pointer items-center justify-center rounded-full border border-cyan-800 bg-slate-800 px-4 text-cyan-500 shadow-xl shadow-cyan-950/40 backdrop-blur-xl transition-transform duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] hover:scale-105 active:scale-95 md:h-14 md:w-full md:max-w-none md:justify-start md:gap-3 md:rounded-none md:rounded-t-2xl md:border-slate-700 md:hover:scale-100 md:hover:bg-slate-700 ${
+          fabAttention ? "fab-attention-bounce" : ""
+        }`}
         aria-label={expanded ? "Close messages" : "Open messages"}
       >
         <div className="relative flex items-center gap-3">
@@ -716,7 +731,7 @@ export default function MessagingDrawer() {
             Messages
           </span>
           <span
-            className={`absolute bottom-0 left-7.5 h-3 w-3 rounded-full ring-1 ring-slate-900 ${
+            className={`absolute bottom-0 left-6 md:left-7.5 h-3 w-3 rounded-full ring-1 ring-slate-900 ${
               wsConnected ? "bg-emerald-400" : "bg-amber-400"
             }`}
             title={

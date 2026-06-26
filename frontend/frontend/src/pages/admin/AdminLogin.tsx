@@ -3,6 +3,16 @@ import { useNavigate } from "react-router-dom";
 import API from "../../services/api";
 import { notifyAuthChanged } from "../../hooks/useEmployeeSession";
 import Button from "../../components/common/Button";
+import {
+  LOGIN_EYE_BUTTON,
+  LOGIN_FIELD_ICON,
+  LOGIN_INNER_PANEL,
+  LOGIN_INPUT_WITH_LEADING_ICON,
+  LOGIN_OUTER_SHELL,
+  LOGIN_PASSWORD_INPUT,
+  LOGIN_ROLE_TOGGLE_SHELL,
+  LOGIN_SUBMIT_BUTTON,
+} from "../../components/auth/loginStyles";
 import { Eye, EyeOff, ShieldUser, UserRound } from "lucide-react";
 
 export default function AdminLogin() {
@@ -35,7 +45,7 @@ export default function AdminLogin() {
 
         if (role !== "admin" && role !== "hr") {
           setError("Access denied. Admin or HR role required.");
-          setLoading(false)
+          setLoading(false);
           return;
         }
 
@@ -64,14 +74,18 @@ export default function AdminLogin() {
     } finally {
       setLoading(false);
     }
-  }; 
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleLogin();
+    }
+  };
 
   return (
-    <div className="relative flex flex-col gap-5 min-h-screen items-center justify-center overflow-hidden bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] p-6">
-      {/* <div className="absolute -left-45 -top-40 h-87.5 w-87.5 rounded-full bg-blue-500/20 blur-3xl" />
-      <div className="absolute -bottom-30 -right-25 h-87.5 w-87.5 rounded-full bg-cyan-500/20 blur-3xl" /> */}
-
-      <div className="w-80 grid grid-cols-2 gap-2 rounded-2xl border border-slate-800 bg-slate-950/70 p-2">
+    <div className="relative flex min-h-screen flex-col items-center justify-center gap-5 overflow-hidden bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] p-6">
+      <div className={LOGIN_ROLE_TOGGLE_SHELL}>
         <Button
           text="Employee"
           onClick={() => navigate("/", { replace: true })}
@@ -84,75 +98,80 @@ export default function AdminLogin() {
         />
       </div>
 
-      <div className="relative grid w-full max-w-3xl gap-5 rounded-[36px] border border-white/15 bg-white/8 p-5 shadow-2xl backdrop-blur-2xl xl:grid-cols-[250px_1.45fr]">
-        <section className="flex flex-col gap-5 justify-evenly items-center rounded-[28px] border border-white/12 bg-white/8 p-4 text-center shadow-inner">
+      <div className={`${LOGIN_OUTER_SHELL} xl:grid-cols-[250px_1.45fr]`}>
+        <section
+          className={`${LOGIN_INNER_PANEL} flex flex-col items-center justify-evenly gap-5 p-4 text-center`}
+        >
           <h1 className="text-3xl font-bold text-white">Attendance</h1>
-          <div className="text-white  rounded-full border border-cyan-300/30 bg-slate-950/70 shadow-xl shadow-cyan-500/10">
+          <div className="rounded-full border border-cyan-300/30 bg-slate-950/70 p-2 text-white shadow-xl shadow-cyan-500/10">
             <ShieldUser size={150} strokeWidth={0.5} />
           </div>
-          <h2 className="text-center text-xl font-medium text-white">
-            Admin Portal Login
-          </h2>
+          <div>
+            <h2 className="text-xl font-semibold text-white">Admin Portal Login</h2> 
+          </div>
         </section>
 
-        <section className="flex flex-col justify-center rounded-[28px] border border-white/12 bg-white/8 p-4 shadow-inner">
+        <section
+          className={`${LOGIN_INNER_PANEL} flex flex-col justify-center p-5`}
+        >
           <form
-            className="mt-2 space-y-5"
+            className="space-y-5"
             onSubmit={(e) => {
               e.preventDefault();
               handleLogin();
             }}
           >
             <div>
-              <label className="mb-2 block text-sm text-slate-200">
+              <label className="mb-2 block text-sm font-medium text-slate-200">
                 Administrator ID
               </label>
               <div className="relative">
-                <UserRound
-                  size={22}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                />
+                <UserRound size={20} className={LOGIN_FIELD_ICON} />
                 <input
                   type="text"
-                  placeholder="Enter Admin ID"
+                  placeholder="Enter admin ID"
                   value={formData.employee_id}
                   autoComplete="username"
                   name="username"
                   onChange={(e) =>
                     setFormData({ ...formData, employee_id: e.target.value })
-                  } 
-                  className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 p-4 pl-12 text-white outline-none transition placeholder:text-slate-500 focus:border-blue-500"
+                  }
+                  onKeyDown={handleKeyPress}
+                  className={LOGIN_INPUT_WITH_LEADING_ICON}
                 />
               </div>
             </div>
 
-            <div className="mb-2">
-              <label className="mb-2 block text-sm text-slate-200">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-200">
                 Password
               </label>
               <div className="relative">
                 <input
                   type={showPass ? "text" : "password"}
-                  placeholder="Enter Password"
+                  placeholder="Enter password"
                   value={formData.password}
                   autoComplete="current-password"
                   name="password"
                   onChange={(e) =>
                     setFormData({ ...formData, password: e.target.value })
-                  } 
-                  className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 p-4 pr-14 text-white outline-none transition placeholder:text-slate-500 focus:border-blue-500"
+                  }
+                  onKeyDown={handleKeyPress}
+                  className={LOGIN_PASSWORD_INPUT}
                 />
                 <Button
                   text={showPass ? <EyeOff size={20} /> : <Eye size={20} />}
                   type="button"
+                  unstyled
                   onClick={() => setShowPass(!showPass)}
-                  className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
+                  className={LOGIN_EYE_BUTTON}
+                  aria-label={showPass ? "Hide password" : "Show password"}
                 />
               </div>
             </div>
 
             {error && (
-              <div className="mt-5 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-center text-sm text-red-300">
+              <div className="dash-squircle border border-red-500/30 bg-red-500/10 p-4 text-center text-sm text-red-300">
                 {error}
               </div>
             )}
@@ -164,11 +183,12 @@ export default function AdminLogin() {
                 className="text-sm text-blue-300 hover:text-blue-200 cursor-pointer"
               />
             </div>
+
             <Button
               text={loading ? "Verifying..." : "Secure Login"}
-              onClick={handleLogin}
+              type="submit"
               disabled={loading}
-              className="w-full bg-linear-to-r from-blue-600 to-cyan-500 p-4 text-lg font-bold text-white shadow-xl shadow-cyan-500/20 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              className={LOGIN_SUBMIT_BUTTON}
             />
           </form>
         </section>

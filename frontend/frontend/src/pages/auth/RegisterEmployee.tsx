@@ -1,20 +1,9 @@
 // src/pages/Register.tsx
 import { useState, useRef, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import Webcam from "react-webcam";
 import API, { FACE_REQUEST_TIMEOUT_MS } from "../../services/api";
-import Input from "../../components/common/Input";
-import Button from "../../components/common/Button";
-import MessageOverlay from "../../components/chat/MessageOverlay";
-import {
-  BadgeCheck,
-  BriefcaseBusiness,
-  ChevronDown,
-  FileText, 
-  Mail,
-  Phone, 
-  UserRound,
-} from "lucide-react";
+import RegisterEmployeeView from "./RegisterEmployeeView";
 
 type Step = "form" | "otp" | "face";
 type VerifyMethod = "email" | "phone";
@@ -27,6 +16,9 @@ export default function Register() {
   const animationRef = useRef<number>(0);
 
   const [step, setStep] = useState<Step>("form");
+  const [stepAnim, setStepAnim] = useState<"wizard-step-forward" | "wizard-step-back">(
+    "wizard-step-forward",
+  );
   const [verifyMethod, setVerifyMethod] = useState<VerifyMethod>("email");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -35,7 +27,6 @@ export default function Register() {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [message, setMessage] = useState("Position your face in the oval");
 
-  // OTP state
   const [otp, setOtp] = useState("");
   const [otpVerified, setOtpVerified] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -48,7 +39,6 @@ export default function Register() {
     loading?: boolean;
   } | null>(null);
 
-  // Form — only name + email + optional phone
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -57,14 +47,12 @@ export default function Register() {
     designation: "Software Engineer",
   });
 
-  // ── Resend cooldown ───────────────────────────────────────────────────────
   useEffect(() => {
     if (resendCooldown <= 0) return;
     const t = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
     return () => clearTimeout(t);
   }, [resendCooldown]);
 
-  // ── Validators ────────────────────────────────────────────────────────────
   const isValidEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
   const isValidPhone = (v: string) =>
     /^\+?[0-9]{10,15}$/.test(v.replace(/\s/g, ""));
@@ -80,7 +68,13 @@ export default function Register() {
   const isPdfFile = (file: File) =>
     file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
 
-  // ── Send OTP ──────────────────────────────────────────────────────────────
+  const goToStep = (next: Step, direction: "forward" | "back" = "forward") => {
+    setStepAnim(
+      direction === "forward" ? "wizard-step-forward" : "wizard-step-back",
+    );
+    setStep(next);
+  };
+
   const sendOtp = async () => {
     setLoading(true);
     setError("");
@@ -91,7 +85,7 @@ export default function Register() {
 
       if (response.data.success) {
         setResendCooldown(60);
-        setStep("otp");
+        goToStep("otp", "forward");
       } else {
         setError(response.data.error || "Failed to send OTP");
       }
@@ -103,7 +97,6 @@ export default function Register() {
     }
   };
 
-  // ── Verify OTP ────────────────────────────────────────────────────────────
   const verifyOtp = async () => {
     if (!otp.trim() || otp.length < 6) {
       setError("Please enter the 6-digit OTP");
@@ -120,7 +113,7 @@ export default function Register() {
       if (response.data.success) {
         setOtpVerified(true);
         setError("");
-        setTimeout(() => setStep("face"), 800);
+        setTimeout(() => goToStep("face", "forward"), 800);
       } else {
         setError(response.data.error || "Invalid OTP");
       }
@@ -132,7 +125,6 @@ export default function Register() {
     }
   };
 
-  // ── Image quality check ───────────────────────────────────────────────────
   const checkImageQuality = (
     imageSrc: string,
   ): Promise<{ passed: boolean; reason: string }> => {
@@ -184,7 +176,6 @@ export default function Register() {
     });
   };
 
-  // ── Canvas overlay ────────────────────────────────────────────────────────
   const drawOverlay = (status: BorderStatus, scanOffset: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -253,6 +244,7 @@ export default function Register() {
   };
 
   useEffect(() => {
+    if (step !== "face") return undefined;
     let scanOffset = 0,
       direction = 1;
     const loop = () => {
@@ -266,9 +258,8 @@ export default function Register() {
     };
     animationRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animationRef.current);
-  }, [borderStatus]);
+  }, [borderStatus, step]);
 
-  // ── Capture face ──────────────────────────────────────────────────────────
   const captureFace = async () => {
     for (let attempt = 1; attempt <= 3; attempt++) {
       const imageSrc = webcamRef.current?.getScreenshot({
@@ -294,12 +285,11 @@ export default function Register() {
       }
       setCapturedImage(imageSrc);
       setBorderStatus("success");
-      setMessage("✅ Face captured successfully!");
+      setMessage("Face captured successfully");
       return;
     }
   };
 
-  // ── Register submit ───────────────────────────────────────────────────────
   const handleRegisterSubmit = async () => {
     if (!capturedImage) {
       setError("Please capture your face");
@@ -352,7 +342,6 @@ export default function Register() {
     }
   };
 
-  // ════════════════════════════════════════════════════════════════════════════
   const handleRegistrationContinue = () => {
     if (!formData.name.trim()) {
       setError("Please enter your name");
@@ -384,981 +373,58 @@ export default function Register() {
     sendOtp();
   };
 
-  const renderFormStep = () => (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] p-6">
-      {overlay && (
-        <MessageOverlay
-          title={overlay.title}
-          message={overlay.message}
-          tone={overlay.tone}
-          loading={overlay.loading}
-        />
-      )}
-      <div className="absolute -left-25 -top-30 h-87.5 w-87.5 rounded-full bg-blue-500/20 blur-3xl" />
-      <div className="absolute -bottom-30 -right-25 h-87.5 w-87.5 rounded-full bg-cyan-500/20 blur-3xl" />
-
-      <div className="relative grid w-full max-w-6xl gap-5 rounded-[36px] border border-white/15 bg-white/8 p-5 shadow-2xl backdrop-blur-2xl lg:grid-cols-[270px_1fr_270px]">
-        <section className="rounded-[28px] border border-white/12 bg-white/8 p-6 shadow-inner">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-white/15 bg-slate-950/70 text-blue-200">
-            <BadgeCheck size={30} />
-          </div>
-          <h1 className="mt-5 text-center text-3xl font-bold text-white">
-            Attendance
-          </h1>
-          <p className="mt-1 text-center text-xs text-slate-400">
-            Smart Face Recognition System
-          </p>
-
-          <div className="mt-8 space-y-3">
-            {[
-              ["1", "Employee details", true],
-              ["2", "Email verification", false],
-              ["3", "Face enrollment", false],
-            ].map(([number, label, active]) => (
-              <div
-                key={String(label)}
-                className={`flex items-center gap-3 rounded-2xl border p-3 text-sm ${active
-                    ? "border-blue-400/40 bg-blue-500/15 text-blue-200"
-                    : "border-slate-700 bg-slate-950/50 text-slate-400"
-                  }`}
-              >
-                <span
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${active
-                      ? "bg-linear-to-r from-blue-600 to-cyan-500 text-white"
-                      : "bg-slate-800 text-slate-400"
-                    }`}
-                >
-                  {number}
-                </span>
-                <span className="font-semibold">{label}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-8 rounded-2xl border border-cyan-400/20 bg-cyan-500/10 p-4 text-sm leading-6 text-cyan-100">
-            Account credentials are generated after verification and sent to the
-            selected contact method.
-          </div>
-        </section>
-
-        <section className="rounded-[28px] border border-white/12 bg-white/8 p-6 shadow-inner">
-          <div className="mb-4">
-            <div>
-              <h2 className="text-3xl font-bold text-white">
-                Create Employee Account
-              </h2>
-            </div>
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-1">
-            <label className="block text-sm text-slate-300">
-              Full Name *
-              <div className="relative mt-2">
-                <UserRound
-                  size={20}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                />
-                <Input
-                  type="text"
-                  placeholder="Enter full name"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                  className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 p-4 pl-12 text-white outline-none transition placeholder:text-slate-500 focus:border-blue-500"
-                />
-              </div>
-            </label>
-
-            <label className="block text-sm text-slate-300">
-              Email Address *
-              <div className="relative mt-2">
-                <Mail
-                  size={20}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                />
-                <Input
-                  type="email"
-                  placeholder="employee@company.com"
-                  value={formData.email}
-                  onChange={(e) =>
-                    setFormData({ ...formData, email: e.target.value })
-                  }
-                  className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 p-4 pl-12 text-white outline-none transition placeholder:text-slate-500 focus:border-blue-500"
-                />
-              </div>
-            </label>
-
-            <label className="block text-sm text-slate-300">
-              Phone Number
-              <div className="relative mt-2">
-                <Phone
-                  size={20}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                />
-                <Input
-                  type="tel"
-                  placeholder="+91 9876543210"
-                  value={formData.phone}
-                  onChange={(e) =>
-                    setFormData({ ...formData, phone: e.target.value })
-                  }
-                  className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 p-4 pl-12 text-white outline-none transition placeholder:text-slate-500 focus:border-blue-500"
-                />
-              </div>
-            </label>
-
-            <label className="block text-sm text-slate-300">
-              CV / Resume *
-              <div className="relative mt-2">
-                <FileText
-                  size={20}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                />
-                <input
-                  type="file"
-                  accept=".pdf,application/pdf"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) {
-                      setCvFile("");
-                      setCvFileName("");
-                      return;
-                    }
-                    if (!isPdfFile(file)) {
-                      setError("CV / Resume must be a PDF file");
-                      setCvFile("");
-                      setCvFileName("");
-                      e.target.value = "";
-                      return;
-                    }
-                    if (file.size > 5 * 1024 * 1024) {
-                      setError("CV file must be 5MB or smaller");
-                      e.target.value = "";
-                      return;
-                    }
-                    try {
-                      setCvFile(await fileToDataUrl(file));
-                      setCvFileName(file.name);
-                      setError("");
-                    } catch {
-                      setError("Could not read selected CV");
-                    }
-                  }}
-                  className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 p-4 pl-12 text-sm text-slate-300 file:mr-4 file:rounded-xl file:border-0 file:bg-blue-600 file:px-4 file:py-2 file:font-semibold file:text-white hover:file:bg-blue-700"
-                />
-              </div>
-              <span className="mt-2 block truncate text-xs text-slate-500">
-                {cvFileName || "PDF only, max 5MB"}
-              </span>
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              <label className="block text-sm text-slate-300">
-                Department *
-                <div className="relative mt-2">
-                  <BriefcaseBusiness
-                    size={20}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                  />
-                  <select
-                    value={formData.department}
-                    onChange={(e) =>
-                      setFormData({ ...formData, department: e.target.value })
-                    }
-                    className="w-full appearance-none rounded-2xl border border-slate-700 bg-slate-950/80 p-4 pl-12 pr-10 text-white outline-none transition focus:border-blue-500"
-                  >
-                    <option value="IT">IT</option>
-                    <option value="HR">HR</option>
-                    <option value="Finance">Finance</option>
-                    <option value="Operations">Operations</option>
-                    <option value="Sales">Sales</option>
-                    <option value="Marketing">Marketing</option>
-                  </select>
-                  <ChevronDown
-                    size={20}
-                    className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-300"
-                  />
-                </div>
-              </label>
-
-              <label className="block text-sm text-slate-300">
-                Job Role *
-                <div className="relative mt-2">
-                  <BriefcaseBusiness
-                    size={20}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                  />
-                  <select
-                    value={formData.designation}
-                    onChange={(e) =>
-                      setFormData({ ...formData, designation: e.target.value })
-                    }
-                    className="w-full appearance-none rounded-2xl border border-slate-700 bg-slate-950/80 p-4 pl-12 pr-10 text-white outline-none transition focus:border-blue-500"
-                  >
-                    <option value="Software Engineer">Software Engineer</option>
-                    <option value="Frontend Developer">
-                      Frontend Developer
-                    </option>
-                    <option value="Backend Developer">Backend Developer</option>
-                    <option value="QA Engineer">QA Engineer</option>
-                    <option value="HR Executive">HR Executive</option>
-                    <option value="Accountant">Accountant</option>
-                    <option value="Operations Executive">
-                      Operations Executive
-                    </option>
-                    <option value="Sales Executive">Sales Executive</option>
-                    <option value="Full Stack Developer">
-                      Full Stack Developer
-                    </option>
-                    <option value="DevOps Engineer">DevOps Engineer</option>
-                    <option value="UI/UX Designer">UI/UX Designer</option>
-                    <option value="Intern">Intern</option>
-                    <option value="Project Manager">Project Manager</option>
-                  </select>
-                  <ChevronDown
-                    size={20}
-                    className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-300"
-                  />
-                </div>
-              </label>
-            </div>
-          </div>
-          {error && (
-            <div className="mt-5 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-center text-sm text-red-300">
-              {error}
-            </div>
-          )}
-        </section>
-
-        <section className="rounded-[28px] border border-white/12 bg-white/8 p-6 shadow-inner">
-          <p className="text-lg font-semibold text-white">Verification</p>
-
-          <div className="mt-5 grid grid-cols-1 gap-3">
-            <button
-              type="button"
-              onClick={() => setVerifyMethod("email")}
-              className={`flex items-center gap-3 rounded-2xl border p-4 text-left text-sm font-semibold transition ${verifyMethod === "email"
-                  ? "border-blue-400/50 bg-blue-500/15 text-blue-200"
-                  : "border-slate-700 bg-slate-950/50 text-slate-400 hover:border-slate-500"
-                }`}
-            >
-              <Mail size={20} />
-              Email OTP
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (!formData.phone) {
-                  setError(
-                    "Enter a phone number first to use SMS verification",
-                  );
-                  return;
-                }
-                setError(
-                  "SMS verification is not available yet. Please use Email OTP.",
-                );
-              }}
-              className={`flex items-center gap-3 rounded-2xl border p-4 text-left text-sm font-semibold transition ${verifyMethod === "phone"
-                  ? "border-cyan-400/50 bg-cyan-500/15 text-cyan-200"
-                  : "border-slate-700 bg-slate-950/50 text-slate-400 hover:border-slate-500"
-                }`}
-            >
-              <Phone size={20} />
-              SMS OTP
-            </button>
-          </div>
-
-          {/* <div className="mt-6 space-y-3">
-            <div className="flex items-start gap-3 rounded-2xl border border-slate-700 bg-slate-950/50 p-4">
-              <ShieldCheck className="mt-0.5 text-blue-300" size={20} />
-              <p className="text-sm leading-6 text-slate-300">
-                Email verification is required before face enrollment opens.
-              </p>
-            </div>
-            <div className="flex items-start gap-3 rounded-2xl border border-slate-700 bg-slate-950/50 p-4">
-              <ScanFace className="mt-0.5 text-cyan-300" size={20} />
-              <p className="text-sm leading-6 text-slate-300">
-                A clear face capture is used for attendance verification.
-              </p>
-            </div>
-            <div className="flex items-start gap-3 rounded-2xl border border-slate-700 bg-slate-950/50 p-4">
-              <KeyRound className="mt-0.5 text-blue-300" size={20} />
-              <p className="text-sm leading-6 text-slate-300">
-                Employee ID and password are issued after registration.
-              </p>
-            </div>
-          </div> */}
-
-          <Button
-            text={loading ? "Sending OTP..." : "Verify & Continue"}
-            onClick={handleRegistrationContinue}
-            disabled={loading}
-            className="mt-6 w-full bg-linear-to-r from-blue-600 to-cyan-500 p-4 text-white font-bold hover:scale-[1.01] hover:shadow-xl hover:shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-          />
-
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-2 text-center">
-            <p className="text-sm text-slate-400">Already registered?</p>
-            <Link
-              to="/"
-              className="text-sm font-semibold text-blue-300 transition hover:text-blue-200"
-            >
-              Login
-            </Link>
-          </div>
-        </section>
-      </div>
-    </div>
-  );
-
-  // STEP 1 — FORM
-  // ════════════════════════════════════════════════════════════════════════════
-  if (step === "form") {
-    return renderFormStep();
-  }
-
-  if (false) {
-    return (
-      <div className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] flex items-center justify-center p-6 relative overflow-hidden">
-        {overlay && (
-          <MessageOverlay
-            title={overlay?.title || ""}
-            message={overlay?.message}
-            tone={overlay?.tone}
-            loading={overlay?.loading}
-          />
-        )}
-        <div className="absolute -top-30 -left-25 w-87.5 h-87.5 bg-blue-500/20 blur-3xl rounded-full" />
-        <div className="absolute -bottom-30 -right-25 w-87.5 h-87.5 bg-cyan-500/20 blur-3xl rounded-full" />
-
-        <div className="relative w-full max-w-md bg-white/5 backdrop-blur-2xl border border-white/10 shadow-2xl rounded-[36px] p-8">
-          <div className="text-center mb-6">
-            <h1 className="text-4xl font-bold text-white">Register</h1>
-            <p className="text-slate-400 mt-2 text-sm">
-              Create your employee account
-            </p>
-          </div>
-
-          <div className="space-y-5">
-            {/* NAME */}
-            <div>
-              <label className="text-slate-300 text-sm mb-2 block">
-                <span>Full Name *</span>
-              </label>
-              <Input
-                type="text"
-                placeholder="Enter full name"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-                className="w-full p-4 rounded-2xl bg-slate-900/70 border border-slate-700 text-white placeholder-slate-500 outline-none focus:border-blue-500 transition"
-              />
-            </div>
-
-            {/* EMAIL */}
-            <div>
-              <label className="text-slate-300 text-sm mb-2 block">
-                <span>Email Address *</span>
-              </label>
-              <Input
-                type="email"
-                placeholder="Enter email"
-                value={formData.email}
-                onChange={(e) =>
-                  setFormData({ ...formData, email: e.target.value })
-                }
-                className="w-full p-4 rounded-2xl bg-slate-900/70 border border-slate-700 text-white placeholder-slate-500 outline-none focus:border-blue-500 transition"
-              />
-            </div>
-
-            <div>
-              <label className="text-slate-300 text-sm mb-2 block">
-                <span>CV / Resume *</span>
-                <span className="text-slate-500 text-xs">
-                  {" "}
-                  (only PDF is required)
-                </span>
-              </label>
-              <input
-                type="file"
-                accept=".pdf,application/pdf"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) {
-                    setCvFile("");
-                    setCvFileName("");
-                    return;
-                  }
-                  if (!isPdfFile(file)) {
-                    setError("CV / Resume must be a PDF file");
-                    setCvFile("");
-                    setCvFileName("");
-                    e.target.value = "";
-                    return;
-                  }
-                  if (file.size > 5 * 1024 * 1024) {
-                    setError("CV file must be 5MB or smaller");
-                    e.target.value = "";
-                    return;
-                  }
-                  try {
-                    setCvFile(await fileToDataUrl(file));
-                    setCvFileName(file.name);
-                    setError("");
-                  } catch {
-                    setError("Could not read selected CV");
-                  }
-                }}
-                className="w-full rounded-2xl border border-slate-700 bg-slate-900/70 p-4 text-sm text-slate-300 file:mr-4 file:rounded-xl file:border-0 file:bg-blue-600 file:px-4 file:py-2 file:font-semibold file:text-white hover:file:bg-blue-700"
-              />
-              {cvFileName && (
-                <p className="mt-2 truncate text-xs text-blue-300">
-                  {cvFileName}
-                </p>
-              )}
-            </div>
-
-            {/* PHONE (optional) */}
-            <div>
-              <label className="text-slate-300 text-sm mb-2 block">
-                <span>Phone Number </span>
-                <span className="text-slate-500 text-xs">(optional)</span>
-              </label>
-              <Input
-                type="tel"
-                placeholder="+91"
-                value={formData.phone}
-                onChange={(e) =>
-                  setFormData({ ...formData, phone: e.target.value })
-                }
-                className="w-full p-4 rounded-2xl bg-slate-900/70 border border-slate-700 text-white placeholder-slate-500 outline-none focus:border-blue-500 transition"
-              />
-            </div>
-
-            {error && (
-              <div className="bg-red-500/10 border border-red-500/30 text-red-300 p-4 rounded-2xl mb-5 text-center text-sm">
-                {error}
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="text-slate-300 text-sm mb-2 block">
-                  <span>Department *</span>
-                </label>
-                <div className="relative">
-                  <select
-                    value={formData.department}
-                    onChange={(e) =>
-                      setFormData({ ...formData, department: e.target.value })
-                    }
-                    className="w-full p-4 pr-10 rounded-2xl bg-slate-900/70 border border-slate-700 text-white outline-none focus:border-blue-500 transition appearance-none"
-                  >
-                    <option value="IT">IT</option>
-                    <option value="HR">HR</option>
-                    <option value="Finance">Finance</option>
-                    <option value="Operations">Operations</option>
-                    <option value="Sales">Sales</option>
-                    <option value="Marketing">Marketing</option>
-                  </select>
-
-                  <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-white">
-                    <ChevronDown size={20} />
-                  </div>
-                </div>
-                <label className="text-slate-300 text-sm mb-2 block">
-                  <span>Job Role *</span>
-                </label>
-                <div className="relative">
-                  <select
-                    value={formData.designation}
-                    onChange={(e) =>
-                      setFormData({ ...formData, designation: e.target.value })
-                    }
-                    className="w-full p-4 rounded-2xl bg-slate-900/70 border border-slate-700 text-white outline-none focus:border-blue-500 transition appearance-none"
-                  >
-                    <option value="Software Engineer">Software Engineer</option>
-                    <option value="Frontend Developer">
-                      Frontend Developer
-                    </option>
-                    <option value="Backend Developer">Backend Developer</option>
-                    <option value="QA Engineer">QA Engineer</option>
-                    <option value="HR Executive">HR Executive</option>
-                    <option value="Accountant">Accountant</option>
-                    <option value="Operations Executive">
-                      Operations Executive
-                    </option>
-                    <option value="Sales Executive">Sales Executive</option>
-                    <option value="Full Stack Developer">
-                      Full Stack Developer
-                    </option>
-                    <option value="DevOps Engineer">DevOps Engineer</option>
-                    <option value="UI/UX Designer">UI/UX Designer</option>
-                    <option value="Intern">Intern</option>
-                    <option value="Project Manager">Project Manager</option>
-                  </select>
-                  <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-white">
-                    <ChevronDown size={20} />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* VERIFICATION METHOD */}
-            <div>
-              <label className="text-slate-300 text-sm mb-3 block">
-                Verify via
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setVerifyMethod("email")}
-                  className={`p-3 rounded-2xl border text-sm font-medium transition-all ${verifyMethod === "email"
-                      ? "border-blue-500 bg-blue-500/20 text-blue-300"
-                      : "border-slate-700 bg-slate-900/50 text-slate-400 hover:border-slate-500"
-                    }`}
-                >
-                  📧 Email OTP
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!formData.phone) {
-                      setError(
-                        "Enter a phone number first to use SMS verification",
-                      );
-                      return;
-                    }
-                    setError(
-                      "SMS verification is not available yet. Please use Email OTP.",
-                    );
-                  }}
-                  className={`p-3 rounded-2xl border text-sm font-medium transition-all ${verifyMethod === "phone"
-                      ? "border-cyan-500 bg-cyan-500/20 text-cyan-300"
-                      : "border-slate-700 bg-slate-900/50 text-slate-400 hover:border-slate-500"
-                    }`}
-                >
-                  📱 SMS OTP
-                </button>
-              </div>
-            </div>
-
-            {/* Info banner */}
-            <div className="bg-blue-500/10 border border-blue-500/30 text-blue-300 p-4 rounded-2xl text-sm text-center leading-relaxed">
-              🔐 Your <span className="font-semibold">Employee ID</span> and{" "}
-              <span className="font-semibold">Password</span> will be
-              auto-generated and sent to your{" "}
-              {verifyMethod === "email" ? "email" : "phone"} after registration.
-            </div>
-
-            {/* CONTINUE */}
-            <Button
-              text={loading ? "Sending OTP..." : "Verify & Continue →"}
-              onClick={() => {
-                if (!formData.name.trim()) {
-                  setError("Please enter your name");
-                  return;
-                }
-                if (!formData.email.trim()) {
-                  setError("Please enter your email");
-                  return;
-                }
-                if (!isValidEmail(formData.email)) {
-                  setError("Please enter a valid email");
-                  return;
-                }
-                if (!cvFile) {
-                  setError("Please upload your CV");
-                  return;
-                }
-                if (verifyMethod === "phone") {
-                  if (!formData.phone.trim()) {
-                    setError("Please enter your phone number");
-                    return;
-                  }
-                  if (!isValidPhone(formData.phone)) {
-                    setError(
-                      "Please enter a valid phone number (10–15 digits)",
-                    );
-                    return;
-                  }
-                }
-                setError("");
-                sendOtp();
-              }}
-              disabled={loading}
-              className="w-full bg-linear-to-r from-blue-600 to-cyan-500 hover:scale-[1.02] hover:shadow-xl hover:shadow-blue-500/30 transition-all duration-300 p-4 rounded-2xl text-white font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            />
-
-            <div className="text-center pt-2 flex gap-2 items-center justify-center">
-              <p className="text-slate-400 text-sm">Already have an account?</p>
-              <Link
-                to="/"
-                className="text-blue-400 hover:text-blue-300 font-semibold transition"
-              >
-                Login
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ════════════════════════════════════════════════════════════════════════════
-  // STEP 2 — OTP
-  // ════════════════════════════════════════════════════════════════════════════
-  if (step === "otp") {
-    const contactDisplay =
-      verifyMethod === "email" ? formData.email : formData.phone;
-    const methodLabel = verifyMethod === "email" ? "📧 Email" : "📱 SMS";
-
-    return (
-      <div className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] flex items-center justify-center p-6 relative overflow-hidden">
-        {overlay && (
-          <MessageOverlay
-            title={overlay.title}
-            message={overlay.message}
-            tone={overlay.tone}
-            loading={overlay.loading}
-          />
-        )}
-        <div className="absolute -left-25 -top-30 h-87.5 w-87.5 rounded-full bg-blue-500/20 blur-3xl" />
-        <div className="absolute -bottom-30 -right-25 h-87.5 w-87.5 rounded-full bg-cyan-500/20 blur-3xl" />
-
-        <div className="relative grid w-full max-w-6xl gap-5 rounded-[36px] border border-white/15 bg-white/8 p-5 shadow-2xl backdrop-blur-2xl lg:grid-cols-3">
-          <section className="rounded-[28px] border border-white/12 bg-white/8 p-6 shadow-inner">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-white/15 bg-slate-950/70 text-blue-200">
-              <BadgeCheck size={30} />
-            </div>
-            <h1 className="mt-5 text-center text-3xl font-bold text-white">
-              Attendance
-            </h1>
-            <p className="mt-1 text-center text-xs text-slate-400">
-              Smart Face Recognition System
-            </p>
-
-            <div className="mt-8 space-y-3">
-              {[
-                ["1", "Employee details", false],
-                ["2", "Email verification", true],
-                ["3", "Face enrollment", false],
-              ].map(([number, label, active]) => (
-                <div
-                  key={String(label)}
-                  className={`flex items-center gap-3 rounded-2xl border p-3 text-sm ${active
-                      ? "border-blue-400/40 bg-blue-500/15 text-blue-200"
-                      : "border-slate-700 bg-slate-950/50 text-slate-400"
-                    }`}
-                >
-                  <span
-                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${active
-                        ? "bg-linear-to-r from-blue-600 to-cyan-500 text-white"
-                        : "bg-slate-800 text-slate-400"
-                      }`}
-                  >
-                    {number}
-                  </span>
-                  <span className="font-semibold">{label}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-8 rounded-2xl border border-cyan-400/20 bg-cyan-500/10 p-4 text-sm leading-6 text-cyan-100">
-              Account credentials are generated after verification and sent to
-              the selected contact method.
-            </div>
-          </section>
-
-          <div className="flex flex-col justify-center">
-            <div className="text-center mb-6">
-              <div className="w-20 h-20 rounded-3xl bg-blue-500/20 flex items-center justify-center text-4xl mx-auto mb-4">
-                {verifyMethod === "email" ? "📧" : "📱"}
-              </div>
-              <h1 className="text-3xl font-bold text-white">
-                Verify {methodLabel}
-              </h1>
-              <p className="text-slate-400 mt-2 text-sm">
-                We sent a 6-digit OTP to
-              </p>
-              <p className="text-blue-400 font-semibold mt-1">
-                {contactDisplay}
-              </p>
-            </div>
-
-            {otpVerified && (
-              <div className="bg-green-500/10 border border-green-500/30 text-green-300 p-4 rounded-2xl mb-5 text-center text-sm">
-                ✅ Verified! Opening camera...
-              </div>
-            )}
-
-            {error && (
-              <div className="bg-red-500/10 border border-red-500/30 text-red-300 p-4 rounded-2xl mb-5 text-center text-sm">
-                {error}
-              </div>
-            )}
-
-            <div className="space-y-5">
-              <div>
-                <label className="text-slate-300 text-sm mb-2 block">
-                  Enter OTP
-                </label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  placeholder="_ _ _ _ _ _"
-                  value={otp}
-                  onChange={(e) => {
-                    setOtp(e.target.value.replace(/\D/g, ""));
-                    setError("");
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") verifyOtp();
-                  }}
-                  className="w-full p-4 rounded-2xl bg-slate-900/70 border border-slate-700 text-white placeholder-slate-500 outline-none focus:border-blue-500 transition text-center text-2xl tracking-[0.5em] font-mono"
-                />
-              </div>
-
-              <Button
-                text={loading ? "Verifying..." : "Verify OTP"}
-                onClick={verifyOtp}
-                disabled={loading || otpVerified}
-                className="w-full bg-linear-to-r from-blue-600 to-cyan-500 hover:scale-[1.02] transition-all duration-300 p-4 rounded-2xl text-white font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              />
-
-              <div className="text-center">
-                {resendCooldown > 0 ? (
-                  <p className="text-slate-500 text-sm">
-                    Resend in{" "}
-                    <span className="text-blue-400 font-semibold">
-                      {resendCooldown}s
-                    </span>
-                  </p>
-                ) : (
-                  <button
-                    onClick={() => {
-                      setOtp("");
-                      setError("");
-                      sendOtp();
-                    }}
-                    disabled={loading}
-                    className="text-blue-400 hover:text-blue-300 text-sm font-semibold transition cursor-pointer disabled:opacity-50"
-                  >
-                    Resend OTP
-                  </button>
-                )}
-              </div>
-
-              {/* Switch method */}
-              {formData.phone && (
-                <div className="text-center">
-                  <button
-                    onClick={() => {
-                      setVerifyMethod(
-                        verifyMethod === "email" ? "phone" : "email",
-                      );
-                      setOtp("");
-                      setError("");
-                      setStep("form");
-                    }}
-                    className="text-slate-500 hover:text-slate-300 text-xs transition"
-                  >
-                    Switch to {verifyMethod === "email" ? "SMS" : "Email"}{" "}
-                    verification
-                  </button>
-                </div>
-              )}
-
-              <button
-                onClick={() => {
-                  setStep("form");
-                  setOtp("");
-                  setError("");
-                  setOtpVerified(false);
-                }}
-                className="w-full text-slate-400 hover:text-white text-sm transition cursor-pointer"
-              >
-                ← Back to form
-              </button>
-            </div>
-          </div>
-          <section className="rounded-[28px] border border-white/12 bg-white/8 p-6 shadow-inner">
-            <p className="text-lg font-semibold text-white">Verification</p>
-
-            {/* <div className="mt-6 space-y-3">
-              <div className="flex items-start gap-3 rounded-2xl border border-slate-700 bg-slate-950/50 p-4">
-                <ShieldCheck className="mt-0.5 text-blue-300" size={20} />
-                <p className="text-sm leading-6 text-slate-300">
-                  Email verification is required before face enrollment opens.
-                </p>
-              </div>
-              <div className="flex items-start gap-3 rounded-2xl border border-slate-700 bg-slate-950/50 p-4">
-                <ScanFace className="mt-0.5 text-cyan-300" size={20} />
-                <p className="text-sm leading-6 text-slate-300">
-                  A clear face capture is used for attendance verification.
-                </p>
-              </div>
-              <div className="flex items-start gap-3 rounded-2xl border border-slate-700 bg-slate-950/50 p-4">
-                <KeyRound className="mt-0.5 text-blue-300" size={20} />
-                <p className="text-sm leading-6 text-slate-300">
-                  Employee ID and password are issued after registration.
-                </p>
-              </div>
-            </div> */}
-          </section>
-        </div>
-      </div>
-    );
-  }
-
-  // ════════════════════════════════════════════════════════════════════════════
-  // STEP 3 — FACE CAPTURE
-  // ════════════════════════════════════════════════════════════════════════════
   return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-5">
-      {overlay && (
-        <MessageOverlay
-          title={overlay.title}
-          message={overlay.message}
-          tone={overlay.tone}
-          loading={overlay.loading}
-        />
-      )}
-      <h1 className="text-3xl text-white mb-1 font-semibold">
-        Capture Your Face
-      </h1>
-      <p className="text-gray-400 mb-2 text-sm">
-        Position your face inside the oval
-      </p>
-
-      <div className="mb-5 bg-blue-500/10 border border-blue-500/30 text-blue-300 px-5 py-3 rounded-2xl text-sm text-center max-w-sm">
-        After capture, your <span className="font-semibold">Employee ID</span>{" "}
-        &amp; <span className="font-semibold">Password</span> will be sent to{" "}
-        <span className="font-semibold">
-          {verifyMethod === "email" ? formData.email : formData.phone}
-        </span>
-      </div>
-
-      <div
-        className={`relative w-full max-w-xl aspect-video rounded-4xl overflow-hidden ring-4 shadow-lg transition-all ${borderStatus === "success"
-            ? "ring-green-500 shadow-green-500/40"
-            : borderStatus === "error"
-              ? "ring-red-500 shadow-red-500/40"
-              : borderStatus === "scanning"
-                ? "ring-yellow-400 shadow-yellow-400/30"
-                : "ring-white/30"
-          }`}
-      >
-        {!capturedImage ? (
-          <Webcam
-            ref={webcamRef}
-            audio={false}
-            mirrored
-            screenshotFormat="image/jpeg"
-            screenshotQuality={0.95}
-            onUserMedia={() => setCameraReady(true)}
-            videoConstraints={{
-              facingMode: "user",
-              width: { ideal: 1280 },
-              height: { ideal: 720 },
-            }}
-            style={{
-              position: "absolute",
-              width: "100%",
-              height: "100%",
-              top: "0",
-              left: "0",
-              objectFit: "cover",
-            }}
-          />
-        ) : (
-          <img
-            src={capturedImage}
-            alt="Captured face"
-            style={{
-              position: "absolute",
-              width: "100%",
-              height: "100%",
-              top: "0",
-              left: "0",
-              objectFit: "cover",
-            }}
-          />
-        )}
-        <canvas
-          ref={canvasRef}
-          width={600}
-          height={400}
-          className="absolute inset-0 w-full h-full"
-        />
-      </div>
-
-      <p
-        className={`mt-4 text-lg font-medium ${borderStatus === "success"
-            ? "text-green-400"
-            : borderStatus === "error"
-              ? "text-red-400"
-              : borderStatus === "scanning"
-                ? "text-yellow-300"
-                : "text-white"
-          }`}
-      >
-        {message}
-      </p>
-
-      {borderStatus === "success" ? (
-        <Button
-          onClick={handleRegisterSubmit}
-          disabled={loading}
-          loading={loading}
-          text={loading ? "Registering..." : "Complete Registration →"}
-          className="mt-6 bg-green-600 px-8 py-3 text-white hover:bg-green-700"
-        />
-      ) : (
-        <Button
-          onClick={() => {
-            setBorderStatus("scanning");
-            setMessage("Position your face in the oval");
-            captureFace();
-          }}
-          disabled={!cameraReady || borderStatus === "scanning"}
-          loading={borderStatus === "scanning"}
-          text={borderStatus === "scanning" ? "Checking..." : "Capture Face"}
-          className="mt-6 bg-blue-600 px-8 py-3 text-white hover:bg-blue-700"
-        />
-      )}
-
-      {capturedImage && borderStatus !== "success" && (
-        <button
-          onClick={() => {
-            setCapturedImage(null);
-            setBorderStatus("idle");
-            setMessage("Position your face in the oval");
-          }}
-          className="mt-3 text-gray-400 hover:text-white text-sm transition"
-        >
-          🔄 Retake photo
-        </button>
-      )}
-
-      <button
-        onClick={() => {
-          setCapturedImage(null);
-          setBorderStatus("idle");
-          setMessage("Position your face in the oval");
-          setStep("otp");
-        }}
-        className="mt-4 text-gray-400 hover:text-white text-sm transition"
-      >
-        ← Back
-      </button>
-
-      {error && (
-        <div className="bg-red-500/20 border border-red-500 text-red-300 p-4 rounded-xl mt-4 text-sm max-w-md text-center">
-          {error}
-        </div>
-      )}
-    </div>
+    <RegisterEmployeeView
+      step={step}
+      stepAnim={stepAnim}
+      verifyMethod={verifyMethod}
+      setVerifyMethod={setVerifyMethod}
+      loading={loading}
+      error={error}
+      setError={setError}
+      formData={formData}
+      setFormData={setFormData}
+      cvFileName={cvFileName}
+      setCvFile={setCvFile}
+      setCvFileName={setCvFileName}
+      fileToDataUrl={fileToDataUrl}
+      isPdfFile={isPdfFile}
+      onContinue={handleRegistrationContinue}
+      otp={otp}
+      setOtp={setOtp}
+      otpVerified={otpVerified}
+      resendCooldown={resendCooldown}
+      onVerifyOtp={verifyOtp}
+      onResendOtp={() => {
+        setOtp("");
+        setError("");
+        sendOtp();
+      }}
+      onBackToForm={() => {
+        goToStep("form", "back");
+        setOtp("");
+        setError("");
+        setOtpVerified(false);
+      }}
+      borderStatus={borderStatus}
+      message={message}
+      cameraReady={cameraReady}
+      setCameraReady={setCameraReady}
+      capturedImage={capturedImage}
+      setCapturedImage={setCapturedImage}
+      setBorderStatus={setBorderStatus}
+      setMessage={setMessage}
+      captureFace={captureFace}
+      onRegisterSubmit={handleRegisterSubmit}
+      onBackToOtp={() => {
+        setCapturedImage(null);
+        setBorderStatus("idle");
+        setMessage("Position your face in the oval");
+        goToStep("otp", "back");
+      }}
+      webcamRef={webcamRef}
+      canvasRef={canvasRef}
+      overlay={overlay}
+    />
   );
 }

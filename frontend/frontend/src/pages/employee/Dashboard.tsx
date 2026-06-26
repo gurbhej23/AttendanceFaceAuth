@@ -1,9 +1,10 @@
 // src/pages/Dashboard.tsx
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import API from "../../services/api";
 import Button from "../../components/common/Button";
 import Input from "../../components/common/Input";
+import MobileMenuButton from "../../components/common/MobileMenuButton";
 import AdminSidebar from "../../components/AdminSidebar";
 import NotificationPanel from "../../components/common/NotificationPanel";
 import {
@@ -174,6 +175,7 @@ const leaveStatusLabel = (s: string) => {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -500,46 +502,42 @@ export default function Dashboard() {
         icon: <UserRoundPen size={18} />,
         label: "Profile",
         onClick: () => navigate("/profile"),
-        tone: "bg-slate-700/80 hover:bg-slate-600",
+        active: location.pathname === "/profile",
       },
       {
         icon: <Bell size={18} />,
         label: "Notifications",
         onClick: () => setShowNotifications(true),
-        tone: "bg-sky-600/90 hover:bg-sky-600",
         badgeCount: unreadCount,
       },
       {
         icon: <ScanLine size={18} />,
         label: "Check Out",
         onClick: () => navigate("/check-out"),
-        tone: "bg-blue-600/90 hover:bg-blue-600",
+        active: location.pathname === "/check-out",
       },
       {
         icon: <TimerOff size={18} />,
         label: "Half Day",
         onClick: () => setShowHalfDayModal(true),
-        tone: "bg-orange-600/90 hover:bg-orange-600",
       },
       {
         icon: <CalendarDays size={18} />,
         label: "Leave Request",
         onClick: () => setShowLeaveModal(true),
-        tone: "bg-purple-600/90 hover:bg-purple-600",
       },
       {
         icon: <User size={18} />,
         label: "My Leaves",
         onClick: () => setShowLeavesModal(true),
-        tone: "bg-violet-600/90 hover:bg-violet-600",
       },
     ],
-    [navigate, unreadCount],
+    [location.pathname, navigate, unreadCount],
   );
 
   // ── Render ────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] px-3 py-5 sm:px-5 lg:px-5">
+    <div className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] px-4 py-5 sm:px-5 lg:px-5">
       {/* LATE ALERT BANNER */}
       {lateAlert.show && (
         <div className="fixed top-0 left-0 right-0 z-99 bg-yellow-500/95 text-slate-900 px-6 py-3 flex items-center justify-between shadow-xl">
@@ -592,20 +590,17 @@ export default function Dashboard() {
         profileImg={profileImg}
       />
 
-      <div
-        className={`mx-auto max-w-8xl transition-all duration-500 ease-out lg:ml-22 ${anyModalOpen || showWelcomePrompt ? "blur-sm pointer-events-none select-none" : ""}`}
-      >
-        {/* WELCOME CARD */}
+      <MobileMenuButton onClick={() => setShowMenu(true)} />
 
+      <div
+        className={`mx-auto max-w-8xl pb-12 pt-12 sm:pb-28 sm:pt-5 lg:ml-22 lg:pb-12 lg:pt-0 transition-all duration-500 ease-out ${anyModalOpen || showWelcomePrompt ? "blur-sm pointer-events-none select-none" : ""}`}
+      >
         <WelcomeCard
           employeeName={employeeName}
           employeeId={employeeId}
           employeeDepartment={employeeDepartment}
           employeeDesignation={employeeDesignation}
           profileImg={profileImg}
-          onProfileClick={() => navigate("/profile")}
-          onMenuClick={() => setShowMenu(true)}
-          setShowMenu={setShowMenu}
         />
 
         {/* TOP CARDS */}
@@ -630,17 +625,14 @@ export default function Dashboard() {
         />
 
         {monthlySummary && (
-          <div className="px-3 pt-5 pb-12">
+          <div className="dash-fade-up dash-fade-up-delay-5 pt-5 pb-4">
             <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h3 className="text-lg font-bold text-white">
                   Monthly Summary
                 </h3>
-                <p className="text-sm text-slate-400">{monthLabel}</p>
+                <p className="text-sm text-slate-300">{monthLabel}</p>
               </div>
-              {/* <p className="text-xs text-slate-500">
-                Attendance overview for this month
-              </p> */}
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 lg:w-full lg:max-w-425">
               {[
@@ -680,9 +672,15 @@ export default function Dashboard() {
                   color: "text-blue-300",
                   bg: "bg-blue-500/10 border-blue-500/20",
                 },
-              ].map(({ label, value, color, bg }) => (
-                <div key={label} className={`rounded-2xl border p-4 ${bg}`}>
-                  <p className="text-xs text-slate-400">{label}</p>
+              ].map(({ label, value, color, bg }, index) => (
+                <div
+                  key={label}
+                  className={`dash-metric-card dash-fade-up border p-4 ${bg}`}
+                  style={{
+                    animationDelay: `${380 + Math.min(index, 5) * 50}ms`,
+                  }}
+                >
+                  <p className="text-xs font-medium text-slate-300">{label}</p>
                   <p className={`mt-1 text-2xl font-bold ${color}`}>{value}</p>
                 </div>
               ))}

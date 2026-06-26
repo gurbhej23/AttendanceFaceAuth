@@ -3,20 +3,13 @@ import {
   useEffect,
   useRef,
   useState,
-  type SyntheticEvent,
 } from "react";
 import { useNavigate } from "react-router-dom";
 import Webcam from "react-webcam";
 import API, { FACE_REQUEST_TIMEOUT_MS } from "../../services/api";
 import Button from "../../components/common/Button";
 import Input from "../../components/common/Input";
-import ReactCrop, {
-  centerCrop,
-  makeAspectCrop,
-  type Crop,
-  type PixelCrop,
-} from "react-image-crop";
-import "react-image-crop/dist/ReactCrop.css";
+import ProfilePhotoCropModal from "../../components/common/ProfilePhotoCropModal";
 import { ArrowBigLeft, X } from "lucide-react";
 
 const DEPARTMENTS = ["IT", "HR", "Finance", "Operations", "Sales", "Marketing"];
@@ -56,7 +49,6 @@ const getError = (err: unknown, fallback: string) => {
 export default function Profile() {
   const navigate = useNavigate();
   const webcamRef = useRef<Webcam>(null);
-  const cropImageRef = useRef<HTMLImageElement>(null);
   const [profile, setProfile] = useState<EmployeeProfile | null>(null);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -76,9 +68,6 @@ export default function Profile() {
   const [toast, setToast] = useState<{ ok: boolean; msg: string } | null>(null);
 
   const [showImageModal, setShowImageModal] = useState(false);
-
-  const [crop, setCrop] = useState<Crop>();
-  const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const employeeId = localStorage.getItem("employee_id") || "";
@@ -184,42 +173,12 @@ export default function Profile() {
 
     reader.onload = () => {
       setSelectedImage(String(reader.result));
-      setCrop(undefined);
-      setCompletedCrop(undefined);
     };
 
     reader.readAsDataURL(file);
   };
 
-  const getCroppedImg = async () => {
-    const image = cropImageRef.current;
-    if (!image || !completedCrop?.width || !completedCrop?.height) {
-      showToast("Please crop the image first", false);
-      return;
-    }
-
-    const scaleX = image.naturalWidth / image.width;
-    const scaleY = image.naturalHeight / image.height;
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    canvas.width = completedCrop.width;
-    canvas.height = completedCrop.height;
-    ctx.drawImage(
-      image,
-      completedCrop.x * scaleX,
-      completedCrop.y * scaleY,
-      completedCrop.width * scaleX,
-      completedCrop.height * scaleY,
-      0,
-      0,
-      completedCrop.width,
-      completedCrop.height,
-    );
-
-    const croppedBase64 = canvas.toDataURL("image/jpeg", 0.92);
-
+  const saveCroppedPhoto = async (croppedBase64: string) => {
     try {
       setSaving(true);
       const res = await API.post("/employees/update-profile-photo/", {
@@ -232,23 +191,11 @@ export default function Profile() {
       localStorage.setItem("profile_img", data.profile_img || "");
       showToast("Profile photo updated");
       setSelectedImage(null);
-      setCrop(undefined);
-      setCompletedCrop(undefined);
     } catch (err) {
       showToast(getError(err, "Upload failed"), false);
     } finally {
       setSaving(false);
     }
-  };
-
-  const onCropImageLoad = (event: SyntheticEvent<HTMLImageElement>) => {
-    const { width, height } = event.currentTarget;
-    const centered = centerCrop(
-      makeAspectCrop({ unit: "%", width: 80 }, 1, width, height),
-      width,
-      height,
-    );
-    setCrop(centered);
   };
 
   const captureFace = () => {
@@ -601,43 +548,12 @@ export default function Profile() {
       )}
 
       {selectedImage && (
-        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-5">
-          <div className="bg-slate-900 p-5 rounded-3xl w-full max-w-lg">
-            <div className="relative max-h-[65vh] w-full overflow-auto rounded-2xl bg-slate-950">
-              <ReactCrop
-                crop={crop}
-                aspect={1}
-                circularCrop
-                keepSelection
-                onChange={(_, percentCrop) => setCrop(percentCrop)}
-                onComplete={(pixelCrop) => setCompletedCrop(pixelCrop)}
-                className="max-h-[65vh]"
-              >
-                <img
-                  ref={cropImageRef}
-                  src={selectedImage}
-                  alt="Crop profile"
-                  onLoad={onCropImageLoad}
-                  className="max-h-[65vh] w-full object-contain"
-                />
-              </ReactCrop>
-            </div>
-
-            <div className="flex gap-3 mt-5">
-              <Button
-                text="Cancel"
-                onClick={() => setSelectedImage(null)}
-                className="flex-1 bg-slate-700 text-white"
-              />
-
-              <Button
-                text="Crop & Save"
-                onClick={getCroppedImg}
-                className="flex-1 bg-blue-600 text-white"
-              />
-            </div>
-          </div>
-        </div>
+        <ProfilePhotoCropModal
+          imageSrc={selectedImage}
+          onCancel={() => setSelectedImage(null)}
+          onSave={saveCroppedPhoto}
+          saving={saving}
+        />
       )}
     </div>
   );

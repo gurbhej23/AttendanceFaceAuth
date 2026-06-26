@@ -1,6 +1,4 @@
 import { useNavigate } from "react-router-dom";
-import Button from "../common/Button";
-import { Briefcase, Menu } from "lucide-react";
 
 interface WelcomeCardProps {
   employeeName: string | null;
@@ -8,9 +6,6 @@ interface WelcomeCardProps {
   employeeDepartment: string;
   employeeDesignation: string;
   profileImg: string;
-  onProfileClick: () => void;
-  onMenuClick: () => void;
-  setShowMenu: (value: boolean) => void;
 }
 
 function WelcomeCard({
@@ -19,7 +14,6 @@ function WelcomeCard({
   employeeDepartment,
   employeeDesignation,
   profileImg,
-  setShowMenu,
 }: WelcomeCardProps) {
   const navigate = useNavigate();
 
@@ -29,73 +23,52 @@ function WelcomeCard({
     if (hour < 17) return "Good afternoon";
     return "Good evening";
   };
+
+  const metaLine = [employeeDepartment, employeeDesignation, employeeId]
+    .filter(Boolean)
+    .join(" • ");
+
   return (
-    <div className="relative mb-4 overflow-hidden rounded-3xl border border-white/10 bg-white/5">
-      <h1>
-        {" "}
-        <div className="relative overflow-hidden rounded-3xl bg-white/5 shadow-2xl backdrop-blur-xl">
-          <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-blue-500/10 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-12 left-1/3 h-32 w-32 rounded-full bg-cyan-500/10 blur-3xl" />
+    <div className="dash-shell-panel relative mb-3 overflow-hidden border border-white/10 bg-white/5 shadow-xl backdrop-blur-xl dash-fade-up sm:mb-4 sm:shadow-2xl">
+      <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-blue-500/10 blur-3xl sm:h-40 sm:w-40" />
+      <div className="pointer-events-none absolute -bottom-10 left-1/3 h-24 w-24 rounded-full bg-cyan-500/10 blur-3xl sm:h-32 sm:w-32" />
 
-          <div className="relative p-4 sm:p-6">
-            <div className="flex gap-5 lg:flex-row lg:justify-between">
-              <div className="flex min-w-0 items-start gap-4">
-                <Button
-                  type="button"
-                  onClick={() => setShowMenu(true)}
-                  text={<Menu size={22} />}
-                  unstyled
-                  className="rounded-xl border border-white/10 bg-white/10 p-2.5 text-white transition hover:bg-white/15 lg:hidden"
-                  aria-label="Open menu"
-                />
-                <button
-                  type="button"
-                  onClick={() => navigate("/profile")}
-                  className="relative h-24 w-24 shrink-0 overflow-hidden rounded-2xl border border-white/15 bg-slate-800 shadow-lg transition hover:border-blue-400/40"
-                  title="View profile"
-                >
-                  {profileImg ? (
-                    <img
-                      src={profileImg}
-                      alt={employeeName || "Employee"}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="grid h-full w-full place-items-center bg-linear-to-br from-blue-600 to-cyan-500 text-2xl font-bold text-white">
-                      {(employeeName || "E").charAt(0)}
-                    </div>
-                  )}
-                </button>
-
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-slate-400">{getGreeting()},</p>
-                  <h1 className="truncate text-2xl font-bold text-white sm:text-3xl">
-                    {employeeName || "Employee"}
-                  </h1>
-                  <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-400">
-                    {employeeDepartment && (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1">
-                        <Briefcase className="h-3.5 w-3.5" />
-                        {employeeDepartment}
-                      </span>
-                    )}
-                    {employeeDesignation && (
-                      <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1">
-                        {employeeDesignation}
-                      </span>
-                    )}
-                    {employeeId && (
-                      <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 font-mono text-xs text-slate-300">
-                        {employeeId}
-                      </span>
-                    )}
-                  </div>
-                </div>
+      <div className="relative px-4 py-3.5 sm:px-6 sm:py-5">
+        <div className="flex items-center gap-3 sm:items-start sm:gap-4">
+          <button
+            type="button"
+            onClick={() => navigate("/profile")}
+            className="dash-squircle relative h-14 w-14 shrink-0 overflow-hidden border border-white/15 bg-slate-800 shadow-md transition hover:border-blue-400/40 active:scale-[0.98] sm:h-20 sm:w-20 sm:shadow-lg md:h-24 md:w-24"
+            title="View profile"
+          >
+            {profileImg ? (
+              <img
+                src={profileImg}
+                alt={employeeName || "Employee"}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="grid h-full w-full place-items-center bg-linear-to-br from-blue-600 to-cyan-500 text-lg font-bold text-white sm:text-2xl">
+                {(employeeName || "E").charAt(0)}
               </div>
-            </div>
+            )}
+          </button>
+
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium text-slate-300 sm:text-sm">
+              {getGreeting()},
+            </p>
+            <h1 className="mt-0.5 break-words text-lg font-bold leading-snug text-white sm:text-2xl md:text-3xl">
+              {employeeName || "Employee"}
+            </h1>
+            {metaLine && (
+              <p className="mt-1 line-clamp-2 text-xs leading-snug text-slate-400 sm:mt-1.5 sm:text-sm">
+                {metaLine}
+              </p>
+            )}
           </div>
         </div>
-      </h1>
+      </div>
     </div>
   );
 }

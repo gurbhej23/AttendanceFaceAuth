@@ -1,5 +1,5 @@
-import Input from "../common/Input";
 import type { AttendanceRecord } from "../../types/attendance";
+import DashboardDatePicker from "../common/DashboardDatePicker";
 
 interface StatusProps {
   selectedDate: string;
@@ -16,6 +16,9 @@ interface StatusProps {
   };
 }
 
+const metricCard =
+  "dash-metric-card flex min-h-[6.75rem] flex-col justify-between border p-3 shadow-lg sm:min-h-0 sm:p-4 sm:shadow-xl";
+
 export default function StatusCard({
   selectedDate,
   today,
@@ -24,42 +27,67 @@ export default function StatusCard({
   todayRecord,
   cardStyle,
 }: StatusProps) {
+  const hasCheckedIn = Boolean(todayRecord?.check_in);
+  const rawDuration = todayRecord?.duration?.trim();
+  const hasDuration =
+    Boolean(rawDuration) && rawDuration !== "--" && rawDuration !== "-";
+
+  const workingHoursValue = !hasCheckedIn
+    ? "Not started"
+    : hasDuration
+      ? rawDuration!
+      : "0h 00m";
+  const workingHoursMuted = !hasDuration;
+  const isNotMarked = !todayStatus;
+
   return (
-    <div className="grid grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-5 mb-4">
-      <div className="col-span-2 xl:col-span-1 bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-4 sm:p-5 shadow-xl">
-        <p className="text-slate-400 text-sm mb-3">Selected Date</p>
-        <Input
-          type="date"
+    <div className="mb-3 grid grid-cols-2 gap-2 sm:mb-4 sm:gap-3 xl:grid-cols-3 xl:gap-5">
+      <div className="dash-shell-panel dash-fade-up dash-fade-up-delay-1 col-span-2 flex items-center gap-2.5 border border-white/10 bg-white/5 px-3 py-2 shadow-lg backdrop-blur-xl sm:gap-3 sm:px-4 sm:py-3 xl:col-span-1 xl:flex-col xl:items-stretch xl:gap-2 xl:p-4">
+        <p className="shrink-0 text-xs font-medium text-slate-300 sm:text-sm xl:mb-0.5">
+          Selected Date
+        </p>
+        <DashboardDatePicker
           value={selectedDate}
           max={today}
-          onChange={(e) =>
-            setSelectedDate(e.target.value > today ? today : e.target.value)
-          }
-          className="w-full p-4 rounded-2xl bg-slate-900/70 text-white border border-slate-700 focus:border-blue-500 outline-none"
+          onChange={setSelectedDate}
+          compact
+          className="min-w-0 flex-1"
         />
       </div>
 
       <div
-        className={`bg-linear-to-br ${cardStyle.bg} border ${cardStyle.border} rounded-3xl p-5 shadow-xl`}
+        className={`dash-fade-up dash-fade-up-delay-2 ${metricCard} bg-linear-to-br ${cardStyle.bg} ${cardStyle.border}`}
       >
-        <p className={`${cardStyle.text} text-sm`}>Today's Status</p>
-        <div className="flex items-center justify-between mt-3">
-          <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white capitalize">
+        <p className={`${cardStyle.text} text-xs sm:text-sm`}>Today's Status</p>
+        <div className="flex items-end justify-between gap-2">
+          <h2
+            className={`text-base font-bold capitalize leading-tight sm:text-xl md:text-2xl ${
+              isNotMarked
+                ? "text-slate-300 status-not-marked-pulse"
+                : "text-white"
+            }`}
+          >
             {todayStatus || "Not Marked"}
           </h2>
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl">
+          <div className="dash-squircle flex h-9 w-9 shrink-0 items-center justify-center text-lg sm:h-11 sm:w-11 sm:text-xl">
             {cardStyle.icon}
           </div>
         </div>
       </div>
 
-      <div className="bg-linear-to-br from-blue-500/20 to-cyan-500/10 border border-blue-500/20 rounded-3xl p-5 shadow-xl">
-        <p className="text-blue-300 text-sm">Working Hours</p>
-        <div className="flex items-center justify-between mt-3">
-          <h2 className="text-2xl sm:text-3xl font-bold text-white">
-            {todayRecord?.duration || "--"}
+      <div
+        className={`dash-fade-up dash-fade-up-delay-3 ${metricCard} border-blue-500/20 bg-linear-to-br from-blue-500/20 to-cyan-500/10`}
+      >
+        <p className="text-xs text-blue-300 sm:text-sm">Working Hours</p>
+        <div className="flex items-end justify-between gap-2">
+          <h2
+            className={`text-base font-bold leading-tight sm:text-xl md:text-2xl ${
+              workingHoursMuted ? "text-slate-400" : "text-white"
+            }`}
+          >
+            {workingHoursValue}
           </h2>
-          <div className="w-14 h-14 rounded-2xl bg-blue-500/20 flex items-center justify-center text-2xl">
+          <div className="dash-squircle flex h-9 w-9 shrink-0 items-center justify-center bg-blue-500/20 text-lg sm:h-11 sm:w-11 sm:text-xl">
             ⏰
           </div>
         </div>
