@@ -15,7 +15,6 @@ import {
   LOGIN_SUBMIT_BUTTON,
   LOGIN_SUBTITLE,
 } from "../../components/auth/loginStyles";
-import { persistCvFile, persistProfileImg } from "../../utils/chatHelpers";
 import { Eye, EyeOff, UserRound } from "lucide-react";
 
 export default function Login() {
@@ -66,8 +65,8 @@ export default function Login() {
         localStorage.setItem("employee_id", empId);
         localStorage.setItem("employee_name", empName);
         localStorage.setItem("role", role);
-        persistProfileImg(response.data.profile_img);
-        persistCvFile(response.data.cv_file);
+        localStorage.setItem("profile_img", response.data.profile_img || "");
+        localStorage.setItem("cv_file", response.data.cv_file || "");
 
         setSuccess("Login successful. Choose your verification method...");
 

@@ -4,7 +4,6 @@ import API from "../../services/api";
 import { notifyAuthChanged } from "../../hooks/useEmployeeSession";
 import MessageOverlay from "../../components/chat/MessageOverlay";
 import Button from "../../components/common/Button";
-import { persistCvFile, persistProfileImg } from "../../utils/chatHelpers";
 import { ArrowLeft, Mail } from "lucide-react";
 
 const getApiError = (err: unknown, fallback: string): string => {
@@ -90,10 +89,10 @@ export default function EmailOtpVerification() {
           localStorage.setItem("employee_name", res.data.employee_name);
         }
         if (res.data.profile_img) {
-          persistProfileImg(res.data.profile_img);
+          localStorage.setItem("profile_img", res.data.profile_img);
         }
         if (res.data.cv_file) {
-          persistCvFile(res.data.cv_file);
+          localStorage.setItem("cv_file", res.data.cv_file);
         }
         notifyAuthChanged();
 

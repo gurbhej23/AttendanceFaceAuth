@@ -77,18 +77,10 @@ export const getApiRoot = () => resolveBackendOrigin();
 
 export const normalizeMediaPath = (path?: string | null): string => {
   if (!path) return "";
-  let normalized = path.replace(/\\/g, "/").trim();
-  if (!normalized) return "";
-
-  // Never keep dev absolute URLs (e.g. http://localhost:8000/media/...) in production.
-  if (/^https?:\/\//i.test(normalized)) {
-    try {
-      normalized = new URL(normalized).pathname;
-    } catch {
-      return "";
-    }
+  let normalized = path.replace(/\\/g, "/");
+  if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
+    return normalized;
   }
-
   const marker = "/media/";
   const idx = normalized.toLowerCase().indexOf(marker);
   if (idx >= 0) {
@@ -104,23 +96,11 @@ export const normalizeMediaPath = (path?: string | null): string => {
 export const getMediaUrl = (path?: string | null) => {
   const normalized = normalizeMediaPath(path);
   if (!normalized) return "";
-
-  // Browser: same-origin /media (Vite proxy locally, Vercel rewrite in prod).
-  if (typeof window !== "undefined") {
+  if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
     return normalized;
   }
-
   const root = getApiRoot();
   return `${root}${normalized.startsWith("/") ? normalized : `/${normalized}`}`;
-};
-
-/** Store only a relative /media/... path — safe across environments after re-login. */
-export const persistProfileImg = (path?: string | null) => {
-  localStorage.setItem("profile_img", normalizeMediaPath(path));
-};
-
-export const persistCvFile = (path?: string | null) => {
-  localStorage.setItem("cv_file", normalizeMediaPath(path));
 };
 
 export const getWsUrl = (employeeId: string) => {

@@ -13,7 +13,6 @@ import {
   LOGIN_ROLE_TOGGLE_SHELL,
   LOGIN_SUBMIT_BUTTON,
 } from "../../components/auth/loginStyles";
-import { persistCvFile, persistProfileImg } from "../../utils/chatHelpers";
 import { Eye, EyeOff, ShieldUser, UserRound } from "lucide-react";
 
 export default function AdminLogin() {
@@ -54,8 +53,8 @@ export default function AdminLogin() {
         localStorage.setItem("employee_id", empId);
         localStorage.setItem("employee_name", empName);
         localStorage.setItem("role", role);
-        persistProfileImg(response.data.profile_img);
-        persistCvFile(response.data.cv_file);
+        localStorage.setItem("profile_img", response.data.profile_img || "");
+        localStorage.setItem("cv_file", response.data.cv_file || "");
         notifyAuthChanged();
 
         navigate("/attendance-sheet", { replace: true });

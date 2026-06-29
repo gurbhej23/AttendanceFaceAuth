@@ -14,7 +14,7 @@ import Toast from "../../components/common/Toast";
 import ProfilePhotoCropModal from "../../components/common/ProfilePhotoCropModal";
 import SearchableSelect from "../../components/auth/SearchableSelect";
 import CvDropZone from "../../components/auth/CvDropZone";
-import { getMediaUrl, persistCvFile, persistProfileImg } from "../../utils/chatHelpers";
+import { getMediaUrl } from "../../utils/chatHelpers";
 import { ArrowLeft, BriefcaseBusiness, Camera, Download, FileText, X } from "lucide-react";
 
 const DEPARTMENTS = ["IT", "HR", "Finance", "Operations", "Sales", "Marketing"];
@@ -133,7 +133,7 @@ export default function AdminProfile() {
       const data = res.data.employee as EmployeeProfile;
       setProfile(data);
       localStorage.setItem("employee_name", data.name);
-      persistCvFile(data.cv_file);
+      localStorage.setItem("cv_file", data.cv_file || "");
       setDepartment(data.department || "IT");
       setDesignation(data.designation || "Software Engineer");
       setCvFile("");
@@ -218,7 +218,7 @@ export default function AdminProfile() {
 
       const data = res.data.employee;
       setProfile(data);
-      persistProfileImg(data.profile_img);
+      localStorage.setItem("profile_img", data.profile_img || "");
       showToast("Profile photo updated");
       setSelectedImage(null);
     } catch (err) {
@@ -254,7 +254,7 @@ export default function AdminProfile() {
       );
       const data = res.data.employee as EmployeeProfile;
       setProfile(data);
-      persistProfileImg(data.profile_img);
+      localStorage.setItem("profile_img", data.profile_img || "");
       setCapturedImage(null);
       showToast(res.data.message || "Face profile updated");
     } catch (err) {
