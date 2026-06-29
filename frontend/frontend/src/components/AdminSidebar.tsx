@@ -22,7 +22,7 @@ interface Props {
 }
 
 /** Uniform squircle — 48×48px, never shrinks */
-const SQUIRCLE = "h-12 w-12 min-h-12 min-w-12 shrink-0";
+const SQUIRCLE = "h-12 w-12 min-h-12 min-w-12 shrink-0 rounded-full";
 
 function ProfileAvatar({
   adminName,

@@ -528,7 +528,7 @@ export default function AdminProfile() {
               />
             </section>
 
-            <section className="rounded-3xl border border-slate-800/80 bg-slate-900/80 p-6 shadow-xl backdrop-blur-sm">
+            {/* <section className="rounded-3xl border border-slate-800/80 bg-slate-900/80 p-6 shadow-xl backdrop-blur-sm">
               <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                 <div>
                   <h2 className="text-xl font-bold">Face re-enrollment</h2>
@@ -607,7 +607,7 @@ export default function AdminProfile() {
                   </div>
                 </div>
               )}
-            </section>
+            </section> */}
           </div>
         </div>
       </div>

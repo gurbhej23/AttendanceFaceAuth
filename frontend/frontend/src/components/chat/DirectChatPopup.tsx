@@ -32,8 +32,8 @@ function AvatarWithPresence({
   isOnline?: boolean;
   size?: "sm" | "md";
 }) {
-  const dim = size === "sm" ? "h-7 w-7" : "h-9 w-9";
-  const dot = size === "sm" ? "h-2 w-2" : "h-2.5 w-2.5";
+  const dim = size === "sm" ? "h-10 w-10" : "h-9 w-9";
+  const dot = size === "sm" ? "h-3 w-3" : "h-2.5 w-2.5";
   return (
     <div className="relative shrink-0">
       {src ? (
@@ -406,7 +406,7 @@ export default function DirectChatPopup({
 
   if (minimized) {
     return (
-      <div className="flex h-12 w-[220px] items-center gap-2 rounded-t-2xl border border-b-0 border-slate-700/80 bg-slate-900 px-3 shadow-lg">
+      <div className="flex h-14 w-[450px] items-center gap-2 rounded-t-2xl border border-b-0 border-slate-700/80 bg-slate-900 px-3 shadow-lg">
         <button
           type="button"
           onClick={onMinimize}

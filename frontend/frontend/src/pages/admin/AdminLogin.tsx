@@ -53,6 +53,8 @@ export default function AdminLogin() {
         localStorage.setItem("employee_id", empId);
         localStorage.setItem("employee_name", empName);
         localStorage.setItem("role", role);
+        localStorage.setItem("profile_img", response.data.profile_img || "");
+        localStorage.setItem("cv_file", response.data.cv_file || "");
         notifyAuthChanged();
 
         navigate("/attendance-sheet", { replace: true });

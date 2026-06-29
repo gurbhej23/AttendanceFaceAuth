@@ -492,13 +492,13 @@ export default function AdminAttendanceSheet() {
               <div className="pointer-events-none absolute -bottom-10 left-1/4 h-24 w-24 rounded-full bg-blue-500/10 blur-3xl sm:h-32 sm:w-32" />
 
               <div className="relative flex flex-col gap-3 p-4 sm:gap-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex min-w-0 items-center gap-3 sm:items-start sm:gap-4">
-                  <div className="dash-squircle h-14 w-14 shrink-0 overflow-hidden border border-white/15 bg-slate-800 shadow-md sm:h-20 sm:w-20 sm:shadow-lg">
+                <div className="flex min-w-0 items-center gap-3 sm:items-center sm:gap-4 ">
+                  <div className="h-14 w-14 shrink-0 overflow-hidden border border-white/15 bg-slate-800 shadow-md sm:h-20 sm:w-20 sm:shadow-lg rounded-full">
                     {adminProfileImg ? (
                       <img
                         src={adminProfileImg}
                         alt={adminName}
-                        className="h-full w-full object-cover"
+                        className="h-full w-full object-cover rounded-full"
                       />
                     ) : (
                       <div className="grid h-full w-full place-items-center bg-linear-to-br from-indigo-600 to-blue-500 text-xl font-bold text-white sm:text-2xl">
