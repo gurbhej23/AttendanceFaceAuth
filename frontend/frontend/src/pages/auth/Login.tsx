@@ -5,7 +5,6 @@ import { useNavigate, Link } from "react-router-dom";
 import API from "../../services/api";
 import Button from "../../components/common/Button";
 import MessageOverlay from "../../components/chat/MessageOverlay";
-import { persistCvFile, persistProfileImg } from "../../utils/chatHelpers";
 import {
   LOGIN_EYE_BUTTON,
   LOGIN_INNER_PANEL,
@@ -16,6 +15,7 @@ import {
   LOGIN_SUBMIT_BUTTON,
   LOGIN_SUBTITLE,
 } from "../../components/auth/loginStyles";
+import { persistCvFile, persistProfileImg } from "../../utils/chatHelpers";
 import { Eye, EyeOff, UserRound } from "lucide-react";
 
 export default function Login() {
