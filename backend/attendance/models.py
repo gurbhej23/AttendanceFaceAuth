@@ -26,7 +26,7 @@ class AttendanceRecord(me.Document):
     is_verified = me.BooleanField(default=False)
     reason = me.StringField(default="")
     half_day_until = me.StringField(default="")
-    minutes_late = me.IntField(default=0)  9
+    minutes_late = me.IntField(default=0)
     leave_type = me.StringField(default="") 
     leave_notification_seen = me.BooleanField(default=False)
 
