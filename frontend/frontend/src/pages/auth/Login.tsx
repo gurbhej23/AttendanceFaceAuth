@@ -5,6 +5,7 @@ import { useNavigate, Link } from "react-router-dom";
 import API from "../../services/api";
 import Button from "../../components/common/Button";
 import MessageOverlay from "../../components/chat/MessageOverlay";
+import { persistCvFile, persistProfileImg } from "../../utils/chatHelpers";
 import {
   LOGIN_EYE_BUTTON,
   LOGIN_INNER_PANEL,
@@ -65,8 +66,8 @@ export default function Login() {
         localStorage.setItem("employee_id", empId);
         localStorage.setItem("employee_name", empName);
         localStorage.setItem("role", role);
-        localStorage.setItem("profile_img", response.data.profile_img || "");
-        localStorage.setItem("cv_file", response.data.cv_file || "");
+        persistProfileImg(response.data.profile_img);
+        persistCvFile(response.data.cv_file);
 
         setSuccess("Login successful. Choose your verification method...");
 

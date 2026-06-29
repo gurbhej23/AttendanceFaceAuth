@@ -5,6 +5,7 @@ import API, { FACE_REQUEST_TIMEOUT_MS } from "../../services/api";
 import { notifyAuthChanged } from "../../hooks/useEmployeeSession";
 import MessageOverlay from "../../components/chat/MessageOverlay";
 import Button from "../../components/common/Button";
+import { persistCvFile, persistProfileImg } from "../../utils/chatHelpers";
 import {
   getCurrentLocation,
   pickLivenessPrompt,
@@ -299,10 +300,10 @@ export default function VerifyFace() {
           localStorage.setItem("employee_name", response.data.employee_name);
         }
         if (response.data.profile_img) {
-          localStorage.setItem("profile_img", response.data.profile_img);
+          persistProfileImg(response.data.profile_img);
         }
         if (response.data.cv_file) {
-          localStorage.setItem("cv_file", response.data.cv_file);
+          persistCvFile(response.data.cv_file);
         }
         notifyAuthChanged();
 

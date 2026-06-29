@@ -27,28 +27,7 @@ OFFICE_LONGITUDE = os.getenv("OFFICE_LONGITUDE")
 OFFICE_RADIUS_METERS = float(os.getenv("OFFICE_RADIUS_METERS", "250"))
 
 
-def media_url(path):
-    if not path:
-        return ""
-    normalized = path.replace("\\", "/")
-    if normalized.startswith(("http://", "https://")):
-        return normalized
-    if normalized.startswith("/media/"):
-        relative_path = normalized[len("/media/") :]
-        if not (settings.MEDIA_ROOT / relative_path).exists():
-            return ""
-        return normalized
-    if normalized.startswith("media/"):
-        relative_path = normalized[len("media/") :]
-        if not (settings.MEDIA_ROOT / relative_path).exists():
-            return ""
-        return f"/{normalized}"
-    if not (settings.MEDIA_ROOT / normalized.lstrip("/")).exists():
-        return ""
-    return f"/media/{normalized.lstrip('/')}"
-
-
-def current_ist():
+from employees.media_utils import media_url
     return datetime.now(IST)
 
 

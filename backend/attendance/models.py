@@ -22,14 +22,12 @@ class AttendanceRecord(me.Document):
     location_status = me.StringField(default="not_captured")
     location_distance_meters = me.FloatField(default=0)
     duration_minutes = me.IntField(default=0)
-    status = me.StringField()
-    # "present" | "late" | "half_day" | "absent" | "leave"
-    # | "leave_pending" | "leave_approved" | "leave_rejected"
+    status = me.StringField() 
     is_verified = me.BooleanField(default=False)
     reason = me.StringField(default="")
     half_day_until = me.StringField(default="")
-    minutes_late = me.IntField(default=0)  # ← NEW: how many mins late
-    leave_type = me.StringField(default="")  # ← NEW: casual/sick/emergency
+    minutes_late = me.IntField(default=0)  9
+    leave_type = me.StringField(default="") 
     leave_notification_seen = me.BooleanField(default=False)
 
     meta = {

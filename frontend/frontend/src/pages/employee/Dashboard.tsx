@@ -12,6 +12,7 @@ import {
   type DashboardNotification,
 } from "../../hooks/useDashboardNotifications";
 import { dispatchNotificationAction } from "../../utils/notificationActions";
+import { getMediaUrl } from "../../utils/chatHelpers";
 import { getCurrentLocation } from "../../services/attendanceSecurity";
 import LogOutModal from "../../components/modal/LogOutModal";
 import {
@@ -67,12 +68,6 @@ const getLocalDate = () => {
 const getApiError = (err: unknown, fallback: string): string => {
   const e = err as { response?: { data?: { error?: string } } };
   return e?.response?.data?.error || fallback;
-};
-
-const getMediaUrl = (path?: string | null) => {
-  if (!path) return "";
-  if (path.startsWith("http")) return path;
-  return `http://localhost:8000${path.startsWith("/") ? path : `/${path}`}`;
 };
 
 const getStatusBadgeClass = (s: string) => {

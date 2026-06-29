@@ -14,7 +14,7 @@ import Toast from "../../components/common/Toast";
 import ProfilePhotoCropModal from "../../components/common/ProfilePhotoCropModal";
 import SearchableSelect from "../../components/auth/SearchableSelect";
 import CvDropZone from "../../components/auth/CvDropZone";
-import { getMediaUrl } from "../../utils/chatHelpers";
+import { getMediaUrl, persistCvFile, persistProfileImg } from "../../utils/chatHelpers";
 import { ArrowLeft, BriefcaseBusiness, Camera, Download, FileText, X } from "lucide-react";
 
 const DEPARTMENTS = ["IT", "HR", "Finance", "Operations", "Sales", "Marketing"];
@@ -133,7 +133,7 @@ export default function AdminProfile() {
       const data = res.data.employee as EmployeeProfile;
       setProfile(data);
       localStorage.setItem("employee_name", data.name);
-      localStorage.setItem("cv_file", data.cv_file || "");
+      persistCvFile(data.cv_file);
       setDepartment(data.department || "IT");
       setDesignation(data.designation || "Software Engineer");
       setCvFile("");
@@ -218,7 +218,7 @@ export default function AdminProfile() {
 
       const data = res.data.employee;
       setProfile(data);
-      localStorage.setItem("profile_img", data.profile_img || "");
+      persistProfileImg(data.profile_img);
       showToast("Profile photo updated");
       setSelectedImage(null);
     } catch (err) {
@@ -254,7 +254,7 @@ export default function AdminProfile() {
       );
       const data = res.data.employee as EmployeeProfile;
       setProfile(data);
-      localStorage.setItem("profile_img", data.profile_img || "");
+      persistProfileImg(data.profile_img);
       setCapturedImage(null);
       showToast(res.data.message || "Face profile updated");
     } catch (err) {
@@ -528,7 +528,7 @@ export default function AdminProfile() {
               />
             </section>
 
-            {/* <section className="rounded-3xl border border-slate-800/80 bg-slate-900/80 p-6 shadow-xl backdrop-blur-sm">
+            <section className="rounded-3xl border border-slate-800/80 bg-slate-900/80 p-6 shadow-xl backdrop-blur-sm">
               <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                 <div>
                   <h2 className="text-xl font-bold">Face re-enrollment</h2>
@@ -607,7 +607,7 @@ export default function AdminProfile() {
                   </div>
                 </div>
               )}
-            </section> */}
+            </section>
           </div>
         </div>
       </div>
