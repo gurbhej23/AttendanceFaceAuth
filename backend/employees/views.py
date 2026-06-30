@@ -28,7 +28,9 @@ from .models import (
     RegistrationOTP,
 )
 from .face_utils import extract_and_save_embedding, verify_face_match
+from attendance.models import AttendanceRecord
 
+IST = pytz.timezone("Asia/Kolkata")
 CV_DIR = settings.MEDIA_ROOT / "cv_files"
 PROFILE_DIR = settings.MEDIA_ROOT / "profile_images"
 GROUP_IMG_DIR = settings.MEDIA_ROOT / "group_images"
@@ -37,6 +39,19 @@ PROFILE_DIR.mkdir(parents=True, exist_ok=True)
 GROUP_IMG_DIR.mkdir(parents=True, exist_ok=True)
 
 FACE_DUPLICATE_THRESHOLD = 0.58
+
+
+def employee_attendance_marked_today(employee_id: str) -> bool:
+    """True when the employee already has a check-in for today (IST)."""
+    today = datetime.now(IST).strftime("%Y-%m-%d")
+    return (
+        AttendanceRecord.objects(
+            employee_id=employee_id,
+            date=today,
+            check_in_time__ne=None,
+        ).count()
+        > 0
+    )
 
 
 # ─── SendGrid email helper ─────────────────────────────────────────────────────
@@ -707,6 +722,7 @@ def login_employee(request):
                 "success": True,
                 "message": f"Welcome back, {employee.name}",
                 "access": token,
+                "attendance_marked_today": employee_attendance_marked_today(employee_id),
                 **employee_payload(employee),
             }
         )

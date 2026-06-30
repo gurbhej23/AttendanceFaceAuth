@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import type { AttendanceRecord } from "../../types/attendance";
 import { DASH_CELL_EMPTY, isEmptyCellValue } from "../../utils/dashboardUi";
 import Table from "../common/Table";
+import ProfileAvatarImg from "../common/ProfileAvatarImg";
 import EmployeeAttendanceTableSkeleton from "./EmployeeAttendanceTableSkeleton";
 
 interface AttendanceTableProps {
@@ -83,10 +84,10 @@ export default function AttendanceTable({
                   <div className="mx-auto h-10 w-10 overflow-hidden rounded-full border border-white/10 bg-slate-800">
                     {record.profile_img ? (
                       <button onClick={() => navigate("/profile")}>
-                        <img
+                        <ProfileAvatarImg
                           src={getMediaUrl(record.profile_img)}
                           alt={record.employee_name}
-                          className="h-full w-full cursor-pointer object-cover"
+                          className="cursor-pointer"
                         />
                       </button>
                     ) : (

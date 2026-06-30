@@ -1,25 +1,62 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Mail, ScanFace } from "lucide-react";
+import API from "../services/api";
 import Button from "../components/common/Button";
+import { notifyAuthChanged } from "../hooks/useEmployeeSession";
 
 export default function VerificationChoice() {
   const navigate = useNavigate();
   const employeeName = localStorage.getItem("employee_name") || "Employee";
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
     const id = localStorage.getItem("employee_id");
     if (!id || id === "undefined") {
       localStorage.clear();
       navigate("/", { replace: true });
+      return;
     }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await API.get("/attendance/today-marked/", {
+          params: { employee_id: id },
+        });
+        if (cancelled) return;
+
+        if (res.data?.marked) {
+          notifyAuthChanged();
+          navigate("/dashboard", { replace: true });
+          return;
+        }
+      } catch {
+        /* fall through — show verification choice */
+      } finally {
+        if (!cancelled) setChecking(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [navigate]);
+
+  if (checking) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] p-6">
+        <div className="text-center">
+          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-slate-700 border-t-blue-400" />
+          <p className="mt-4 text-sm text-slate-400">Checking attendance status…</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center overflow-hidden bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] p-6">
-      {/* <div className="absolute -left-25 -top-30 h-87.5 w-87.5 rounded-full bg-blue-500/20 blur-3xl" />
-      <div className="absolute -bottom-30 -right-25 h-87.5 w-87.5 rounded-full bg-cyan-500/20 blur-3xl" /> */}
-
       <div className="relative w-full max-w-lg rounded-[36px] border border-white/15 bg-white/8 p-8 shadow-2xl backdrop-blur-2xl">
         <div className="text-center">
           <p className="text-sm text-slate-400">Welcome back</p>

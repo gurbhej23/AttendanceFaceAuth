@@ -12,6 +12,7 @@ import Input from "../../components/common/Input";
 import PasswordField from "../../components/common/PasswordField";
 import Toast from "../../components/common/Toast";
 import ProfilePhotoCropModal from "../../components/common/ProfilePhotoCropModal";
+import ProfileAvatarImg from "../../components/common/ProfileAvatarImg";
 import SearchableSelect from "../../components/auth/SearchableSelect";
 import CvDropZone from "../../components/auth/CvDropZone";
 import { getMediaUrl } from "../../utils/chatHelpers";
@@ -312,10 +313,10 @@ export default function AdminProfile() {
                 className="h-full w-full overflow-hidden rounded-full border-2 border-slate-700 bg-slate-800"
               >
                 {profile?.profile_img ? (
-                  <img
+                  <ProfileAvatarImg
                     src={getMediaUrl(profile.profile_img)}
                     alt={profile.name}
-                    className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                    className="transition duration-300 group-hover:scale-105"
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-blue-600 to-cyan-500 text-4xl font-bold">

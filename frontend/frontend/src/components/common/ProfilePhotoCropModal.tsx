@@ -1,14 +1,13 @@
-import { useCallback, useRef, useState, type CSSProperties, type SyntheticEvent } from "react";
+import { useCallback, useRef, useState, type SyntheticEvent } from "react";
 import ReactCrop, {
   centerCrop,
+  convertToPixelCrop,
   makeAspectCrop,
   type Crop,
-  type PixelCrop,
 } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import Button from "./Button";
 import { cropImageToBase64 } from "../../utils/cropImage";
-import { ZoomIn } from "lucide-react";
 
 interface Props {
   imageSrc: string;
@@ -25,24 +24,33 @@ export default function ProfilePhotoCropModal({
 }: Props) {
   const imgRef = useRef<HTMLImageElement>(null);
   const [crop, setCrop] = useState<Crop>();
-  const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
-  const [zoom, setZoom] = useState(1);
 
   const onImageLoad = useCallback((event: SyntheticEvent<HTMLImageElement>) => {
-    const { width, height } = event.currentTarget;
-    const centered = centerCrop(
-      makeAspectCrop({ unit: "%", width: 78 }, 1, width, height),
-      width,
-      height,
-    );
-    setCrop(centered);
-    setZoom(1);
+    const img = event.currentTarget;
+    requestAnimationFrame(() => {
+      const width = img.offsetWidth;
+      const height = img.offsetHeight;
+      if (!width || !height) return;
+
+      const centered = centerCrop(
+        makeAspectCrop({ unit: "%", width: 78 }, 1, width, height),
+        width,
+        height,
+      );
+      setCrop(centered);
+    });
   }, []);
 
   const handleSave = async () => {
     const image = imgRef.current;
-    if (!image || !completedCrop?.width || !completedCrop?.height) return;
-    const base64 = cropImageToBase64(image, completedCrop, zoom);
+    if (!image || !crop?.width || !crop?.height) return;
+
+    const width = image.offsetWidth;
+    const height = image.offsetHeight;
+    if (!width || !height) return;
+
+    const pixelCrop = convertToPixelCrop(crop, width, height);
+    const base64 = cropImageToBase64(image, pixelCrop);
     if (!base64) return;
     await onSave(base64);
   };
@@ -75,7 +83,6 @@ export default function ProfilePhotoCropModal({
             keepSelection
             className="crop-modal-react-crop"
             onChange={(_, percentCrop) => setCrop(percentCrop)}
-            onComplete={(pixelCrop) => setCompletedCrop(pixelCrop)}
           >
             <img
               ref={imgRef}
@@ -83,39 +90,8 @@ export default function ProfilePhotoCropModal({
               alt="Crop profile"
               onLoad={onImageLoad}
               className="crop-modal-image"
-              style={{
-                transform: `scale(${zoom})`,
-                transformOrigin: "center center",
-              }}
             />
           </ReactCrop>
-        </div>
-
-        <div className="mt-5 px-0.5">
-          <div className="mb-2 flex items-center justify-between text-xs text-slate-400">
-            <span className="inline-flex items-center gap-1.5 font-medium">
-              <ZoomIn size={14} className="text-slate-500" />
-              Zoom
-            </span>
-            <span className="tabular-nums text-slate-500">
-              {Math.round(zoom * 100)}%
-            </span>
-          </div>
-          <input
-            type="range"
-            min={1}
-            max={2.5}
-            step={0.01}
-            value={zoom}
-            onChange={(e) => setZoom(Number(e.target.value))}
-            className="crop-zoom-slider w-full"
-            style={
-              {
-                "--zoom-pct": `${((zoom - 1) / 1.5) * 100}%`,
-              } as CSSProperties
-            }
-            aria-label="Zoom image"
-          />
         </div>
 
         <div className="mt-6 flex gap-3">
@@ -128,7 +104,7 @@ export default function ProfilePhotoCropModal({
           <Button
             text={saving ? "Saving..." : "Crop & Save"}
             onClick={() => void handleSave()}
-            disabled={saving || !completedCrop?.width}
+            disabled={saving || !crop?.width}
             className="crop-modal-btn flex-1 rounded-2xl bg-blue-600 py-3 font-semibold text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
           />
         </div>

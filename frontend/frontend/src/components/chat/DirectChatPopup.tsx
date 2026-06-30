@@ -13,6 +13,7 @@ import {
 import API from "../../services/api";
 import EmojiPicker from "./EmojiPicker";
 import Button from "../common/Button";
+import ProfileAvatarImg from "../common/ProfileAvatarImg";
 import type { ChatMessage, Contact } from "../../utils/chatHelpers";
 import {
   formatLastSeen,
@@ -37,11 +38,10 @@ function AvatarWithPresence({
   return (
     <div className="relative shrink-0">
       {src ? (
-        <img
+        <ProfileAvatarImg
           src={src}
           alt={name}
-          className={`${dim} rounded-full object-cover ${isOnline
-            }`}
+          className={`${dim} rounded-full ${isOnline ? "ring-2 ring-emerald-500/70" : ""}`}
         />
       ) : (
         <div

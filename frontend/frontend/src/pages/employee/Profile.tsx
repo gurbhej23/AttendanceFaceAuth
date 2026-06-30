@@ -10,6 +10,8 @@ import API, { FACE_REQUEST_TIMEOUT_MS } from "../../services/api";
 import Button from "../../components/common/Button";
 import Input from "../../components/common/Input";
 import ProfilePhotoCropModal from "../../components/common/ProfilePhotoCropModal";
+import ProfileAvatarImg from "../../components/common/ProfileAvatarImg";
+import { getMediaUrl } from "../../utils/chatHelpers";
 import { ArrowBigLeft, X } from "lucide-react";
 
 const DEPARTMENTS = ["IT", "HR", "Finance", "Operations", "Sales", "Marketing"];
@@ -34,12 +36,6 @@ interface EmployeeProfile {
   profile_img: string;
   cv_file: string;
 }
-
-const getMediaUrl = (path?: string | null) => {
-  if (!path) return "";
-  if (path.startsWith("http")) return path;
-  return `http://localhost:8000${path.startsWith("/") ? path : `/${path}`}`;
-};
 
 const getError = (err: unknown, fallback: string) => {
   const e = err as { response?: { data?: { error?: string } } };
@@ -276,10 +272,9 @@ export default function Profile() {
               className="mx-auto mb-5 h-28 w-28 overflow-hidden rounded-full border border-slate-700 bg-slate-800 cursor-pointer"
             >
               {profile?.profile_img ? (
-                <img
+                <ProfileAvatarImg
                   src={getMediaUrl(profile.profile_img)}
                   alt={profile.name}
-                  className="h-full w-full object-cover"
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center bg-blue-600 text-4xl font-bold">

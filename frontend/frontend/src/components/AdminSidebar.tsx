@@ -1,5 +1,6 @@
 import { LogOut, X } from "lucide-react";
 import Button from "./common/Button";
+import ProfileAvatarImg from "./common/ProfileAvatarImg";
 
 export interface AdminNavItem {
   icon: React.ReactNode;
@@ -36,11 +37,7 @@ function ProfileAvatar({
       className={`${SQUIRCLE} overflow-hidden rounded-2xl border border-white/10 bg-slate-800`}
     >
       {profileImg ? (
-        <img
-          src={profileImg}
-          alt={adminName}
-          className="h-full w-full object-cover"
-        />
+        <ProfileAvatarImg src={profileImg} alt={adminName} />
       ) : (
         <div className="grid h-full w-full place-items-center bg-blue-600 text-sm font-bold text-white">
           {adminName.charAt(0)}

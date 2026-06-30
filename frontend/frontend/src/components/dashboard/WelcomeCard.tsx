@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import ProfileAvatarImg from "../common/ProfileAvatarImg";
 
 interface WelcomeCardProps {
   employeeName: string | null;
@@ -42,10 +43,9 @@ function WelcomeCard({
             title="View profile"
           >
             {profileImg ? (
-              <img
+              <ProfileAvatarImg
                 src={profileImg}
                 alt={employeeName || "Employee"}
-                className="h-full w-full object-cover"
               />
             ) : (
               <div className="grid h-full w-full place-items-center bg-linear-to-br from-blue-600 to-cyan-500 text-lg font-bold text-white sm:text-2xl">

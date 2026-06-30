@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import API from "../../services/api";
 import Button from "../../components/common/Button";
+import { notifyAuthChanged } from "../../hooks/useEmployeeSession";
 import MessageOverlay from "../../components/chat/MessageOverlay";
 import {
   LOGIN_EYE_BUTTON,
@@ -68,17 +69,32 @@ export default function Login() {
         localStorage.setItem("profile_img", response.data.profile_img || "");
         localStorage.setItem("cv_file", response.data.cv_file || "");
 
-        setSuccess("Login successful. Choose your verification method...");
+        const skipVerification = Boolean(response.data.attendance_marked_today);
 
-        setOverlay({
-          title: "Login successful",
-          message: "Choose face or email OTP verification.",
-          loading: true,
-        });
+        if (skipVerification) {
+          notifyAuthChanged();
+          setSuccess("Welcome back. Opening your dashboard…");
+          setOverlay({
+            title: "Welcome back",
+            message: "You already marked attendance today.",
+            loading: true,
+          });
+          setTimeout(() => {
+            navigate("/dashboard", { replace: true });
+          }, 800);
+        } else {
+          setSuccess("Login successful. Choose your verification method...");
 
-        setTimeout(() => {
-          navigate("/verify-choice", { replace: true });
-        }, 1000);
+          setOverlay({
+            title: "Login successful",
+            message: "Choose face or email OTP verification.",
+            loading: true,
+          });
+
+          setTimeout(() => {
+            navigate("/verify-choice", { replace: true });
+          }, 1000);
+        }
       }
     } catch (err: unknown) {
       const error = err as {

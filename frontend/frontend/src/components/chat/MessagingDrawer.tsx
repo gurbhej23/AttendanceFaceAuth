@@ -17,6 +17,7 @@ import { chatKey, getMediaUrl, getWsUrl, resolveBackendOrigin } from "../../util
 import { listenNotificationAction } from "../../utils/notificationActions";
 import Button from "../common/Button";
 import Input from "../common/Input";
+import ProfileAvatarImg from "../common/ProfileAvatarImg";
 
 const HIDDEN_PATHS = new Set([
   "/",
@@ -619,10 +620,10 @@ export default function MessagingDrawer() {
               >
                 <div className="relative h-11 w-11 shrink-0">
                   {contact.profile_img ? (
-                    <img
+                    <ProfileAvatarImg
                       src={getMediaUrl(contact.profile_img)}
                       alt={contact.name}
-                      className="h-11 w-11 rounded-full object-cover"
+                      className="h-11 w-11 rounded-full"
                     />
                   ) : (
                     <div className="grid h-11 w-11 place-items-center rounded-full bg-cyan-700 text-sm font-bold text-white">
@@ -716,10 +717,10 @@ export default function MessagingDrawer() {
           <MessageSquare className="h-8 w-8 md:hidden" />
           <div className="relative hidden md:block">
             {profileImg ? (
-              <img
+              <ProfileAvatarImg
                 src={profileImg}
                 alt={employeeName}
-                className="h-10 w-10 rounded-full object-cover"
+                className="h-10 w-10 rounded-full"
               />
             ) : (
               <div className="grid h-10 w-10 place-items-center rounded-full bg-cyan-700 text-xs font-bold text-white">

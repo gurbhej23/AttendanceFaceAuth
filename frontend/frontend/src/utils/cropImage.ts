@@ -1,44 +1,42 @@
 import type { PixelCrop } from "react-image-crop";
 
+function getDisplayedSize(image: HTMLImageElement) {
+  const width = image.offsetWidth || image.clientWidth;
+  const height = image.offsetHeight || image.clientHeight;
+  return { width, height };
+}
+
+/**
+ * Export the crop region exactly as shown in react-image-crop.
+ * Uses layout size (offsetWidth/offsetHeight) so scale matches the on-screen crop.
+ */
 export function cropImageToBase64(
   image: HTMLImageElement,
   crop: PixelCrop,
-  scale = 1,
-  rotate = 0,
   quality = 0.92,
 ): string | null {
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
   if (!ctx || !crop.width || !crop.height) return null;
 
-  const scaleX = image.naturalWidth / image.width;
-  const scaleY = image.naturalHeight / image.height;
-  const pixelRatio = window.devicePixelRatio || 1;
+  const { width: displayWidth, height: displayHeight } = getDisplayedSize(image);
+  if (!displayWidth || !displayHeight) return null;
 
-  const outW = Math.floor(crop.width * scaleX);
-  const outH = Math.floor(crop.height * scaleY);
+  const scaleX = image.naturalWidth / displayWidth;
+  const scaleY = image.naturalHeight / displayHeight;
 
-  canvas.width = Math.floor(outW * pixelRatio);
-  canvas.height = Math.floor(outH * pixelRatio);
+  const cropX = Math.round(crop.x * scaleX);
+  const cropY = Math.round(crop.y * scaleY);
+  const cropW = Math.round(crop.width * scaleX);
+  const cropH = Math.round(crop.height * scaleY);
 
-  ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+  canvas.width = cropW;
+  canvas.height = cropH;
+
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
 
-  const cropX = crop.x * scaleX;
-  const cropY = crop.y * scaleY;
-  const rotateRads = rotate * (Math.PI / 180);
-  const centerX = image.naturalWidth / 2;
-  const centerY = image.naturalHeight / 2;
-
-  ctx.save();
-  ctx.translate(-cropX, -cropY);
-  ctx.translate(centerX, centerY);
-  ctx.rotate(rotateRads);
-  ctx.scale(scale, scale);
-  ctx.translate(-centerX, -centerY);
-  ctx.drawImage(image, 0, 0, image.naturalWidth, image.naturalHeight);
-  ctx.restore();
+  ctx.drawImage(image, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
 
   return canvas.toDataURL("image/jpeg", quality);
 }

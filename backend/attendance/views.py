@@ -608,6 +608,35 @@ def check_out_face(request):
 
 
 @api_view(["GET"])
+def today_attendance_marked(request):
+    """Whether the employee already checked in today (skip re-verification on login)."""
+    try:
+        employee_id = request.query_params.get("employee_id", "").strip()
+        if not employee_id:
+            return Response(
+                {"success": False, "error": "employee_id is required"},
+                status=400,
+            )
+
+        today = today_ist()
+        marked = (
+            AttendanceRecord.objects(
+                employee_id=employee_id,
+                date=today,
+                check_in_time__ne=None,
+            ).count()
+            > 0
+        )
+
+        return Response({"success": True, "marked": marked, "date": today})
+    except Exception as e:
+        import traceback
+
+        traceback.print_exc()
+        return Response({"success": False, "error": str(e)}, status=500)
+
+
+@api_view(["GET"])
 def attendance_report(request):
     try:
         date = request.query_params.get("date", today_ist())
