@@ -21,7 +21,7 @@ export default function ThemeToggle({
       <button
         type="button"
         onClick={toggleTheme}
-        className={`theme-floating-toggle fixed top-4 left-4 z-[60] flex h-11 w-11 items-center justify-center rounded-xl transition active:scale-95 ${className}`}
+        className={`theme-floating-toggle fixed top-4 right-4 z-[60] flex h-11 w-11 items-center justify-center rounded-xl transition active:scale-95 sm:left-4 sm:right-auto ${className}`}
         aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
         title={isDark ? "Light theme" : "Dark theme"}
       >

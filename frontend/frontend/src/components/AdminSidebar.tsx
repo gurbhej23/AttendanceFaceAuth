@@ -93,7 +93,7 @@ export default function AdminSidebar({
         className={`sidebar-nav-item group/item flex shrink-0 items-center rounded-2xl ${
           mobile
             ? "h-12 w-full gap-3 px-1.5"
-            : `mx-auto ${SQUIRCLE} justify-center p-0 lg:group-hover/sidebar:h-12 lg:group-hover/sidebar:w-full lg:group-hover/sidebar:justify-start lg:group-hover/sidebar:gap-3 lg:group-hover/sidebar:px-1.5`
+            : `mx-auto ${SQUIRCLE} justify-center p-0 lg:group-hover/sidebar:h-12 lg:group-hover/sidebar:w-full lg:group-hover/sidebar:justify-start lg:group-hover/sidebar:gap-3 lg:group-hover/sidebar:px-0`
         } ${
           isActive
             ? "sidebar-nav-item-active bg-blue-600/15 text-blue-100"
@@ -155,7 +155,10 @@ export default function AdminSidebar({
   );
 
   const railShell =
-    "sidebar-rail flex h-screen flex-col items-center overflow-hidden py-4";
+    "sidebar-rail flex flex-col items-center overflow-hidden py-4";
+
+  const mobileRailShell =
+    "sidebar-rail flex h-dvh max-h-dvh flex-col overflow-hidden pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]";
 
   return (
     <>
@@ -170,11 +173,11 @@ export default function AdminSidebar({
       />
 
       <aside
-        className={`${railShell} fixed left-0 top-0 z-50 w-[min(88vw,320px)] border-r border-white/10 bg-slate-950 shadow-2xl backdrop-blur-xl sidebar-transition lg:hidden ${
+        className={`${mobileRailShell} fixed left-0 top-0 z-99 w-[min(88vw,320px)] border-r border-white/10 bg-slate-950 shadow-2xl backdrop-blur-xl sidebar-transition lg:hidden ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="sidebar-rail-top w-full shrink-0 px-4">
+        <div className="sidebar-rail-top w-full shrink-0 px-4 pb-2">
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
               <ProfileAvatar adminName={adminName} profileImg={profileImg} />
@@ -194,20 +197,20 @@ export default function AdminSidebar({
           </div>
         </div>
 
-        <nav className="sidebar-rail-nav flex min-h-0 w-full flex-1 flex-col justify-start pt-4 gap-3 overflow-hidden px-3">
+        <nav className="sidebar-rail-nav flex min-h-0 w-full flex-1 flex-col gap-5 overflow-y-auto overscroll-contain px-3 py-2">
           {items.map((item) => navButton(item, true))}
         </nav>
 
-        <div className="sidebar-rail-bottom w-full shrink-0 space-y-2 px-3">
+        <div className="sidebar-rail-bottom mt-auto w-full shrink-0 space-y-2 border-t border-white/10 px-3 pt-3">
           <ThemeToggle mobile showLabel />
           {logoutButton(true)}
         </div>
       </aside>
 
       <aside
-        className={`${railShell} group/sidebar fixed left-3 top-0 z-30 hidden w-[72px] rounded-[28px] border border-white/10 bg-slate-950 shadow-2xl backdrop-blur-xl transition-[width] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] hover:w-64 lg:flex`}
+        className={`${railShell} group/sidebar fixed bottom-4 left-3 top-4 z-30 hidden w-[72px] rounded-[28px] border border-white/10 bg-slate-950 shadow-2xl backdrop-blur-xl transition-[width] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] hover:w-64 lg:flex`}
       >
-        <div className="sidebar-rail-top flex w-full shrink-0 flex items-center gap-2 p-3 mb-4">
+        <div className="sidebar-rail-top flex w-full shrink-0 items-center gap-2 p-3">
           <ProfileAvatar adminName={adminName} profileImg={profileImg} />
           <div className="hidden w-full min-w-0 px-1 text-center group-hover/sidebar:block">
             <p className="truncate text-sm font-bold text-white">{adminName}</p>
@@ -215,11 +218,11 @@ export default function AdminSidebar({
           </div>
         </div>
 
-        <nav className="sidebar-rail-nav flex min-h-0 w-full flex-1 flex-col items-center justify-start gap-3 overflow-hidden px-2">
+        <nav className="sidebar-rail-nav flex min-h-0 w-full flex-1 flex-col items-center justify-start gap-3 overflow-y-auto overscroll-contain px-2">
           {items.map((item) => navButton(item, false))}
         </nav>
 
-        <div className="sidebar-rail-bottom w-full shrink-0 space-y-2 px-2">
+        <div className="sidebar-rail-bottom mt-auto w-full shrink-0 space-y-2 px-2 pb-1 pt-2">
           <ThemeToggle showLabel />
           {logoutButton(false)}
         </div>

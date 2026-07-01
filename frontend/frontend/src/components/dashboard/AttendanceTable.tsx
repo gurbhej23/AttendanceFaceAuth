@@ -98,28 +98,27 @@ export default function AttendanceTable({
                   </div>
                 </td>
                 <td className="px-4 py-4 text-left">
-                  <p className="font-semibold text-white">
+                  <p className="font-semibold text-white flex justify-center text-[17px]">
                     {record.employee_name}
-                  </p>
-                  <p className="text-xs text-slate-300">Employee</p>
+                  </p> 
                 </td>
-                <td className="text-sm font-medium text-slate-300">
+                <td className="text-sm font-medium text-slate-500">
                   {record.employee_id}
                 </td>
                 <td className="px-4 py-4">
                   {checkInEmpty ? (
-                    <span className={`font-mono text-sm ${DASH_CELL_EMPTY}`}>
+                    <span className={`font-mono text-[17px] ${DASH_CELL_EMPTY}`}>
                       {record.check_in || "--"}
                     </span>
                   ) : (
-                    <span className="font-mono text-sm text-green-500 text-[17px]">
+                    <span className="font-mono text-[17px] text-green-500">
                       {record.check_in}
                     </span>
                   )}
                 </td>
                 <td className="px-4 py-4">
                   {checkOutEmpty ? (
-                    <span className={`font-mono text-sm ${DASH_CELL_EMPTY}`}>
+                    <span className={`font-mono text-[17px] ${DASH_CELL_EMPTY}`}>
                       {record.check_out || "--"}
                     </span>
                   ) : (
@@ -172,7 +171,7 @@ export default function AttendanceTable({
                       href={getMediaUrl(record.cv_file)}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-xs font-semibold text-blue-400 hover:text-blue-300"
+                      className="text-[15px] font-semibold text-blue-400 hover:text-blue-300"
                     >
                       View CV
                     </a>
