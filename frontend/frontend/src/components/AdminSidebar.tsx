@@ -1,6 +1,7 @@
 import { LogOut, X } from "lucide-react";
 import Button from "./common/Button";
 import ProfileAvatarImg from "./common/ProfileAvatarImg";
+import ThemeToggle from "./common/ThemeToggle";
 
 export interface AdminNavItem {
   icon: React.ReactNode;
@@ -103,7 +104,7 @@ export default function AdminSidebar({
         aria-current={isActive ? "page" : undefined}
       >
         <span
-          className={`sidebar-nav-icon-box relative flex ${SQUIRCLE} items-center justify-center overflow-visible rounded-2xl ${iconWellTone(isActive)}`}
+          className={`sidebar-nav-icon-box relative flex ${SQUIRCLE} items-center justify-center overflow-visible rounded-2xl border border-white/10 ${iconWellTone(isActive)}`}
         >
           <NavIcon>{item.icon}</NavIcon>
           {hasBadge && <NavBadge count={item.badgeCount!} />}
@@ -137,7 +138,7 @@ export default function AdminSidebar({
       }`}
     >
       <span
-        className={`sidebar-nav-icon-box flex items-center justify-center rounded-2xl bg-red-500/15 text-red-300 ${SQUIRCLE}`}
+        className={`sidebar-nav-icon-box flex items-center justify-center rounded-2xl border border-red-500/25 bg-red-500/15 text-red-300 ${SQUIRCLE}`}
       >
         <LogOut size={18} className="shrink-0" />
       </span>
@@ -154,7 +155,7 @@ export default function AdminSidebar({
   );
 
   const railShell =
-    "sidebar-rail flex h-screen flex-col items-center justify-between overflow-hidden py-4";
+    "sidebar-rail flex h-screen flex-col items-center overflow-hidden py-4";
 
   return (
     <>
@@ -169,7 +170,7 @@ export default function AdminSidebar({
       />
 
       <aside
-        className={`${railShell} fixed left-0 top-0 z-50 w-[min(88vw,320px)] items-stretch border-r border-white/10 bg-slate-950 shadow-2xl backdrop-blur-xl sidebar-transition lg:hidden ${
+        className={`${railShell} fixed left-0 top-0 z-50 w-[min(88vw,320px)] border-r border-white/10 bg-slate-950 shadow-2xl backdrop-blur-xl sidebar-transition lg:hidden ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -193,11 +194,12 @@ export default function AdminSidebar({
           </div>
         </div>
 
-        <nav className="sidebar-rail-nav flex min-h-0 w-full flex-1 flex-col items-stretch justify-center gap-1.5 overflow-hidden px-3">
+        <nav className="sidebar-rail-nav flex min-h-0 w-full flex-1 flex-col justify-start pt-4 gap-3 overflow-hidden px-3">
           {items.map((item) => navButton(item, true))}
         </nav>
 
-        <div className="sidebar-rail-bottom w-full shrink-0 px-3">
+        <div className="sidebar-rail-bottom w-full shrink-0 space-y-2 px-3">
+          <ThemeToggle mobile showLabel />
           {logoutButton(true)}
         </div>
       </aside>
@@ -205,7 +207,7 @@ export default function AdminSidebar({
       <aside
         className={`${railShell} group/sidebar fixed left-3 top-0 z-30 hidden w-[72px] rounded-[28px] border border-white/10 bg-slate-950 shadow-2xl backdrop-blur-xl transition-[width] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] hover:w-64 lg:flex`}
       >
-        <div className="sidebar-rail-top flex w-full shrink-0 flex items-start gap-2 p-3 mb-4">
+        <div className="sidebar-rail-top flex w-full shrink-0 flex items-center gap-2 p-3 mb-4">
           <ProfileAvatar adminName={adminName} profileImg={profileImg} />
           <div className="hidden w-full min-w-0 px-1 text-center group-hover/sidebar:block">
             <p className="truncate text-sm font-bold text-white">{adminName}</p>
@@ -217,7 +219,8 @@ export default function AdminSidebar({
           {items.map((item) => navButton(item, false))}
         </nav>
 
-        <div className="sidebar-rail-bottom w-full shrink-0 px-2">
+        <div className="sidebar-rail-bottom w-full shrink-0 space-y-2 px-2">
+          <ThemeToggle showLabel />
           {logoutButton(false)}
         </div>
       </aside>

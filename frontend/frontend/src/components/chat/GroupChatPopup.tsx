@@ -60,7 +60,7 @@ export default function GroupChatPopup({
 
   if (minimized) {
     return (
-      <div className="flex h-12 w-[220px] items-center gap-2 rounded-t-2xl border border-b-0 border-violet-700/40 bg-slate-900 px-3 shadow-lg">
+      <div className="chat-popup-minimized flex h-12 w-[220px] items-center gap-2 rounded-t-2xl border border-b-0 border-violet-700/40 bg-slate-900 px-3 shadow-lg">
         <button
           type="button"
           onClick={onMinimize}
@@ -94,7 +94,7 @@ export default function GroupChatPopup({
 
   return (
     <div
-      className={`flex flex-col overflow-hidden bg-slate-900 ${
+      className={`chat-popup flex flex-col overflow-hidden bg-slate-900 ${
         fullScreen
           ? "h-[100dvh] w-full"
           : "h-[min(70vh,480px)] w-[min(calc(100vw-1.5rem),450px)] rounded-2xl border border-b-0 border-violet-700/40 shadow-2xl shadow-black/50 sm:rounded-t-2xl"

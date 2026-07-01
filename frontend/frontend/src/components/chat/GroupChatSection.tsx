@@ -1107,10 +1107,10 @@ export default function GroupChatSection({
                         ) : (
                           <div
                             className={`rounded-3xl px-4 py-3 text-xs ${msg.is_deleted
-                              ? "bg-slate-800/50 text-slate-500 italic"
+                              ? "chat-bubble-in bg-slate-800/50 text-slate-500 italic"
                               : mine
                                 ? "bg-blue-600 text-white"
-                                : "bg-slate-800 text-slate-100"
+                                : "chat-bubble-in bg-slate-800 text-slate-100"
                               }`}
                           >
                             <p className="whitespace-pre-wrap wrap-break-words">

@@ -406,7 +406,7 @@ export default function DirectChatPopup({
 
   if (minimized) {
     return (
-      <div className="flex h-14 w-[450px] items-center gap-2 rounded-t-2xl border border-b-0 border-slate-700/80 bg-slate-900 px-3 shadow-lg">
+      <div className="chat-popup-minimized flex h-14 w-[450px] items-center gap-2 rounded-t-2xl border border-b-0 border-slate-700/80 bg-slate-900 px-3 shadow-lg">
         <button
           type="button"
           onClick={onMinimize}
@@ -446,7 +446,7 @@ export default function DirectChatPopup({
         </div>
       )}
       <div
-        className={`flex flex-col overflow-hidden bg-slate-900 ${fullScreen
+        className={`chat-popup flex flex-col overflow-hidden bg-slate-900 ${fullScreen
           ? "h-[100dvh] w-full"
           : "h-[min(70vh,480px)] w-[min(calc(100vw-1.5rem),450px)] rounded-2xl border border-b-0 border-slate-700/80 shadow-2xl shadow-black/50 sm:rounded-t-2xl"
           }`}
@@ -652,10 +652,10 @@ export default function DirectChatPopup({
                     ) : (
                       <div
                         className={`rounded-2xl px-3 py-2 text-sm ${msg.is_deleted
-                          ? "bg-slate-800/50 italic text-slate-500"
+                          ? "chat-bubble-in bg-slate-800/50 italic text-slate-500"
                           : mine
                             ? "bg-blue-600 text-white"
-                            : "bg-slate-800 text-slate-100"
+                            : "chat-bubble-in bg-slate-800 text-slate-100"
                           }`}
                       >
                         <p className="whitespace-pre-wrap wrap-break-words">

@@ -1,0 +1,1006 @@
+/* ── Theme tokens (dark default — unchanged) ── */
+html.dark,
+html:not(.light) {
+  --th-bg: #0b0f19;
+  --th-bg-elevated: #020617;
+  --th-surface: #0f172a;
+  --th-surface-2: #1e293b;
+  --th-text: #f8fafc;
+  --th-text-secondary: #cbd5e1;
+  --th-text-muted: #94a3b8;
+  --th-border: #334155;
+  --th-border-subtle: rgb(255 255 255 / 0.1);
+  --th-input-bg: rgb(2 6 23 / 0.8);
+  --th-overlay: rgb(0 0 0 / 0.6);
+  --th-toggle-bg: rgb(15 23 42 / 0.9);
+  --th-toggle-hover: #1e293b;
+}
+
+/* ── Light theme only ── */
+html.light {
+  color-scheme: light;
+  --th-bg: #ffffff;
+  --th-bg-elevated: #ffffff;
+  --th-surface: #ffffff;
+  --th-surface-2: #ffffff;
+  --th-text: #000000;
+  --th-text-secondary: #1e293b;
+  --th-text-muted: #475569;
+  --th-border: #e2e8f0;
+  --th-border-subtle: #e2e8f0;
+  --th-input-bg: #ffffff;
+  --th-overlay: rgb(15 23 42 / 0.35);
+  --th-toggle-bg: #ffffff;
+  --th-toggle-hover: #f8fafc;
+  --scrollbar-track: #ffffff;
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-thumb-hover: #94a3b8;
+  --dash-muted: #334155;
+  --dash-subtle: #475569;
+  --dash-cell-empty: rgb(100 116 139 / 0.9);
+}
+
+body {
+  background-color: var(--th-bg);
+  color: var(--th-text);
+}
+
+html.light body,
+html.light #root {
+  background-color: #ffffff;
+  color: #000000;
+}
+
+.theme-toggle-btn {
+  color: var(--th-text-secondary);
+  background: transparent;
+}
+
+.theme-toggle-btn:hover {
+  background: var(--th-toggle-hover);
+  color: var(--th-text);
+}
+
+.theme-toggle-icon {
+  background: var(--th-toggle-bg);
+  border: 1px solid var(--th-border-subtle);
+  color: var(--th-text);
+}
+
+.theme-floating-toggle {
+  border: 1px solid var(--th-border-subtle);
+  background: var(--th-toggle-bg);
+  color: var(--th-text);
+  box-shadow: 0 4px 14px rgb(15 23 42 / 0.08);
+}
+
+.theme-floating-toggle:hover {
+  background: var(--th-toggle-hover);
+}
+
+/* Page shells — pure white background */
+html.light .min-h-screen {
+  background-color: #ffffff !important;
+  background-image: none !important;
+}
+
+html.light .dash-shell-panel {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.light .dash-table-panel {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.light .dash-data-table-wrap {
+  border-color: #e2e8f0 !important;
+}
+
+html.light .dash-data-table {
+  color: #000000 !important;
+}
+
+html.light .dash-data-table-head,
+html.light thead.bg-slate-700\/50,
+html.light thead.bg-slate-700\/30,
+html.light thead.bg-slate-800\/40,
+html.light thead.border-slate-700 {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #475569 !important;
+}
+
+html.light .dash-data-table-head th {
+  color: #475569 !important;
+}
+
+html.light table.text-white {
+  color: #000000 !important;
+}
+
+/* ── Light mode: remap dark Tailwind utilities ── */
+html.light .bg-slate-950,
+html.light .bg-slate-950\/40,
+html.light .bg-slate-950\/50,
+html.light .bg-slate-950\/60,
+html.light .bg-slate-950\/70,
+html.light .bg-slate-950\/80,
+html.light .bg-slate-950\/95 {
+  background-color: #ffffff !important;
+}
+
+html.light .bg-slate-900,
+html.light .bg-slate-900\/60,
+html.light .bg-slate-900\/70,
+html.light .bg-slate-900\/90 {
+  background-color: #ffffff !important;
+}
+
+html.light .bg-slate-800,
+html.light .bg-slate-800\/50,
+html.light .bg-slate-800\/70,
+html.light .bg-slate-800\/80,
+html.light .bg-slate-800\/98,
+html.light .bg-slate-800\/40 {
+  background-color: #ffffff !important;
+}
+
+html.light .bg-slate-700\/50,
+html.light .bg-slate-700\/30,
+html.light .bg-slate-700\/80 {
+  background-color: #f8fafc !important;
+}
+
+html.light .bg-slate-900\/40,
+html.light .bg-slate-900\/50,
+html.light .bg-slate-900\/60 {
+  background-color: #ffffff !important;
+}
+
+html.light .bg-slate-800\/50 {
+  background-color: #f8fafc !important;
+}
+
+html.light .bg-slate-700:not(.grid):not(.place-items-center),
+html.light .from-slate-700,
+html.light .to-slate-900 {
+  background-color: #f8fafc !important;
+}
+
+html.light .bg-black {
+  background-color: #ffffff !important;
+}
+
+html.light .bg-black\/60,
+html.light .bg-black\/85,
+html.light .bg-black\/90 {
+  background-color: var(--th-overlay) !important;
+}
+
+html.light .bg-\[\#111827\],
+html.light .bg-\[\#020617\],
+html.light .from-\[\#020617\],
+html.light .via-\[\#0f172a\],
+html.light .to-\[\#111827\],
+html.light .from-slate-950,
+html.light .via-slate-900,
+html.light .to-slate-800,
+html.light .to-slate-950 {
+  background-color: #ffffff !important;
+}
+
+html.light .bg-white\/5,
+html.light .bg-white\/8 {
+  background-color: #ffffff !important;
+}
+
+html.light .bg-white\/\[0\.04\],
+html.light .bg-white\/\[0\.07\],
+html.light .bg-white\/\[0\.08\] {
+  background-color: #ffffff !important;
+}
+
+/* White text → black in light mode */
+html.light .text-white {
+  color: #000000 !important;
+}
+
+html.light .text-slate-100,
+html.light .text-slate-200,
+html.light .text-slate-300 {
+  color: #1e293b !important;
+}
+
+html.light .text-slate-400,
+html.light .text-slate-500 {
+  color: #475569 !important;
+}
+
+html.light input,
+html.light textarea,
+html.light select {
+  color: #000000;
+}
+
+html.light input::placeholder,
+html.light textarea::placeholder {
+  color: #64748b;
+}
+
+html.light input.bg-slate-700,
+html.light input[class*="bg-slate-700"],
+html.light input[class*="bg-slate-800"],
+html.light input[class*="bg-slate-950"] {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+html.light tbody tr.border-slate-700,
+html.light tbody tr.border-b {
+  border-color: #e2e8f0 !important;
+}
+
+html.light .border-slate-600,
+html.light .border-slate-700,
+html.light .border-slate-700\/50,
+html.light .border-slate-700\/60,
+html.light .border-slate-700\/80,
+html.light .border-slate-800\/60,
+html.light .border-slate-800,
+html.light .border-slate-800\/60,
+html.light .border-white\/10,
+html.light .border-white\/12,
+html.light .border-white\/15,
+html.light .border-cyan-800,
+html.light .border-cyan-300\/30 {
+  border-color: #e2e8f0 !important;
+}
+
+html.light .hover\:bg-white\/10:hover,
+html.light .hover\:bg-slate-700:hover,
+html.light .hover\:bg-slate-800:hover,
+html.light .hover\:bg-slate-800\/70:hover,
+html.light .hover\:bg-slate-900\/60:hover {
+  background-color: #f8fafc !important;
+}
+
+html.light .hover\:text-slate-300:hover {
+  color: #334155 !important;
+}
+
+html.light .hover\:text-white:hover {
+  color: #000000 !important;
+}
+
+html.light .dash-table-row:hover {
+  background-color: #f8fafc;
+}
+
+html.light .skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgb(241 245 249) 0%,
+    rgb(226 232 240) 45%,
+    rgb(241 245 249) 90%
+  );
+}
+
+html.light .pro-chat-scroll {
+  scrollbar-color: #cbd5e1 #ffffff;
+}
+
+html.light .pro-chat-scroll::-webkit-scrollbar-track {
+  background: #ffffff;
+}
+
+html.light .pro-chat-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+}
+
+html.light .pro-chat-scroll::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Keep white text on solid colored buttons, badges & avatars */
+html.light .bg-linear-to-r.text-white,
+html.light .bg-linear-to-br.from-blue-600,
+html.light .bg-linear-to-br.from-blue-600.text-white,
+html.light .bg-linear-to-br.from-blue-600.to-cyan-500,
+html.light .bg-linear-to-br.from-blue-600.to-cyan-500.text-white,
+html.light button.bg-blue-600,
+html.light button.bg-indigo-600,
+html.light .bg-blue-600.text-white,
+html.light .bg-indigo-600.text-white,
+html.light .bg-emerald-500.text-white,
+html.light .bg-emerald-600.text-white,
+html.light .bg-red-500.text-white,
+html.light .bg-red-600.text-white,
+html.light .sidebar-nav-badge {
+  --tw-ring-color: #ffffff !important;
+  color: #ffffff !important;
+}
+
+html.light .bg-red-600.ring-1,
+html.light .bg-red-600.ring-slate-900 {
+  --tw-ring-color: #ffffff !important;
+}
+
+html.light .bg-violet-700.text-white,
+html.light .bg-cyan-700.text-white,
+html.light .grid.bg-cyan-700,
+html.light .grid.bg-violet-700,
+html.light .grid.bg-blue-600,
+html.light .bg-linear-to-r.from-blue-600,
+html.light .crop-modal-btn.bg-blue-600 {
+  color: #ffffff !important;
+}
+
+html.light .sidebar-nav-item-active {
+  color: #1d4ed8 !important;
+}
+
+html.light .sidebar-nav-item-active .sidebar-nav-icon-box {
+  background-color: rgb(59 130 246 / 0.12) !important;
+  color: #1d4ed8 !important;
+}
+
+html.light .text-blue-100,
+html.light .text-blue-200 {
+  color: #1d4ed8 !important;
+}
+
+html.light .ring-slate-950,
+html.light .ring-slate-900 {
+  --tw-ring-color: #ffffff !important;
+}
+
+/* Loading spinners — keep moving red/blue arc visible in light mode */
+html.light .animate-spin.border-slate-700,
+html.light .animate-spin.border-slate-600 {
+  border-color: #e2e8f0 !important;
+}
+
+html.light .animate-spin.border-t-red-400 {
+  border-top-color: #ef4444 !important;
+}
+
+html.light .animate-spin.border-t-blue-400 {
+  border-top-color: #3b82f6 !important;
+}
+
+html.light .animate-spin.border-t-blue-500 {
+  border-top-color: #3b82f6 !important;
+}
+
+/* Login face-scan frame corners stay visible in light mode */
+html.light .login-face-frame .border-cyan-300 {
+  border-color: #0891b2 !important;
+}
+
+html.light .login-face-frame .bg-cyan-300\/80 {
+  background-color: rgb(8 145 178 / 0.85) !important;
+}
+
+html.light .login-face-frame .text-cyan-100 {
+  color: #0891b2 !important;
+}
+
+/* Status / metric cards — darker, bolder text in light mode */
+html.light .dash-metric-label {
+  color: #334155 !important;
+  font-weight: 600 !important;
+}
+
+html.light .dash-metric-value {
+  color: #0f172a !important;
+  font-weight: 700 !important;
+}
+
+html.light .dash-metric-card .text-green-300,
+html.light .dash-metric-value.text-green-300 {
+  color: #15803d !important;
+}
+
+html.light .dash-metric-card .text-yellow-300,
+html.light .dash-metric-card .text-yellow-400,
+html.light .dash-metric-value.text-yellow-300 {
+  color: #a16207 !important;
+}
+
+html.light .dash-metric-card .text-red-300,
+html.light .dash-metric-value.text-red-300 {
+  color: #b91c1c !important;
+}
+
+html.light .dash-metric-card .text-orange-300,
+html.light .dash-metric-value.text-orange-300 {
+  color: #c2410c !important;
+}
+
+html.light .dash-metric-card .text-purple-300,
+html.light .dash-metric-value.text-purple-300 {
+  color: #7e22ce !important;
+}
+
+html.light .dash-metric-card .text-blue-300,
+html.light .dash-metric-value.text-blue-300 {
+  color: #1d4ed8 !important;
+}
+
+html.light .dash-metric-card .text-emerald-400,
+html.light .dash-metric-value.text-emerald-400 {
+  color: #047857 !important;
+}
+
+html.light .dash-metric-card .text-red-400,
+html.light .dash-metric-value.text-red-400 {
+  color: #dc2626 !important;
+}
+
+html.light .dash-metric-card .text-orange-400,
+html.light .dash-metric-value.text-orange-400 {
+  color: #ea580c !important;
+}
+
+html.light .dash-metric-card .text-slate-300.text-3xl,
+html.light .dash-metric-value.text-slate-300 {
+  color: #0f172a !important;
+}
+
+html.light .dash-metric-card .text-slate-500,
+html.light .dash-metric-label.text-slate-500 {
+  color: #475569 !important;
+}
+
+html.light .dash-metric-value.text-slate-400 {
+  color: #64748b !important;
+}
+
+html.light .dash-metric-icon {
+  border-color: #cbd5e1 !important;
+  background-color: #f8fafc !important;
+}
+
+html.light .dash-welcome-muted {
+  color: #475569 !important;
+  font-weight: 500;
+}
+
+/* Admin / profile pages */
+html.light .profile-page {
+  background-color: #ffffff !important;
+  background-image: none !important;
+  color: #0f172a;
+}
+
+html.light .profile-card {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgb(15 23 42 / 0.06);
+}
+
+html.light .profile-info-tile {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.light .profile-back-btn {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+html.light .profile-back-btn:hover {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+html.light .profile-page .text-white {
+  color: #0f172a !important;
+}
+
+html.light .profile-page .text-slate-200,
+html.light .profile-page .text-slate-300 {
+  color: #334155 !important;
+}
+
+html.light .profile-page .text-slate-400,
+html.light .profile-page .text-slate-500 {
+  color: #475569 !important;
+  font-weight: 500;
+}
+
+html.light .profile-page .profile-field,
+html.light .profile-page input[class*="bg-slate-950"],
+html.light .profile-page button[class*="bg-slate-950"] {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+html.light .profile-page .bg-slate-950\/80,
+html.light .profile-page .bg-slate-950\/60,
+html.light .profile-page .bg-slate-950\/50 {
+  background-color: #f8fafc !important;
+}
+
+html.light .profile-page .bg-slate-900\/80,
+html.light .profile-page .bg-slate-900 {
+  background-color: #ffffff !important;
+}
+
+html.light .profile-page .bg-slate-800 {
+  background-color: #f1f5f9 !important;
+}
+
+html.light .profile-page .border-slate-800\/80,
+html.light .profile-page .border-slate-800,
+html.light .profile-page .border-slate-700 {
+  border-color: #e2e8f0 !important;
+}
+
+html.light .profile-page .border-b.border-slate-800 {
+  border-color: #e2e8f0 !important;
+}
+
+html.light .profile-page .text-blue-200,
+html.light .profile-page .text-blue-300 {
+  color: #1d4ed8 !important;
+}
+
+html.light .profile-page .text-emerald-200 {
+  color: #047857 !important;
+}
+
+html.light .profile-page .text-amber-300 {
+  color: #b45309 !important;
+}
+
+html.light .profile-page .bg-blue-500\/10 {
+  background-color: rgb(239 246 255) !important;
+  border-color: #bfdbfe !important;
+}
+
+html.light .profile-page .bg-blue-500\/10 .text-white {
+  color: #0f172a !important;
+}
+
+html.light .profile-page button.bg-cyan-600,
+html.light .profile-page button.bg-blue-600,
+html.light .profile-page button.bg-indigo-600,
+html.light .profile-page button.bg-green-600 {
+  color: #ffffff !important;
+}
+
+html.light .profile-page .group-hover\:bg-black\/60:hover {
+  background-color: rgb(15 23 42 / 0.45) !important;
+}
+
+html.light .profile-page .group-hover\:bg-black\/60:hover .text-white {
+  color: #ffffff !important;
+}
+
+/* HR dashboard tab switcher */
+html.light .dash-tab-shell {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgb(15 23 42 / 0.06);
+}
+
+html.light .dash-tab-inactive {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #475569 !important;
+}
+
+html.light .dash-tab-inactive:hover {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+@media (min-width: 640px) {
+  html.light .dash-tab-inactive {
+    background-color: transparent !important;
+    border-color: transparent !important;
+  }
+
+  html.light .dash-tab-inactive:hover {
+    background-color: #f8fafc !important;
+  }
+}
+
+html.light .dash-shell-panel .text-slate-400,
+html.light .dash-table-panel .text-slate-400 {
+  color: #475569 !important;
+}
+
+/* Sidebar — icon wells with visible borders */
+html.light .sidebar-rail {
+  border-color: #e2e8f0 !important;
+}
+
+html.light .sidebar-nav-icon-box {
+  border-color: #cbd5e1 !important;
+  background-color: #f8fafc !important;
+  color: #334155 !important;
+}
+
+html.light .sidebar-nav-item-active .sidebar-nav-icon-box {
+  border-color: #93c5fd !important;
+  background-color: #eff6ff !important;
+  color: #1d4ed8 !important;
+}
+
+html.light .sidebar-nav-logout .sidebar-nav-icon-box {
+  border-color: #fca5a5 !important;
+  background-color: #fef2f2 !important;
+  color: #dc2626 !important;
+}
+
+html.light .sidebar-nav-item:not(.sidebar-nav-item-active) {
+  color: #334155 !important;
+  font-weight: 600;
+}
+
+html.light .sidebar-nav-item:not(.sidebar-nav-item-active) .sidebar-nav-icon-box {
+  color: #475569 !important;
+}
+
+html.light .sidebar-rail .text-slate-400,
+html.light .sidebar-rail .truncate.text-\[11px\] {
+  color: #64748b !important;
+  font-weight: 500;
+}
+
+html.light .sidebar-nav-logout {
+  color: #b91c1c !important;
+  font-weight: 600;
+}
+
+html.light .dash-metric-card h2.text-white {
+  color: #0f172a !important;
+}
+
+/* ── Chat / messages (light only) ── */
+html.light .chat-panel,
+html.light .chat-popup,
+html.light .chat-popup-minimized {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #000000;
+}
+
+html.light .chat-fab {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 4px 20px rgb(15 23 42 / 0.08) !important;
+}
+
+html.light .chat-fab:hover {
+  background-color: #f8fafc !important;
+}
+
+html.light .chat-panel .text-cyan-300,
+html.light .chat-popup .text-cyan-300,
+html.light .chat-popup-minimized .text-cyan-300 {
+  color: #0891b2 !important;
+}
+
+html.light .chat-panel .text-violet-300,
+html.light .chat-popup .text-violet-300 {
+  color: #7c3aed !important;
+}
+
+html.light .chat-bubble-in {
+  background-color: #f1f5f9 !important;
+  color: #000000 !important;
+}
+
+html.light .chat-bubble-in .text-slate-100,
+html.light .chat-bubble-in.text-slate-100 {
+  color: #000000 !important;
+}
+
+html.light .border-slate-900 {
+  border-color: #ffffff !important;
+}
+
+/* Dashboard modals (leave request, half day, etc.) */
+html.light .dash-modal-overlay {
+  background-color: rgb(15 23 42 / 0.35) !important;
+}
+
+html.light .dash-modal-card {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 20px 50px rgb(15 23 42 / 0.1);
+}
+
+html.light .dash-modal-card h2.text-white,
+html.light .dash-modal-card .dash-leave-item .text-white {
+  color: #0f172a !important;
+}
+
+html.light .dash-modal-card button.bg-purple-600,
+html.light .dash-modal-card button.bg-purple-600:hover {
+  color: #ffffff !important;
+}
+
+html.light .dash-modal-cancel-btn {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+html.light .dash-modal-cancel-btn:hover {
+  background-color: #e2e8f0 !important;
+  border-color: #94a3b8 !important;
+  color: #0f172a !important;
+}
+
+html.light .dash-modal-card .dash-date-shell {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+html.light .dash-modal-card .dash-date-shell:hover {
+  border-color: #a78bfa !important;
+}
+
+html.light .dash-modal-card .dash-date-shell .text-slate-400 {
+  color: #7c3aed !important;
+}
+
+html.light .date-picker-panel {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 20px 50px rgb(15 23 42 / 0.12) !important;
+}
+
+html.light .date-picker-panel .text-white {
+  color: #0f172a !important;
+}
+
+html.light .date-picker-nav {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #475569 !important;
+}
+
+html.light .date-picker-nav:hover {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+html.light .date-picker-day:not(:disabled) {
+  color: #334155 !important;
+}
+
+html.light .date-picker-day:not(:disabled):hover {
+  background-color: #f1f5f9 !important;
+}
+
+html.light .date-picker-day.bg-blue-600 {
+  color: #ffffff !important;
+}
+
+html.light .date-picker-panel .text-slate-500 {
+  color: #64748b !important;
+}
+
+/* Notification panel */
+html.light .notification-panel-overlay {
+  background-color: rgb(15 23 42 / 0.35) !important;
+}
+
+html.light .notification-panel {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 20px 50px rgb(15 23 42 / 0.12);
+}
+
+html.light .notification-panel-header,
+html.light .notification-panel-footer {
+  border-color: #e2e8f0 !important;
+}
+
+html.light .notification-panel .text-white {
+  color: #0f172a !important;
+}
+
+html.light .notification-panel .text-slate-400,
+html.light .notification-panel .text-slate-500 {
+  color: #64748b !important;
+}
+
+html.light .notification-panel-icon {
+  background-color: #eff6ff !important;
+  color: #0284c7 !important;
+}
+
+html.light .notification-panel-close:hover {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+html.light .notification-panel-empty-icon {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.light .notification-item-unread {
+  background-color: #f0f9ff !important;
+  border-color: #bae6fd !important;
+}
+
+html.light .notification-item-read {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.light .notification-item-menu-btn {
+  color: #64748b !important;
+}
+
+html.light .notification-item-menu-btn:hover,
+html.light .notification-item-menu-btn-open {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+html.light .notification-item-menu {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 10px 30px rgb(15 23 42 / 0.1);
+}
+
+html.light .notification-menu-action {
+  color: #334155 !important;
+}
+
+html.light .notification-menu-action:hover {
+  background-color: #f8fafc !important;
+}
+
+html.light .notification-menu-delete {
+  color: #dc2626 !important;
+}
+
+html.light .notification-menu-delete:hover {
+  background-color: #fef2f2 !important;
+}
+
+html.light .notification-item .text-sky-300 {
+  color: #0284c7 !important;
+}
+
+html.light .notification-item .text-violet-300 {
+  color: #7c3aed !important;
+}
+
+html.light .notification-item .text-purple-300 {
+  color: #9333ea !important;
+}
+
+html.light .notification-item .text-emerald-300 {
+  color: #059669 !important;
+}
+
+html.light .notification-item .bg-sky-500\/20 {
+  background-color: #eff6ff !important;
+}
+
+html.light .notification-item .bg-violet-500\/20 {
+  background-color: #f5f3ff !important;
+}
+
+html.light .notification-item .bg-purple-500\/20 {
+  background-color: #faf5ff !important;
+}
+
+html.light .notification-item .bg-emerald-500\/20 {
+  background-color: #ecfdf5 !important;
+}
+
+html.light .dash-modal-card .text-slate-300 {
+  color: #334155 !important;
+}
+
+html.light .dash-modal-card .text-slate-400,
+html.light .dash-modal-card .text-slate-500 {
+  color: #475569 !important;
+}
+
+html.light .dash-modal-card label.text-slate-400 {
+  color: #334155 !important;
+  font-weight: 500;
+}
+
+html.light .dash-modal-card .dash-modal-field,
+html.light .dash-modal-card textarea.dash-modal-field,
+html.light .dash-modal-card input.dash-modal-field {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+html.light .dash-modal-card .dash-modal-field::placeholder {
+  color: #94a3b8 !important;
+}
+
+html.light .dash-modal-card .dash-leave-type-inactive {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #475569 !important;
+}
+
+html.light .dash-modal-card .dash-leave-type-inactive:hover {
+  border-color: #a78bfa !important;
+  color: #6d28d9 !important;
+}
+
+html.light .dash-modal-card .bg-slate-900\/70 {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.light .dash-leave-item {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.light .dash-leave-item .text-purple-300 {
+  color: #7c3aed !important;
+}
+
+/* HR leave-requests filter chips */
+html.light .dash-leave-filter-inactive {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #475569 !important;
+}
+
+html.light .dash-leave-filter-inactive:hover {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+html.light .dash-leave-chip-pending {
+  background-color: #fffbeb !important;
+  border-color: #fcd34d !important;
+  color: #b45309 !important;
+}
+
+html.light .dash-leave-chip-approved {
+  background-color: #ecfdf5 !important;
+  border-color: #6ee7b7 !important;
+  color: #047857 !important;
+}
+
+html.light .dash-leave-chip-rejected {
+  background-color: #fef2f2 !important;
+  border-color: #fca5a5 !important;
+  color: #b91c1c !important;
+}
+
+html.light .dash-leave-chip-all {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+html.light .dash-leave-search {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+html.light .dash-leave-search::placeholder {
+  color: #94a3b8 !important;
+}

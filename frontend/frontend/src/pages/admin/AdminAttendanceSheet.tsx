@@ -202,6 +202,7 @@ export default function AdminAttendanceSheet() {
     unreadCount,
     markAllRead,
     markOneRead,
+    deleteOne,
     refreshNotifications,
   } = useDashboardNotifications(
     adminId,
@@ -469,6 +470,8 @@ export default function AdminAttendanceSheet() {
           notifications={notifications}
           unreadCount={unreadCount}
           onMarkAllRead={markAllRead}
+          onMarkRead={markOneRead}
+          onDelete={deleteOne}
           onSelect={handleNotificationSelect}
         />
 
@@ -484,7 +487,7 @@ export default function AdminAttendanceSheet() {
 
         <MobileMenuButton onClick={() => setShowMenu(true)} />
 
-        <div className="mx-auto max-w-400 pt-12 transition-all duration-500 ease-out sm:pt-5 lg:ml-22 lg:pt-0">
+        <div className="mx-auto max-w-400 pb-10 pt-12 transition-all duration-500 ease-out sm:pb-12 sm:pt-5 lg:ml-22 lg:pt-0">
           <div>
             {/* HEADER */}
             <div className="dash-shell-panel relative mb-4 overflow-hidden border border-white/10 bg-white/5 shadow-xl backdrop-blur-xl dash-fade-up sm:mb-6 sm:shadow-2xl">
@@ -507,13 +510,13 @@ export default function AdminAttendanceSheet() {
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium text-slate-300 sm:text-sm">
+                      <p className="text-xs font-semibold dash-welcome-muted text-slate-300 sm:text-sm">
                       {getGreeting()}, {adminName}
                     </p>
                     <h1 className="mt-0.5 text-lg font-bold leading-snug text-white sm:text-2xl lg:text-3xl">
                       {dashboardTitle}
                     </h1>
-                    <p className="mt-1 line-clamp-2 text-xs leading-snug text-slate-400 sm:text-sm">
+                    <p className="mt-1 line-clamp-2 text-xs font-medium leading-snug dash-welcome-muted text-slate-400 sm:text-sm">
                       {adminRole} Portal
                       {activeTab === "attendance"
                         ? ` • ${formatDisplayDate(selectedDate)}`
@@ -540,14 +543,14 @@ export default function AdminAttendanceSheet() {
             </div>
 
             {/* TABS */}
-            <div className="mb-6 flex w-full flex-col gap-2 sm:inline-flex sm:w-auto sm:flex-row sm:rounded-2xl sm:border sm:border-white/10 sm:bg-slate-900/60 sm:p-1 dash-fade-up dash-fade-up-delay-1">
+            <div className="dash-tab-shell mb-6 flex w-full flex-col gap-2 sm:inline-flex sm:w-auto sm:flex-row sm:rounded-2xl sm:border sm:border-white/10 sm:bg-slate-900/60 sm:p-1 dash-fade-up dash-fade-up-delay-1">
               <button
                 type="button"
                 onClick={() => setActiveTab("attendance")}
                 className={`inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] sm:w-auto ${
                   activeTab === "attendance"
                     ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
-                    : "border border-slate-700 bg-slate-800 text-slate-400 hover:text-white sm:border-0 sm:bg-transparent"
+                    : "dash-tab-inactive border border-slate-700 bg-slate-800 text-slate-400 hover:text-white sm:border-0 sm:bg-transparent"
                 }`}
               >
                 <ClipboardList className="h-4 w-4" />
@@ -560,7 +563,7 @@ export default function AdminAttendanceSheet() {
                 className={`relative inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] sm:w-auto ${
                   activeTab === "leaves"
                     ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20"
-                    : "border border-slate-700 bg-slate-800 text-slate-400 hover:text-white sm:border-0 sm:bg-transparent"
+                    : "dash-tab-inactive border border-slate-700 bg-slate-800 text-slate-400 hover:text-white sm:border-0 sm:bg-transparent"
                 }`}
               >
                 <CalendarDays className="h-4 w-4" />
@@ -629,13 +632,13 @@ export default function AdminAttendanceSheet() {
                         statusFilter === filter ? active : "hover:bg-slate-800/80"
                       }`}
                     >
-                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                      <p className="dash-metric-label text-xs font-semibold uppercase tracking-wide text-slate-500">
                         {label}
                       </p>
                       {loading ? (
                         <div className="mt-3 h-9 w-16 skeleton-shimmer rounded-lg" />
                       ) : (
-                        <p className={`mt-2 text-3xl font-bold ${accent}`}>{value}</p>
+                        <p className={`dash-metric-value mt-2 text-3xl font-bold ${accent}`}>{value}</p>
                       )}
                     </button>
                   ))}
@@ -648,7 +651,7 @@ export default function AdminAttendanceSheet() {
                       <h2 className="text-lg font-bold text-white sm:text-xl">
                         {sheet?.sheet_name || "Attendance Sheet"}
                       </h2>
-                      <p className="mt-1 text-sm text-slate-400">
+                      <p className="mt-1 text-sm font-medium dash-welcome-muted text-slate-400">
                         {filteredRecords.length} employee
                         {filteredRecords.length !== 1 ? "s" : ""} shown
                       </p>
@@ -666,8 +669,8 @@ export default function AdminAttendanceSheet() {
                     <AttendanceTableSkeleton />
                   ) : (
                     <div className="overflow-x-auto">
-                      <table className="w-full text-left text-white">
-                        <thead className="border-b border-slate-700 bg-slate-700/50 text-center text-xs uppercase tracking-wider text-slate-400">
+                      <table className="dash-data-table w-full text-left text-white">
+                        <thead className="dash-data-table-head border-b border-slate-700 bg-slate-700/50 text-center text-xs uppercase tracking-wider text-slate-400">
                           <tr>
                             <th className="px-5 py-4">Photo</th>
                             <th className="px-5 py-4">Employee</th>
@@ -844,7 +847,7 @@ export default function AdminAttendanceSheet() {
             LEAVE REQUESTS TAB
         ════════════════════════════════════════════════════════════════ */}
             {activeTab === "leaves" && (
-              <>
+              <div className="pb-2">
                 {/* Leave filter tabs */}
                 <div className="mb-5 flex flex-wrap gap-2">
                   {(
@@ -853,25 +856,25 @@ export default function AdminAttendanceSheet() {
                         key: "leave_pending" as const,
                         label: "Pending",
                         icon: <Clock className="h-3.5 w-3.5" />,
-                        activeClass: "bg-amber-500/15 text-amber-200 border-amber-500/40",
+                        activeClass: "dash-leave-chip-pending bg-amber-500/15 text-amber-200 border-amber-500/40",
                       },
                       {
                         key: "leave_approved" as const,
                         label: "Approved",
                         icon: <CheckCircle2 className="h-3.5 w-3.5" />,
-                        activeClass: "bg-emerald-500/15 text-emerald-200 border-emerald-500/40",
+                        activeClass: "dash-leave-chip-approved bg-emerald-500/15 text-emerald-200 border-emerald-500/40",
                       },
                       {
                         key: "leave_rejected" as const,
                         label: "Rejected",
                         icon: <XCircle className="h-3.5 w-3.5" />,
-                        activeClass: "bg-red-500/15 text-red-200 border-red-500/40",
+                        activeClass: "dash-leave-chip-rejected bg-red-500/15 text-red-200 border-red-500/40",
                       },
                       {
                         key: "all" as const,
                         label: "All",
                         icon: <List className="h-3.5 w-3.5" />,
-                        activeClass: "bg-slate-500/15 text-slate-200 border-slate-500/40",
+                        activeClass: "dash-leave-chip-all bg-slate-500/15 text-slate-200 border-slate-500/40",
                       },
                     ] as const
                   ).map(({ key, label, icon, activeClass }) => {
@@ -884,7 +887,7 @@ export default function AdminAttendanceSheet() {
                         className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition ${
                           active
                             ? activeClass
-                            : "border-slate-700 bg-slate-800/80 text-slate-400 hover:border-slate-600 hover:text-white"
+                            : "dash-leave-filter-inactive border-slate-700 bg-slate-800/80 text-slate-400 hover:border-slate-600 hover:text-white"
                         }`}
                       >
                         {icon}
@@ -906,7 +909,7 @@ export default function AdminAttendanceSheet() {
                     value={leaveSearch}
                     onChange={(e) => setLeaveSearch(e.target.value)}
                     placeholder="Search by name, ID, department, date..."
-                    className="w-full md:w-96 p-3 rounded-xl bg-slate-800 text-white border border-slate-700 focus:border-purple-500 outline-none"
+                    className="dash-leave-search w-full rounded-xl border border-slate-700 bg-slate-800 p-3 text-white outline-none focus:border-purple-500 md:w-96"
                   />
                 </div>
 
@@ -942,8 +945,8 @@ export default function AdminAttendanceSheet() {
                       </div>
 
                       <div className="overflow-x-auto">
-                        <table className="w-full text-white">
-                          <thead className="bg-slate-700/50 border-b border-slate-700 text-xs text-slate-400 uppercase tracking-wider text-center">
+                        <table className="dash-data-table w-full text-white">
+                          <thead className="dash-data-table-head bg-slate-700/50 border-b border-slate-700 text-xs text-slate-400 uppercase tracking-wider text-center">
                             <tr>
                               <th className="px-5 py-4">Employee</th>
                               <th className="px-5 py-4">Department</th>
@@ -1096,7 +1099,7 @@ export default function AdminAttendanceSheet() {
                     </div>
                   )
                 }
-              </>
+              </div>
             )}
           </div>
         </div>

@@ -112,7 +112,7 @@ export default function AttendanceTable({
                       {record.check_in || "--"}
                     </span>
                   ) : (
-                    <span className="dash-squircle bg-green-500/10 px-1 py-1.5 font-mono text-sm text-green-300">
+                    <span className="font-mono text-sm text-green-500 text-[17px]">
                       {record.check_in}
                     </span>
                   )}
@@ -123,7 +123,7 @@ export default function AttendanceTable({
                       {record.check_out || "--"}
                     </span>
                   ) : (
-                    <span className="dash-squircle bg-red-500/10 px-3 py-1.5 font-mono text-sm text-red-300">
+                    <span className="font-mono text-sm text-red-500 text-[17px]">
                       {record.check_out}
                     </span>
                   )}

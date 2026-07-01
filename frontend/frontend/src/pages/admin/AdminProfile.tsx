@@ -274,14 +274,14 @@ export default function AdminProfile() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-slate-300">
+      <div className="profile-page flex min-h-screen items-center justify-center bg-slate-950 text-slate-300">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-600 border-t-blue-500" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-slate-950 via-[#0f172a] to-slate-950 px-4 py-6 text-white">
+    <div className="profile-page min-h-screen bg-linear-to-br from-slate-950 via-[#0f172a] to-slate-950 px-4 py-6 text-white">
       {toast && <Toast message={toast.msg} ok={toast.ok} />}
 
       <div className="mx-auto max-w-6xl">
@@ -291,7 +291,7 @@ export default function AdminProfile() {
             onClick={() => navigate("/attendance-sheet")}
             text={<ArrowLeft size={18} />}
             unstyled
-            className="rounded-xl border border-slate-700 bg-slate-900 p-2.5 text-slate-300 transition hover:border-slate-600 hover:text-white"
+            className="profile-back-btn rounded-xl border border-slate-700 bg-slate-900 p-2.5 text-slate-300 transition hover:border-slate-600 hover:text-white"
             aria-label="Back to dashboard"
           />
           <div>
@@ -303,7 +303,7 @@ export default function AdminProfile() {
         </div>
 
         <div className="grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)]">
-          <section className="flex flex-col rounded-3xl border border-slate-800/80 bg-slate-900/80 p-6 shadow-xl backdrop-blur-sm">
+          <section className="profile-card flex flex-col rounded-3xl border border-slate-800/80 bg-slate-900/80 p-6 shadow-xl backdrop-blur-sm">
             <label className="group relative mx-auto mb-5 block h-32 w-32 cursor-pointer">
               <div
                 onClick={(e) => {
@@ -346,13 +346,13 @@ export default function AdminProfile() {
             <p className="text-center text-sm text-slate-400">{profile?.employee_id}</p>
 
             <div className="mt-6 flex-1 space-y-3 text-sm">
-              <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-3.5">
+              <div className="profile-info-tile rounded-2xl border border-slate-800 bg-slate-950/80 p-3.5">
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
                   Email
                 </p>
                 <p className="mt-1 font-medium text-slate-200">{profile?.email}</p>
               </div>
-              <div className="rounded-2xl border border-slate-800 bg-slate-950/80 p-3.5">
+              <div className="profile-info-tile rounded-2xl border border-slate-800 bg-slate-950/80 p-3.5">
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
                   Department / Role
                 </p>
@@ -446,7 +446,7 @@ export default function AdminProfile() {
           </section>
 
           <div className="grid gap-5">
-            <section className="rounded-3xl border border-slate-800/80 bg-slate-900/80 p-6 shadow-xl backdrop-blur-sm">
+            <section className="profile-card rounded-3xl border border-slate-800/80 bg-slate-900/80 p-6 shadow-xl backdrop-blur-sm">
               <h2 className="mb-1 text-xl font-bold">Profile details</h2>
               <p className="mb-5 text-sm text-slate-400">
                 Update your personal and role information
@@ -493,7 +493,7 @@ export default function AdminProfile() {
               />
             </section>
 
-            <section className="rounded-3xl border border-slate-800/80 border-t-indigo-500/20 bg-slate-900/80 p-6 shadow-xl backdrop-blur-sm">
+            <section className="profile-card rounded-3xl border border-slate-800/80 border-t-indigo-500/20 bg-slate-900/80 p-6 shadow-xl backdrop-blur-sm">
               <div className="mb-5 border-b border-slate-800 pb-5">
                 <h2 className="text-xl font-bold">Password</h2>
                 <p className="mt-1 text-sm text-slate-400">
@@ -529,7 +529,7 @@ export default function AdminProfile() {
               />
             </section>
 
-            <section className="rounded-3xl border border-slate-800/80 bg-slate-900/80 p-6 shadow-xl backdrop-blur-sm">
+            <section className="profile-card rounded-3xl border border-slate-800/80 bg-slate-900/80 p-6 shadow-xl backdrop-blur-sm">
               <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                 <div>
                   <h2 className="text-xl font-bold">Face re-enrollment</h2>

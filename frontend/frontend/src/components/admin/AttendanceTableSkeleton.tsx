@@ -3,8 +3,8 @@ const ROWS = 7;
 export default function AttendanceTableSkeleton() {
   return (
     <div className="overflow-x-auto" aria-busy="true" aria-label="Loading attendance">
-      <table className="w-full text-left text-white">
-        <thead className="border-b border-slate-700/80 bg-slate-700/30 text-xs uppercase tracking-wider text-slate-500">
+      <table className="dash-data-table w-full text-left text-white">
+        <thead className="dash-data-table-head border-b border-slate-700/80 bg-slate-700/30 text-xs uppercase tracking-wider text-slate-500">
           <tr className="text-center">
             {Array.from({ length: 11 }).map((_, i) => (
               <th key={i} className="px-5 py-4">

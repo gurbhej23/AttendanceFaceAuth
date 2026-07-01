@@ -159,10 +159,10 @@ export default function MessagingDrawer() {
         cur.map((contact) =>
           contact.employee_id === id
             ? {
-                ...contact,
-                is_online: isOnline,
-                last_seen: lastSeen || contact.last_seen,
-              }
+              ...contact,
+              is_online: isOnline,
+              last_seen: lastSeen || contact.last_seen,
+            }
             : contact,
         ),
       );
@@ -409,10 +409,10 @@ export default function MessagingDrawer() {
     const q = search.trim().toLowerCase();
     const list = q
       ? contacts.filter(
-          (c) =>
-            c.name.toLowerCase().includes(q) ||
-            c.employee_id.toLowerCase().includes(q),
-        )
+        (c) =>
+          c.name.toLowerCase().includes(q) ||
+          c.employee_id.toLowerCase().includes(q),
+      )
       : [...contacts];
     return list.sort((a, b) => {
       const diff =
@@ -540,11 +540,10 @@ export default function MessagingDrawer() {
 
   const drawerPanel = (
     <div
-      className={`flex flex-col overflow-hidden border border-slate-700/60 bg-slate-800/98 shadow-2xl backdrop-blur-xl ${
-        isMobile
+      className={`chat-panel flex flex-col overflow-hidden border border-slate-700/60 bg-slate-800/98 shadow-2xl backdrop-blur-xl ${isMobile
           ? "max-h-[min(85dvh,640px)] w-full border-b-0"
           : "max-h-[min(75vh,520px)] w-full border-b-0"
-      }`}
+        }`}
     >
       {groupAddedNotice && (
         <div className="border-b border-emerald-500/30 bg-emerald-500/15 px-4 py-2.5 text-center text-sm font-medium text-emerald-200">
@@ -575,11 +574,10 @@ export default function MessagingDrawer() {
           }
           type="button"
           onClick={() => setTab("direct")}
-          className={`flex flex-1 items-center justify-center gap-2 border-b-2 py-3 text-sm font-semibold transition cursor-pointer ${
-            tab === "direct"
+          className={`flex flex-1 items-center justify-center gap-2 border-b-2 py-3 text-sm font-semibold transition cursor-pointer ${tab === "direct"
               ? "border-cyan-500 text-cyan-300"
               : "border-transparent text-slate-500 hover:text-slate-300"
-          }`}
+            }`}
         />
         <Button
           text={
@@ -590,11 +588,10 @@ export default function MessagingDrawer() {
           }
           type="button"
           onClick={() => setTab("group")}
-          className={`flex flex-1 items-center justify-center gap-2 border-b-2 py-3 text-sm font-semibold transition cursor-pointer ${
-            tab === "group"
+          className={`flex flex-1 items-center justify-center gap-2 border-b-2 py-3 text-sm font-semibold transition cursor-pointer ${tab === "group"
               ? "border-violet-500 text-violet-300"
               : "border-transparent text-slate-500 hover:text-slate-300"
-          }`}
+            }`}
         />
       </div>
 
@@ -708,9 +705,8 @@ export default function MessagingDrawer() {
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className={`relative flex h-14 w-14 shrink-0 cursor-pointer items-center justify-center rounded-full border border-cyan-800 bg-slate-800 px-4 text-cyan-500 shadow-xl shadow-cyan-950/40 backdrop-blur-xl transition-transform duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] hover:scale-105 active:scale-95 md:h-14 md:w-full md:max-w-none md:justify-start md:gap-3 md:rounded-none md:rounded-t-2xl md:border-slate-700 md:hover:scale-100 md:hover:bg-slate-700 ${
-          fabAttention ? "fab-attention-bounce" : ""
-        }`}
+        className={`chat-fab relative flex h-14 w-14 shrink-0 cursor-pointer items-center justify-center rounded-full border border-cyan-800 bg-slate-800 px-4 text-cyan-500 shadow-xl shadow-cyan-950/40 backdrop-blur-xl transition-transform duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] hover:scale-105 active:scale-95 md:h-14 md:w-full md:max-w-none md:justify-start md:gap-3 md:rounded-none md:rounded-t-2xl md:border-slate-700 md:hover:scale-100 md:hover:bg-slate-700 ${fabAttention ? "fab-attention-bounce" : ""
+          }`}
         aria-label={expanded ? "Close messages" : "Open messages"}
       >
         <div className="relative flex items-center gap-3">
@@ -720,7 +716,7 @@ export default function MessagingDrawer() {
               <ProfileAvatarImg
                 src={profileImg}
                 alt={employeeName}
-                className="h-10 w-10 rounded-full"
+                className="h-10 w-10 rounded-full "
               />
             ) : (
               <div className="grid h-10 w-10 place-items-center rounded-full bg-cyan-700 text-xs font-bold text-white">
@@ -732,9 +728,8 @@ export default function MessagingDrawer() {
             Messages
           </span>
           <span
-            className={`absolute bottom-0 left-6 md:left-7.5 h-3 w-3 rounded-full ring-1 ring-slate-900 ${
-              wsConnected ? "bg-emerald-400" : "bg-amber-400"
-            }`}
+            className={`absolute bottom-0 left-6 md:left-7.5 h-3 w-3 rounded-full ring-1 ring-slate-900 ${wsConnected ? "bg-emerald-400" : "bg-amber-400"
+              }`}
             title={
               wsConnected
                 ? "Live chat connected"
@@ -749,10 +744,9 @@ export default function MessagingDrawer() {
         </div>
         <div className="absolute right-5 top-4">
           <ChevronUp
-            className={`h-5 w-5 transition-transform duration-400 hidden md:block ${
-              expanded ? "rotate-180" : ""
-            }`}
-          /> 
+            className={`h-5 w-5 transition-transform duration-400 hidden md:block ${expanded ? "rotate-180" : ""
+              }`}
+          />
         </div>
       </button>
     </>

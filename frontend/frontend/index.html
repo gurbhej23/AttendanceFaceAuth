@@ -8,6 +8,18 @@
   <meta name="theme-color" content="#0f172a" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Attendance System</title>
+  <script>
+    (function () {
+      try {
+        var stored = localStorage.getItem("app_theme");
+        document.documentElement.classList.add(
+          stored === "light" ? "light" : "dark",
+        );
+      } catch (e) {
+        document.documentElement.classList.add("dark");
+      }
+    })();
+  </script>
 </head>
 
 <body>

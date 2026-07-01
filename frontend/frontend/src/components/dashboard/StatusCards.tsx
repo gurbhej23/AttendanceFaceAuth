@@ -43,7 +43,7 @@ export default function StatusCard({
   return (
     <div className="mb-3 grid grid-cols-2 gap-2 sm:mb-4 sm:gap-3 xl:grid-cols-3 xl:gap-5">
       <div className="dash-shell-panel dash-fade-up dash-fade-up-delay-1 col-span-2 flex items-center gap-2.5 border border-white/10 bg-white/5 px-3 py-2 shadow-lg backdrop-blur-xl sm:gap-3 sm:px-4 sm:py-3 xl:col-span-1 xl:flex-col xl:items-stretch xl:gap-2 xl:p-4">
-        <p className="shrink-0 text-xs font-medium text-slate-300 sm:text-sm xl:mb-0.5">
+        <p className="dash-metric-label shrink-0 text-xs font-semibold text-slate-300 sm:text-sm xl:mb-0.5">
           Selected Date
         </p>
         <DashboardDatePicker
@@ -58,10 +58,10 @@ export default function StatusCard({
       <div
         className={`dash-fade-up dash-fade-up-delay-2 ${metricCard} bg-linear-to-br ${cardStyle.bg} ${cardStyle.border}`}
       >
-        <p className={`${cardStyle.text} text-xs sm:text-sm`}>Today's Status</p>
+        <p className={`dash-metric-label font-semibold ${cardStyle.text} text-xs sm:text-sm`}>Today's Status</p>
         <div className="flex items-end justify-between gap-2">
           <h2
-            className={`text-base font-bold capitalize leading-tight sm:text-xl md:text-2xl ${
+            className={`dash-metric-value text-base font-bold capitalize leading-tight sm:text-xl md:text-2xl ${
               isNotMarked
                 ? "text-slate-300 status-not-marked-pulse"
                 : "text-white"
@@ -69,7 +69,7 @@ export default function StatusCard({
           >
             {todayStatus || "Not Marked"}
           </h2>
-          <div className="dash-squircle flex h-9 w-9 shrink-0 items-center justify-center text-lg sm:h-11 sm:w-11 sm:text-xl">
+          <div className="dash-metric-icon dash-squircle flex h-9 w-9 shrink-0 items-center justify-center border border-white/10 text-lg sm:h-11 sm:w-11 sm:text-xl">
             {cardStyle.icon}
           </div>
         </div>
@@ -78,16 +78,16 @@ export default function StatusCard({
       <div
         className={`dash-fade-up dash-fade-up-delay-3 ${metricCard} border-blue-500/20 bg-linear-to-br from-blue-500/20 to-cyan-500/10`}
       >
-        <p className="text-xs text-blue-300 sm:text-sm">Working Hours</p>
+        <p className="dash-metric-label text-xs font-semibold text-blue-300 sm:text-sm">Working Hours</p>
         <div className="flex items-end justify-between gap-2">
           <h2
-            className={`text-base font-bold leading-tight sm:text-xl md:text-2xl ${
+            className={`dash-metric-value text-base font-bold leading-tight sm:text-xl md:text-2xl ${
               workingHoursMuted ? "text-slate-400" : "text-white"
             }`}
           >
             {workingHoursValue}
           </h2>
-          <div className="dash-squircle flex h-9 w-9 shrink-0 items-center justify-center bg-blue-500/20 text-lg sm:h-11 sm:w-11 sm:text-xl">
+          <div className="dash-metric-icon dash-squircle flex h-9 w-9 shrink-0 items-center justify-center border border-white/10 bg-blue-500/20 text-lg sm:h-11 sm:w-11 sm:text-xl">
             ⏰
           </div>
         </div>

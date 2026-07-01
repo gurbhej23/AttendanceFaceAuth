@@ -4,8 +4,8 @@ const COLS = 10;
 export default function EmployeeAttendanceTableSkeleton() {
   return (
     <div className="overflow-x-auto" aria-busy="true" aria-label="Loading attendance">
-      <table className="w-full text-left text-white">
-        <thead className="border-b border-white/10 bg-slate-800/40 text-xs uppercase tracking-wider text-slate-500">
+      <table className="dash-data-table w-full text-left text-white">
+        <thead className="dash-data-table-head border-b border-white/10 bg-slate-800/40 text-xs uppercase tracking-wider text-slate-500">
           <tr className="text-center">
             {Array.from({ length: COLS }).map((_, i) => (
               <th key={i} className="px-4 py-4">

@@ -27,6 +27,7 @@ import {
 import WelcomeCard from "../../components/dashboard/WelcomeCard";
 import StatusCard from "../../components/dashboard/StatusCards";
 import AttendanceTable from "../../components/dashboard/AttendanceTable";
+import DashboardDatePicker from "../../components/common/DashboardDatePicker";
 
 interface AttendanceRecord {
   employee_id: string;
@@ -78,23 +79,23 @@ const getMediaUrl = (path?: string | null) => {
 const getStatusBadgeClass = (s: string) => {
   switch (s) {
     case "present":
-      return "bg-green-500/20 text-green-300";
+      return "  text-green-500";
     case "late":
       return "bg-yellow-500/20 text-yellow-300";
     case "absent":
-      return "bg-red-500/20 text-red-300";
+      return "bg-red-500/20 text-red-500";
     case "half_day":
     case "half day":
-      return "bg-orange-500/20 text-orange-300";
+      return "bg-orange-500/20 text-orange-500";
     case "leave":
     case "leave_approved":
-      return "bg-purple-500/20 text-purple-300";
+      return "bg-purple-500/20 text-purple-500";
     case "leave_pending":
-      return "bg-slate-500/20 text-slate-300";
+      return "bg-slate-500/20 text-slate-500";
     case "leave_rejected":
-      return "bg-red-500/20 text-red-300";
+      return "bg-red-500/20 text-red-500";
     default:
-      return "bg-slate-500/20 text-slate-400";
+      return "bg-slate-500/20 text-slate-500";
   }
 };
 
@@ -150,11 +151,11 @@ const getStatusCardStyle = (s: string) => {
 const leaveStatusBadge = (s: string) => {
   switch (s) {
     case "leave_pending":
-      return "bg-yellow-500/20 text-yellow-300";
+      return "bg-yellow-500/20 text-yellow-500";
     case "leave_approved":
-      return "bg-green-500/20 text-green-300";
+      return "bg-green-500/20 text-green-500";
     case "leave_rejected":
-      return "bg-red-500/20 text-red-300";
+      return "bg-red-500/20 text-red-500";
     default:
       return "bg-slate-500/20 text-slate-400";
   }
@@ -227,6 +228,7 @@ export default function Dashboard() {
     unreadCount,
     markAllRead,
     markOneRead,
+    deleteOne,
     refreshNotifications,
   } = useDashboardNotifications(employeeId || "", userRole);
 
@@ -561,12 +563,12 @@ export default function Dashboard() {
 
       {/* SUCCESS / ERROR TOASTS */}
       {successMessage && (
-        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-99 bg-green-500/15 border border-green-500/30 text-green-300 px-5 py-4 rounded-2xl text-center font-medium shadow-lg">
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-99 bg-green-500/15 border border-green-500/30 text-green-500 px-5 py-4 rounded-2xl text-center font-medium shadow-lg">
           {successMessage}
         </div>
       )}
       {errorMessage && (
-        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-99 bg-red-500/15 border border-red-500/30 text-red-300 px-5 py-4 rounded-2xl text-center font-medium shadow-lg">
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-99 bg-red-500/15 border border-red-500/30 text-red-500 px-5 py-4 rounded-2xl text-center font-medium shadow-lg">
           {errorMessage}
         </div>
       )}
@@ -577,6 +579,8 @@ export default function Dashboard() {
         notifications={notifications}
         unreadCount={unreadCount}
         onMarkAllRead={markAllRead}
+        onMarkRead={markOneRead}
+        onDelete={deleteOne}
         onSelect={handleNotificationSelect}
       />
 
@@ -631,7 +635,7 @@ export default function Dashboard() {
                 <h3 className="text-lg font-bold text-white">
                   Monthly Summary
                 </h3>
-                <p className="text-sm text-slate-300">{monthLabel}</p>
+                <p className="text-sm font-medium dash-welcome-muted text-slate-300">{monthLabel}</p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 lg:w-full lg:max-w-425">
@@ -639,37 +643,37 @@ export default function Dashboard() {
                 {
                   label: "Present Days",
                   value: monthlySummary.present_count,
-                  color: "text-green-300",
+                  color: "text-green-500",
                   bg: "bg-green-500/10 border-green-500/20",
                 },
                 {
                   label: "Late Arrivals",
                   value: monthlySummary.late_count,
-                  color: "text-yellow-300",
+                  color: "text-yellow-500",
                   bg: "bg-yellow-500/10 border-yellow-500/20",
                 },
                 {
                   label: "Absent Days",
                   value: monthlySummary.absent_count,
-                  color: "text-red-300",
+                  color: "text-red-500",
                   bg: "bg-red-500/10 border-red-500/20",
                 },
                 {
                   label: "Half Days",
                   value: monthlySummary.half_day_count,
-                  color: "text-orange-300",
+                  color: "text-orange-500",
                   bg: "bg-orange-500/10 border-orange-500/20",
                 },
                 {
                   label: "Leave Days",
                   value: monthlySummary.leave_count,
-                  color: "text-purple-300",
+                  color: "text-purple-500",
                   bg: "bg-purple-500/10 border-purple-500/20",
                 },
                 {
                   label: "Total Hours",
                   value: monthlySummary.total_working_hours,
-                  color: "text-blue-300",
+                  color: "text-blue-500",
                   bg: "bg-blue-500/10 border-blue-500/20",
                 },
               ].map(({ label, value, color, bg }, index) => (
@@ -680,8 +684,8 @@ export default function Dashboard() {
                     animationDelay: `${380 + Math.min(index, 5) * 50}ms`,
                   }}
                 >
-                  <p className="text-xs font-medium text-slate-300">{label}</p>
-                  <p className={`mt-1 text-2xl font-bold ${color}`}>{value}</p>
+                  <p className="dash-metric-label text-xs font-semibold text-slate-300">{label}</p>
+                  <p className={`dash-metric-value mt-1 text-2xl font-bold ${color}`}>{value}</p>
                 </div>
               ))}
             </div>
@@ -824,48 +828,47 @@ export default function Dashboard() {
 
       {/* ── LEAVE REQUEST MODAL ── */}
       {showLeaveModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-99 p-5">
-          <div className="bg-[#111827] border border-white/10 rounded-4xl p-8 w-full max-w-md shadow-2xl">
-            <div className="w-16 h-16 rounded-3xl bg-purple-500/20 flex items-center justify-center text-3xl mx-auto mb-5">
+        <div className="dash-modal-overlay fixed inset-0 z-99 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md sm:p-6">
+          <div className="dash-modal-card w-full max-w-md rounded-4xl border border-white/10 bg-[#111827] p-6 shadow-2xl sm:p-7">
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-3xl bg-purple-500/20 text-2xl">
               🏖️
             </div>
-            <h2 className="text-2xl text-white font-bold text-center mb-2">
+            <h2 className="mb-1 text-center text-2xl font-bold text-white">
               Request Leave
             </h2>
-            <p className="text-slate-400 text-center text-sm mb-6">
+            <p className="mb-5 text-center text-sm text-slate-400">
               Leave will be sent for admin approval
             </p>
 
-            <label className="text-slate-400 text-sm mb-2 block">
+            <label className="mb-2 block text-sm text-slate-400">
               Leave Start Date
             </label>
-            <Input
-              type="date"
+            <DashboardDatePicker
               value={leaveDate}
               min={today}
-              onChange={(e) => {
-                setLeaveDate(e.target.value);
-                if (leaveEndDate < e.target.value)
-                  setLeaveEndDate(e.target.value);
+              onChange={(ymd) => {
+                setLeaveDate(ymd);
+                if (leaveEndDate < ymd) setLeaveEndDate(ymd);
               }}
-              className="w-full p-4 rounded-2xl bg-slate-900/70 text-white border border-slate-700 focus:border-purple-500 outline-none mb-4"
+              placeholder="Select start date"
+              className="mb-4 w-full"
             />
 
-            <label className="text-slate-400 text-sm mb-2 block">
+            <label className="mb-2 block text-sm text-slate-400">
               Leave End Date
             </label>
-            <Input
-              type="date"
+            <DashboardDatePicker
               value={leaveEndDate}
               min={leaveDate}
-              onChange={(e) => setLeaveEndDate(e.target.value)}
-              className="w-full p-4 rounded-2xl bg-slate-900/70 text-white border border-slate-700 focus:border-purple-500 outline-none mb-4"
+              onChange={setLeaveEndDate}
+              placeholder="Select end date"
+              className="mb-4 w-full"
             />
 
-            <label className="text-slate-400 text-sm mb-2 block">
+            <label className="mb-2 block text-sm text-slate-400">
               Leave Type
             </label>
-            <div className="grid grid-cols-3 gap-2 mb-4">
+            <div className="mb-4 grid grid-cols-3 gap-2">
               {[
                 { v: "casual", l: "Casual", e: "😊" },
                 { v: "sick", l: "Sick", e: "🤒" },
@@ -874,7 +877,11 @@ export default function Dashboard() {
                 <button
                   key={v}
                   onClick={() => setLeaveType(v)}
-                  className={`py-2.5 rounded-2xl text-sm font-semibold border transition cursor-pointer flex flex-col items-center gap-1 ${leaveType === v ? "bg-purple-600 border-purple-500 text-white" : "bg-slate-800 border-slate-700 text-slate-400 hover:border-purple-500"}`}
+                  className={`flex cursor-pointer flex-col items-center gap-1 rounded-2xl border py-2.5 text-sm font-semibold transition ${
+                    leaveType === v
+                      ? "border-purple-500 bg-purple-600 text-white"
+                      : "dash-leave-type-inactive border-slate-700 bg-slate-800 text-slate-400 hover:border-purple-500"
+                  }`}
                 >
                   <span>{e}</span>
                   {l}
@@ -882,15 +889,15 @@ export default function Dashboard() {
               ))}
             </div>
 
-            <label className="text-slate-400 text-sm mb-2 block">Reason</label>
+            <label className="mb-2 block text-sm text-slate-400">Reason</label>
             <textarea
               value={leaveReason}
               onChange={(e) => setLeaveReason(e.target.value)}
               placeholder="Enter reason for leave..."
-              className="w-full h-28 p-4 rounded-2xl bg-slate-900/70 text-white border border-slate-700 focus:border-purple-500 outline-none resize-none"
+              className="dash-modal-field h-24 w-full resize-none rounded-2xl border border-slate-700 bg-slate-900/70 p-4 text-white outline-none focus:border-purple-500"
             />
 
-            <div className="flex gap-3 mt-6">
+            <div className="mt-5 flex gap-3">
               <Button
                 text="Cancel"
                 onClick={() => {
@@ -898,12 +905,12 @@ export default function Dashboard() {
                   setLeaveReason("");
                   setLeaveType("casual");
                 }}
-                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-2xl font-semibold transition cursor-pointer"
+                className="dash-modal-cancel-btn flex-1 cursor-pointer rounded-2xl border border-slate-600 bg-slate-700 py-3 font-semibold text-white transition hover:bg-slate-600"
               />
               <Button
                 text="Submit Request"
                 onClick={requestLeave}
-                className="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-2xl font-semibold transition cursor-pointer"
+                className="flex-1 cursor-pointer rounded-2xl bg-purple-600 py-3 font-semibold text-white transition hover:bg-purple-700"
               />
             </div>
           </div>
@@ -912,25 +919,25 @@ export default function Dashboard() {
 
       {/* ── MY LEAVE REQUESTS MODAL ── */}
       {showLeavesModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-99 p-5">
-          <div className="bg-[#111827] border border-white/10 rounded-4xl p-8 w-full max-w-lg shadow-2xl">
-            <div className="w-16 h-16 rounded-3xl bg-purple-500/20 flex items-center justify-center text-3xl mx-auto mb-4">
+        <div className="dash-modal-overlay fixed inset-0 z-99 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md sm:p-6">
+          <div className="dash-modal-card w-full max-w-lg rounded-4xl border border-white/10 bg-[#111827] p-6 shadow-2xl sm:p-8">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-purple-500/20 text-3xl">
               🏖️
             </div>
-            <h2 className="text-2xl text-white font-bold text-center mb-6">
+            <h2 className="mb-6 text-center text-2xl font-bold text-white">
               My Leave Requests
             </h2>
 
             {myLeaveRequests.length === 0 ? (
-              <p className="text-slate-500 text-center py-6">
+              <p className="py-6 text-center text-slate-500">
                 No leave requests yet
               </p>
             ) : (
-              <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+              <div className="max-h-72 space-y-3 overflow-y-auto pr-1">
                 {myLeaveRequests.map((r, i) => (
                   <div
                     key={i}
-                    className="bg-slate-800 border border-slate-700 rounded-2xl p-4 flex items-start justify-between gap-3"
+                    className="dash-leave-item flex items-start justify-between gap-3 rounded-2xl border border-slate-700 bg-slate-800 p-4"
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
@@ -958,7 +965,7 @@ export default function Dashboard() {
             <Button
               text="Close"
               onClick={() => setShowLeavesModal(false)}
-              className="w-full mt-6 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-2xl font-semibold transition cursor-pointer"
+              className="dash-modal-cancel-btn mt-6 w-full cursor-pointer rounded-2xl border border-slate-600 bg-slate-700 py-3 font-semibold text-white transition hover:bg-slate-600"
             />
           </div>
         </div>

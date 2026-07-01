@@ -55,14 +55,14 @@ function WelcomeCard({
           </button>
 
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-medium text-slate-300 sm:text-sm">
+            <p className="text-xs font-medium dash-welcome-muted text-slate-300 sm:text-sm">
               {getGreeting()},
             </p>
             <h1 className="mt-0.5 break-words text-lg font-bold leading-snug text-white sm:text-2xl md:text-3xl">
               {employeeName || "Employee"}
             </h1>
             {metaLine && (
-              <p className="mt-1 line-clamp-2 text-xs leading-snug text-slate-400 sm:mt-1.5 sm:text-sm">
+              <p className="mt-1 line-clamp-2 text-xs leading-snug dash-welcome-muted text-slate-400 sm:mt-1.5 sm:text-sm">
                 {metaLine}
               </p>
             )}

@@ -14,14 +14,13 @@
 
 html {
   scroll-behavior: smooth;
-  color-scheme: dark;
   scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
 body {
-  background-color: var(--dash-bg);
-  color: #f8fafc;
+  margin: 0;
+  min-height: 100vh;
 }
 
 /* Global viewport scrollbar — dark theme */

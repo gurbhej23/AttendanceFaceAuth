@@ -12,6 +12,7 @@ import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 interface Props {
   value: string;
   onChange: (value: string) => void;
+  min?: string;
   max?: string;
   placeholder?: string;
   className?: string;
@@ -52,6 +53,7 @@ type PanelPos = { top: number; left: number; width: number };
 export default function DashboardDatePicker({
   value,
   onChange,
+  min,
   max,
   placeholder = "Select date",
   className = "",
@@ -69,6 +71,7 @@ export default function DashboardDatePicker({
   });
 
   const selected = value ? parseYmd(value) : null;
+  const minDate = min ? parseYmd(min) : null;
   const maxDate = max ? parseYmd(max) : null;
 
   const [viewYear, setViewYear] = useState(
@@ -179,8 +182,10 @@ export default function DashboardDatePicker({
   }, [viewMonth, viewYear]);
 
   const isDisabled = (ymd: string) => {
-    if (!maxDate) return false;
-    return parseYmd(ymd).getTime() > maxDate.getTime();
+    const time = parseYmd(ymd).getTime();
+    if (minDate && time < minDate.getTime()) return true;
+    if (maxDate && time > maxDate.getTime()) return true;
+    return false;
   };
 
   const goMonth = (delta: number) => {
@@ -209,7 +214,7 @@ export default function DashboardDatePicker({
           left: panelPos.left,
           width: panelPos.width,
         }}
-        className={`date-picker-panel date-picker-panel-portal fixed z-[85] rounded-2xl border border-slate-700 bg-slate-950 p-4 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.85)] ${
+        className={`date-picker-panel date-picker-panel-portal fixed z-[110] rounded-2xl border border-slate-700 bg-slate-950 p-4 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.85)] ${
           visible ? "date-picker-panel-visible" : ""
         }`}
       >

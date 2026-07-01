@@ -19,6 +19,7 @@ export interface DashboardNotification {
 }
 
 const readKey = (employeeId: string) => `dash_notif_read_${employeeId}`;
+const deletedKey = (employeeId: string) => `dash_notif_deleted_${employeeId}`;
 
 const loadReadIds = (employeeId: string): Set<string> => {
   if (!employeeId) return new Set();
@@ -30,9 +31,24 @@ const loadReadIds = (employeeId: string): Set<string> => {
   }
 };
 
+const loadDeletedIds = (employeeId: string): Set<string> => {
+  if (!employeeId) return new Set();
+  try {
+    const raw = localStorage.getItem(deletedKey(employeeId));
+    return new Set(JSON.parse(raw || "[]") as string[]);
+  } catch {
+    return new Set();
+  }
+};
+
 const saveReadIds = (employeeId: string, ids: Set<string>) => {
   if (!employeeId) return;
   localStorage.setItem(readKey(employeeId), JSON.stringify([...ids]));
+};
+
+const saveDeletedIds = (employeeId: string, ids: Set<string>) => {
+  if (!employeeId) return;
+  localStorage.setItem(deletedKey(employeeId), JSON.stringify([...ids]));
 };
 
 export function useDashboardNotifications(
@@ -41,6 +57,9 @@ export function useDashboardNotifications(
   pollMs = 15000,
 ) {
   const [readIds, setReadIds] = useState<Set<string>>(() => loadReadIds(employeeId));
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(() =>
+    loadDeletedIds(employeeId),
+  );
   const [allNotifications, setAllNotifications] = useState<DashboardNotification[]>([]);
 
   const refreshNotifications = useCallback(async () => {
@@ -66,6 +85,7 @@ export function useDashboardNotifications(
 
   useEffect(() => {
     setReadIds(loadReadIds(employeeId));
+    setDeletedIds(loadDeletedIds(employeeId));
   }, [employeeId]);
 
   useEffect(() => {
@@ -75,15 +95,17 @@ export function useDashboardNotifications(
   }, [pollMs, refreshNotifications]);
 
   const notifications = useMemo(() => {
-    const withRead = allNotifications.map((item) => ({
-      ...item,
-      isRead: readIds.has(item.id),
-    }));
+    const withRead = allNotifications
+      .filter((item) => !deletedIds.has(item.id))
+      .map((item) => ({
+        ...item,
+        isRead: readIds.has(item.id),
+      }));
     return withRead.sort((a, b) => {
       if (a.isRead !== b.isRead) return a.isRead ? 1 : -1;
       return 0;
     });
-  }, [allNotifications, readIds]);
+  }, [allNotifications, deletedIds, readIds]);
 
   const unreadCount = useMemo(
     () => notifications.filter((item) => !item.isRead).length,
@@ -107,11 +129,26 @@ export function useDashboardNotifications(
     [employeeId, readIds],
   );
 
+  const deleteOne = useCallback(
+    (id: string) => {
+      const merged = new Set(deletedIds);
+      merged.add(id);
+      setDeletedIds(merged);
+      saveDeletedIds(employeeId, merged);
+      const readMerged = new Set(readIds);
+      readMerged.delete(id);
+      setReadIds(readMerged);
+      saveReadIds(employeeId, readMerged);
+    },
+    [deletedIds, employeeId, readIds],
+  );
+
   return {
     notifications,
     unreadCount,
     markAllRead,
     markOneRead,
+    deleteOne,
     refreshNotifications,
   };
 }

@@ -149,7 +149,7 @@ export default function Login() {
         <section className={`${LOGIN_INNER_PANEL} p-4 text-center`}>
           <p className="text-lg font-semibold text-slate-100">Selected User</p>
 
-          <div className="relative mx-auto mt-5 flex h-36 w-36 items-center justify-center rounded-full border border-cyan-300/30 bg-slate-950/70 shadow-xl shadow-cyan-500/10">
+          <div className="login-face-frame relative mx-auto mt-5 flex h-36 w-36 items-center justify-center rounded-full border border-cyan-300/30 bg-slate-950/70 shadow-xl shadow-cyan-500/10">
             <div className="absolute left-5 top-5 h-6 w-6 border-l-2 border-t-2 border-cyan-300" />
             <div className="absolute right-5 top-5 h-6 w-6 border-r-2 border-t-2 border-cyan-300" />
             <div className="absolute bottom-5 left-5 h-6 w-6 border-b-2 border-l-2 border-cyan-300" />
