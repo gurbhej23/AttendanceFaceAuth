@@ -4,23 +4,7 @@ import API from "../../services/api";
 import Input from "../../components/common/Input";
 import Button from "../../components/common/Button";
 import { isAdminOrHR } from "../../utils/auth";
-
-const DEPARTMENTS = ["IT", "HR", "Finance", "Operations", "Sales", "Marketing"];
-const JOB_ROLES = [
-  "Software Engineer",
-  "Frontend Developer",
-  "Backend Developer",
-  "QA Engineer",
-  "HR Executive",
-  "Accountant",
-  "Operations Executive",
-  "Sales Executive",
-  "Full Stack Developer",
-  "DevOps Engineer",
-  "UI/UX Designer",
-  "Intern",
-  "Project Manager",
-];
+import { ALL_JOB_ROLES, DEPARTMENTS } from "../../constants/departments";
 
 interface Employee {
   employee_id: string;
@@ -361,7 +345,7 @@ export default function AdminEmployees() {
                   }
                   className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 p-3 text-white outline-none focus:border-blue-500"
                 >
-                  {JOB_ROLES.map((item) => (
+                  {ALL_JOB_ROLES.map((item) => (
                     <option key={item} value={item}>
                       {item}
                     </option>

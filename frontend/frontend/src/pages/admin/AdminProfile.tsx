@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -17,23 +18,11 @@ import SearchableSelect from "../../components/auth/SearchableSelect";
 import CvDropZone from "../../components/auth/CvDropZone";
 import { getMediaUrl } from "../../utils/chatHelpers";
 import { ArrowLeft, BriefcaseBusiness, Camera, Download, FileText, X } from "lucide-react";
-
-const DEPARTMENTS = ["IT", "HR", "Finance", "Operations", "Sales", "Marketing"];
-const JOB_ROLES = [
-  "Software Engineer",
-  "Frontend Developer",
-  "Backend Developer",
-  "QA Engineer",
-  "HR Executive",
-  "Accountant",
-  "Operations Executive",
-  "Sales Executive",
-  "Full Stack Developer",
-  "DevOps Engineer",
-  "UI/UX Designer",
-  "Intern",
-  "Project Manager",
-];
+import {
+  DEPARTMENTS,
+  getJobRolesForDepartment,
+  pickDesignationForDepartment,
+} from "../../constants/departments";
 
 interface EmployeeProfile {
   employee_id: string;
@@ -80,6 +69,16 @@ export default function AdminProfile() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const employeeId = localStorage.getItem("employee_id") || "";
+
+  const jobRoleOptions = useMemo(
+    () => getJobRolesForDepartment(department, designation),
+    [department, designation],
+  );
+
+  const handleDepartmentChange = (next: string) => {
+    setDepartment(next);
+    setDesignation((current) => pickDesignationForDepartment(next, current));
+  };
 
   const showToast = (msg: string, ok = true) => {
     setToast({ msg, ok });
@@ -452,7 +451,7 @@ export default function AdminProfile() {
                 Update your personal and role information
               </p>
               <div className="grid gap-4 md:grid-cols-2">
-                <label className="text-sm text-slate-400">
+                <label className="min-w-0 text-sm text-slate-400">
                   Full name
                   <Input
                     value={name}
@@ -460,7 +459,7 @@ export default function AdminProfile() {
                     className={fieldClass}
                   />
                 </label>
-                <label className="text-sm text-slate-400">
+                <label className="min-w-0 text-sm text-slate-400">
                   Phone
                   <Input
                     value={phone}
@@ -468,22 +467,26 @@ export default function AdminProfile() {
                     className={fieldClass}
                   />
                 </label>
-                <SearchableSelect
-                  label="Department *"
-                  value={department}
-                  options={DEPARTMENTS}
-                  onChange={setDepartment}
-                  icon={<BriefcaseBusiness size={18} />}
-                  placeholder="Search department..."
-                />
-                <SearchableSelect
-                  label="Job Role *"
-                  value={designation}
-                  options={JOB_ROLES}
-                  onChange={setDesignation}
-                  icon={<BriefcaseBusiness size={18} />}
-                  placeholder="Search role..."
-                />
+                <div className="min-w-0">
+                  <SearchableSelect
+                    label="Department *"
+                    value={department}
+                    options={[...DEPARTMENTS]}
+                    onChange={handleDepartmentChange}
+                    icon={<BriefcaseBusiness size={18} />}
+                    placeholder="Search department..."
+                  />
+                </div>
+                <div className="min-w-0">
+                  <SearchableSelect
+                    label="Job Role *"
+                    value={designation}
+                    options={jobRoleOptions}
+                    onChange={setDesignation}
+                    icon={<BriefcaseBusiness size={18} />}
+                    placeholder="Search role..."
+                  />
+                </div>
               </div>
               <Button
                 text={saving ? "Saving..." : "Save profile"}

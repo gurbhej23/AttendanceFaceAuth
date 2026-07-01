@@ -1,39 +1,18 @@
-// src/pages/AdminCreateEmployee.tsx
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Webcam from "react-webcam";
 import API from "../../services/api";
 import Button from "../../components/common/Button";
 import { ArrowLeft } from "lucide-react";
+import {
+  DEPARTMENTS,
+  getJobRolesForDepartment,
+  pickDesignationForDepartment,
+} from "../../constants/departments";
 
 type BorderStatus = "idle" | "scanning" | "success" | "error";
 
-const DEPARTMENTS = [
-  "IT",
-  "HR",
-  "Finance",
-  "Operations",
-  "Sales",
-  "Marketing",
-  "General",
-];
-const DESIGNATIONS = [
-  "Software Engineer",
-  "Frontend Developer",
-  "Backend Developer",
-  "Full Stack Developer",
-  "DevOps Engineer",
-  "QA Engineer",
-  "UI/UX Designer",
-  "Project Manager",
-  "HR Executive",
-  "Accountant",
-  "Operations Executive",
-  "Sales Executive",
-  "Intern",
-  "Team Lead",
-  "Manager",
-];
+const ADMIN_DEPARTMENTS = [...DEPARTMENTS, "General"] as const;
 
 interface CreatedEmployee {
   employee_id: string;
@@ -490,12 +469,20 @@ export default function AdminCreateEmployee() {
               </label>
               <select
                 value={form.department}
-                onChange={(e) =>
-                  setForm({ ...form, department: e.target.value })
-                }
+                onChange={(e) => {
+                  const department = e.target.value;
+                  setForm((prev) => ({
+                    ...prev,
+                    department,
+                    designation: pickDesignationForDepartment(
+                      department,
+                      prev.designation,
+                    ),
+                  }));
+                }}
                 className="w-full p-4 rounded-2xl bg-slate-900 border border-slate-700 text-white outline-none focus:border-blue-500 transition"
               >
-                {DEPARTMENTS.map((d) => (
+                {ADMIN_DEPARTMENTS.map((d) => (
                   <option key={d} value={d}>
                     {d}
                   </option>
@@ -513,11 +500,13 @@ export default function AdminCreateEmployee() {
                 }
                 className="w-full p-4 rounded-2xl bg-slate-900 border border-slate-700 text-white outline-none focus:border-blue-500 transition"
               >
-                {DESIGNATIONS.map((d) => (
+                {getJobRolesForDepartment(form.department, form.designation).map(
+                  (d) => (
                   <option key={d} value={d}>
                     {d}
                   </option>
-                ))}
+                ),
+                )}
               </select>
             </div>
           </div>

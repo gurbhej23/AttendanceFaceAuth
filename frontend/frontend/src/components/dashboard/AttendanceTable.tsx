@@ -73,114 +73,113 @@ export default function AttendanceTable({
               const durationEmpty = isEmptyCellValue(record.duration);
 
               return (
-              <tr
-                key={`${record.date}-${record.employee_id}-${idx}`}
-                className="dash-table-row dash-row-enter border-b border-white/5 text-center"
-                style={{
-                  animationDelay: `${Math.min(idx, 12) * 35}ms`,
-                }}
-              >
-                <td className="px-4 py-4">
-                  <div className="mx-auto h-14 w-14 overflow-hidden rounded-full border border-white/10 bg-slate-800">
-                    {record.profile_img ? (
-                      <button onClick={() => navigate("/profile")}>
-                        <ProfileAvatarImg
-                          src={getMediaUrl(record.profile_img)}
-                          alt={record.employee_name}
-                          className="cursor-pointer h-16 w-14 object-center"
-                        />
+                <tr
+                  key={`${record.date}-${record.employee_id}-${idx}`}
+                  className="dash-table-row dash-row-enter border-b border-white/5 text-center"
+                  style={{
+                    animationDelay: `${Math.min(idx, 12) * 35}ms`,
+                  }}
+                >
+                  <td className="px-4 py-4">
+                    <div className="mx-auto h-14 w-14 overflow-hidden rounded-full border border-white/10 bg-slate-800">
+                      {record.profile_img ? (
+                        <button onClick={() => navigate("/profile")}>
+                          <ProfileAvatarImg
+                            src={getMediaUrl(record.profile_img)}
+                            alt={record.employee_name}
+                            className="cursor-pointer h-16 w-14 object-center"
+                          />
+                        </button>
+                      ) : (
+                        <div className="flex h-16 w-14 items-center justify-center bg-linear-to-br from-blue-500 to-cyan-400 text-sm font-bold text-white">
+                          {record.employee_name?.charAt(0)}
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-4 py-4 text-left">
+                    <p className="font-semibold text-white flex justify-center text-[17px]">
+                      {record.employee_name}
+                    </p>
+                  </td>
+                  <td className="text-sm font-medium text-slate-500">
+                    {record.employee_id}
+                  </td>
+                  <td className="px-4 py-4">
+                    {checkInEmpty ? (
+                      <span className={`font-mono text-[17px] ${DASH_CELL_EMPTY}`}>
+                        {record.check_in || "--"}
+                      </span>
+                    ) : (
+                      <span className="font-mono text-[17px] text-green-500">
+                        {record.check_in}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-4">
+                    {checkOutEmpty ? (
+                      <span className={`font-mono text-[17px] ${DASH_CELL_EMPTY}`}>
+                        {record.check_out || "--"}
+                      </span>
+                    ) : (
+                      <span className="font-mono text-sm text-red-500 text-[17px]">
+                        {record.check_out}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-4">
+                    <span
+                      className={
+                        durationEmpty
+                          ? `text-[15px] ${DASH_CELL_EMPTY}`
+                          : "font-semibold text-slate-300"
+                      }
+                    >
+                      {record.duration || "--"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-4">
+                    <span
+                      className={`rounded-full px-3 py-1 text-[15px] font-semibold capitalize ${getStatusBadgeClass(record.status)} ${record.status === "not_marked" ? "status-not-marked-pulse" : ""
+                        }`}
+                    >
+                      {record.status.replace("_", " ")}
+                    </span>
+                  </td>
+                  <td className="px-4 py-4">
+                    {record.reason && record.reason !== "--" ? (
+                      <button
+                        onClick={() => {
+                          setViewReason(record.reason ?? null);
+                          setShowReasonModal(true);
+                        }}
+                        className="block max-w-30 truncate text-[15px] text-slate-400 underline underline-offset-2 transition hover:text-blue-400"
+                      >
+                        {record.reason}
                       </button>
                     ) : (
-                      <div className="flex h-16 w-14 items-center justify-center bg-linear-to-br from-blue-500 to-cyan-400 text-sm font-bold text-white">
-                        {record.employee_name?.charAt(0)}
-                      </div>
+                      <span className={`text-[15px] ${DASH_CELL_EMPTY}`}>--</span>
                     )}
-                  </div>
-                </td>
-                <td className="px-4 py-4 text-left">
-                  <p className="font-semibold text-white flex justify-center text-[17px]">
-                    {record.employee_name}
-                  </p> 
-                </td>
-                <td className="text-sm font-medium text-slate-500">
-                  {record.employee_id}
-                </td>
-                <td className="px-4 py-4">
-                  {checkInEmpty ? (
-                    <span className={`font-mono text-[17px] ${DASH_CELL_EMPTY}`}>
-                      {record.check_in || "--"}
-                    </span>
-                  ) : (
-                    <span className="font-mono text-[17px] text-green-500">
-                      {record.check_in}
-                    </span>
-                  )}
-                </td>
-                <td className="px-4 py-4">
-                  {checkOutEmpty ? (
-                    <span className={`font-mono text-[17px] ${DASH_CELL_EMPTY}`}>
-                      {record.check_out || "--"}
-                    </span>
-                  ) : (
-                    <span className="font-mono text-sm text-red-500 text-[17px]">
-                      {record.check_out}
-                    </span>
-                  )}
-                </td>
-                <td className="px-4 py-4">
-                  <span
-                    className={
-                      durationEmpty
-                        ? `text-sm ${DASH_CELL_EMPTY}`
-                        : "font-semibold text-slate-300"
-                    }
-                  >
-                    {record.duration || "--"}
-                  </span>
-                </td>
-                <td className="px-4 py-4">
-                  <span
-                    className={`rounded-full px-3 py-1 text-sm font-semibold capitalize ${getStatusBadgeClass(record.status)} ${
-                      record.status === "not_marked" ? "status-not-marked-pulse" : ""
-                    }`}
-                  >
-                    {record.status.replace("_", " ")}
-                  </span>
-                </td>
-                <td className="px-4 py-4">
-                  {record.reason && record.reason !== "--" ? (
-                    <button
-                      onClick={() => {
-                        setViewReason(record.reason ?? null);
-                        setShowReasonModal(true);
-                      }}
-                      className="block max-w-30 truncate text-sm text-slate-400 underline underline-offset-2 transition hover:text-blue-400"
-                    >
-                      {record.reason}
-                    </button>
-                  ) : (
-                    <span className={`text-sm ${DASH_CELL_EMPTY}`}>--</span>
-                  )}
-                </td>
-                <td className="px-4 py-4 font-medium text-slate-400">
-                  {record.date}
-                </td>
-                <td className="px-5 py-4">
-                  {record.cv_file ? (
-                    <a
-                      href={getMediaUrl(record.cv_file)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-[15px] font-semibold text-blue-400 hover:text-blue-300"
-                    >
-                      View CV
-                    </a>
-                  ) : (
-                    <span className={`text-xs ${DASH_CELL_EMPTY}`}>--</span>
-                  )}
-                </td>
-              </tr>
-            );
+                  </td>
+                  <td className="px-4 py-4 font-medium text-slate-400">
+                    {record.date}
+                  </td>
+                  <td className="px-5 py-4">
+                    {record.cv_file ? (
+                      <a
+                        href={getMediaUrl(record.cv_file)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[15px] font-semibold text-blue-400 hover:text-blue-300"
+                      >
+                        View CV
+                      </a>
+                    ) : (
+                      <span className={`text-[15px] ${DASH_CELL_EMPTY}`}>--</span>
+                    )}
+                  </td>
+                </tr>
+              );
             })}
           </Table>
         </div>

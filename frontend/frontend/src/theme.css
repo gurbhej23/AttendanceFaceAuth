@@ -907,6 +907,46 @@ html.light .notification-item .bg-emerald-500\/20 {
   background-color: #ecfdf5 !important;
 }
 
+/* Profile searchable selects */
+html.light .search-select-trigger {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+html.light .search-select-trigger:hover {
+  border-color: #94a3b8 !important;
+}
+
+html.light .search-select-menu {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 16px 40px rgb(15 23 42 / 0.12) !important;
+}
+
+html.light .search-select-input {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+html.light .search-select-field .text-slate-300,
+html.light .search-select-field {
+  color: #334155 !important;
+}
+
+html.light .search-select-menu .text-slate-300 {
+  color: #334155 !important;
+}
+
+html.light .search-select-menu .text-blue-200 {
+  color: #1d4ed8 !important;
+}
+
+html.light .search-select-menu .bg-blue-500\/15 {
+  background-color: #eff6ff !important;
+}
+
 html.light .dash-modal-card .text-slate-300 {
   color: #334155 !important;
 }

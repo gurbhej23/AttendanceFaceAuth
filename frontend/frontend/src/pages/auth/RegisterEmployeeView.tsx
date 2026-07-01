@@ -14,35 +14,16 @@ import {
   UserRound,
 } from "lucide-react";
 import type { RefObject } from "react";
+import { useMemo } from "react";
+import {
+  DEPARTMENTS,
+  getJobRolesForDepartment,
+  pickDesignationForDepartment,
+} from "../../constants/departments";
 
 type Step = "form" | "otp" | "face";
 type VerifyMethod = "email" | "phone";
 type BorderStatus = "idle" | "scanning" | "success" | "error";
-
-const DEPARTMENTS = [
-  "IT",
-  "HR",
-  "Finance",
-  "Operations",
-  "Sales",
-  "Marketing",
-];
-
-const JOB_ROLES = [
-  "Software Engineer",
-  "Frontend Developer",
-  "Backend Developer",
-  "QA Engineer",
-  "HR Executive",
-  "Accountant",
-  "Operations Executive",
-  "Sales Executive",
-  "Full Stack Developer",
-  "DevOps Engineer",
-  "UI/UX Designer",
-  "Intern",
-  "Project Manager",
-];
 
 export interface RegisterViewProps {
   step: Step;
@@ -141,6 +122,11 @@ export default function RegisterEmployeeView(props: RegisterViewProps) {
     canvasRef,
     overlay,
   } = props;
+
+  const jobRoleOptions = useMemo(
+    () => getJobRolesForDepartment(formData.department, formData.designation),
+    [formData.department, formData.designation],
+  );
 
   return (
     <>
@@ -244,9 +230,16 @@ export default function RegisterEmployeeView(props: RegisterViewProps) {
                 <SearchableSelect
                   label="Department *"
                   value={formData.department}
-                  options={DEPARTMENTS}
+                  options={[...DEPARTMENTS]}
                   onChange={(department) =>
-                    setFormData({ ...formData, department })
+                    setFormData((prev) => ({
+                      ...prev,
+                      department,
+                      designation: pickDesignationForDepartment(
+                        department,
+                        prev.designation,
+                      ),
+                    }))
                   }
                   icon={<BriefcaseBusiness size={18} />}
                   placeholder="Search department..."
@@ -254,9 +247,9 @@ export default function RegisterEmployeeView(props: RegisterViewProps) {
                 <SearchableSelect
                   label="Job Role *"
                   value={formData.designation}
-                  options={JOB_ROLES}
+                  options={jobRoleOptions}
                   onChange={(designation) =>
-                    setFormData({ ...formData, designation })
+                    setFormData((prev) => ({ ...prev, designation }))
                   }
                   icon={<BriefcaseBusiness size={18} />}
                   placeholder="Search role..."
