@@ -12,6 +12,7 @@ import {
   type DashboardNotification,
 } from "../../hooks/useDashboardNotifications";
 import { dispatchNotificationAction } from "../../utils/notificationActions";
+import { clearAuthSession } from "../../utils/auth";
 import { getMediaUrl } from "../../utils/chatHelpers";
 import { DASH_CELL_EMPTY, isEmptyCellValue } from "../../utils/dashboardUi";
 import axios from "axios";
@@ -95,25 +96,25 @@ const getLocalDate = () => {
 const statusClass = (status: string) => {
   switch (status) {
     case "present":
-      return "bg-green-500/20 text-green-300";
+      return "text-green-500";
     case "late":
-      return "bg-yellow-500/20 text-yellow-300";
+      return "text-yellow-500";
     case "half day":
     case "half_day":
-      return "bg-orange-500/20 text-orange-300";
+      return "text-orange-500";
     case "absent":
-      return "bg-red-500/20 text-red-300";
+      return "text-red-500";
     case "leave":
     case "leave_approved":
-      return "bg-purple-500/20 text-purple-300";
+      return "text-purple-500";
     case "leave_pending":
-      return "bg-slate-500/20 text-slate-300";
+      return "text-slate-500";
     case "leave_rejected":
-      return "bg-red-500/20 text-red-300";
+      return "text-red-500";
     case "not_marked":
-      return "bg-slate-600/20 text-slate-400 status-not-marked-pulse";
+      return "text-slate-400 status-not-marked-pulse";
     default:
-      return "bg-slate-500/20 text-slate-300";
+      return "text-slate-500";
   }
 };
 
@@ -126,11 +127,11 @@ const statusLabel = (status: string) =>
 const leaveTypeBadge = (t: string) => {
   switch (t) {
     case "sick":
-      return "bg-red-500/15 text-red-300 border border-red-500/25";
+      return "text-red-500 border border-red-500/25";
     case "emergency":
-      return "bg-orange-500/15 text-orange-300 border border-orange-500/25";
+      return "text-orange-500 border border-orange-500/25";
     default:
-      return "bg-blue-500/15 text-blue-300 border border-blue-500/25";
+      return " text-blue-500 border border-blue-500/25";
   }
 };
 
@@ -395,7 +396,7 @@ export default function AdminAttendanceSheet() {
   const tableFilterKey = `${statusFilter}:${searchTerm.trim().toLowerCase()}`;
 
   const handleLogout = () => {
-    localStorage.clear();
+    clearAuthSession();
     navigate("/", { replace: true });
   };
 
@@ -695,12 +696,12 @@ export default function AdminAttendanceSheet() {
                               }}
                             >
                               <td className="px-5 py-4">
-                                <div className="mx-auto h-12 w-12 overflow-hidden rounded-full border border-white/10 bg-slate-700">
+                                <div className="mx-auto h-14 w-14 overflow-hidden rounded-full border border-white/10 bg-slate-700">
                                   {record.profile_img ? (
                                     <img
                                       src={getMediaUrl(record.profile_img)}
                                       alt={record.employee_name}
-                                      className="h-full w-full object-cover"
+                                      className="h-17 w-14 object-center"
                                     />
                                   ) : (
                                     <div className="flex h-full w-full items-center justify-center bg-blue-600 font-bold text-white">
@@ -720,9 +721,8 @@ export default function AdminAttendanceSheet() {
                               <td className="px-5 py-4 text-sm text-slate-300 ">
                                 {record.employee_id}
                               </td>
-                              <td className="px-5 py-4 text-slate-300">
-                                <p className="text-sm">{record.department}</p>
-                                <p className="text-xs text-slate-500">
+                              <td className="px-5 py-4 text-slate-300"> 
+                                <p className="text-sm text-slate-500 font-bold">
                                   {record.designation}
                                 </p>
                               </td>
@@ -732,23 +732,23 @@ export default function AdminAttendanceSheet() {
                                     {record.check_in || "--"}
                                   </span>
                                 ) : (
-                                  <span className="text-green-300">
+                                  <span className="text-green-500 text-[17px]">
                                     {record.check_in}
                                   </span>
                                 )}
                               </td>
-                              <td className="px-5 py-4 font-mono text-sm">
+                              <td className="px-5 py-4 font-mono text-sm text-[17px]">
                                 {isEmptyCellValue(record.check_out) ? (
                                   <span className={DASH_CELL_EMPTY}>
                                     {record.check_out || "--"}
                                   </span>
                                 ) : (
-                                  <span className="text-red-300">
+                                  <span className="text-red-300 text-[17px]">
                                     {record.check_out}
                                   </span>
                                 )}
                               </td>
-                              <td className="px-5 py-4">
+                              <td className="px-5 py-4 text-[17px]">
                                 <span
                                   className={
                                     isEmptyCellValue(record.duration)
@@ -761,7 +761,7 @@ export default function AdminAttendanceSheet() {
                               </td>
                               <td className="px-5 py-4">
                                 <span
-                                  className={`flex rounded-full px-3 py-1 text-sm font-medium ${statusClass(record.status)}`}
+                                  className={`flex justify-center rounded-full px-3 py-1 text-sm font-medium text-[16px] ${statusClass(record.status)}`}
                                 >
                                   {statusLabel(record.status)}
                                 </span>

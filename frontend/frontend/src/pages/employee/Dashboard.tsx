@@ -12,6 +12,7 @@ import {
   type DashboardNotification,
 } from "../../hooks/useDashboardNotifications";
 import { dispatchNotificationAction } from "../../utils/notificationActions";
+import { clearAuthSession } from "../../utils/auth";
 import { getCurrentLocation } from "../../services/attendanceSecurity";
 import LogOutModal from "../../components/modal/LogOutModal";
 import {
@@ -354,7 +355,7 @@ export default function Dashboard() {
       !employeeId ||
       employeeId === "undefined"
     ) {
-      localStorage.clear();
+      clearAuthSession();
       navigate("/", { replace: true });
       return;
     }
@@ -376,7 +377,7 @@ export default function Dashboard() {
 
   // ── Handlers ──────────────────────────────────────────────────────────
   const handleLogout = () => {
-    localStorage.clear();
+    clearAuthSession();
     navigate("/", { replace: true });
   };
 
@@ -386,7 +387,7 @@ export default function Dashboard() {
 
   const requireEmployeeId = () => {
     if (!employeeId || employeeId === "undefined") {
-      localStorage.clear();
+      clearAuthSession();
       navigate("/", { replace: true });
       return false;
     }

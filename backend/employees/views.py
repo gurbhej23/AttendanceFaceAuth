@@ -1674,17 +1674,17 @@ def dashboard_notifications(request):
                 }
             )
     else:
+        # Only pending leave needs attention; approved/rejected are not re-sent every login.
         leave_rows = AttendanceRecord.objects(
             employee_id=employee.employee_id,
-            status__in=["leave_pending", "leave_approved", "leave_rejected"],
+            status="leave_pending",
         ).order_by("-date")[:10]
         for record in leave_rows:
-            status_label = str(record.status or "").replace("leave_", "")
             notifications.append(
                 {
                     "id": f"leave-status-{record.id}",
                     "type": "leave_status",
-                    "title": f"Leave {status_label}",
+                    "title": "Leave pending",
                     "message": f"{getattr(record, 'leave_type', 'casual') or 'casual'} leave on {record.date}: {record.reason or 'No reason'}",
                     "time": record.date,
                 }

@@ -39,7 +39,7 @@ function WelcomeCard({
           <button
             type="button"
             onClick={() => navigate("/profile")}
-            className="dash-squircle relative h-14 w-14 shrink-0 overflow-hidden border border-white/15 bg-slate-800 shadow-md transition hover:border-blue-400/40 active:scale-[0.98] sm:h-20 sm:w-20 sm:shadow-lg md:h-24 md:w-24"
+            className="dash-squircle relative h-12 w-12 shrink-0 overflow-hidden border border-white/15 bg-slate-800 shadow-md transition hover:border-blue-400/40 active:scale-[0.98] sm:h-20 sm:w-20 sm:shadow-lg md:h-24 md:w-24"
             title="View profile"
           >
             {profileImg ? (

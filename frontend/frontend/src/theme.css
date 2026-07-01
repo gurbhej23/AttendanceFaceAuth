@@ -1,4 +1,4 @@
-/* ── Theme tokens (dark default — unchanged) ── */
+/* ── Theme tokens (dark mode) ── */
 html.dark,
 html:not(.light) {
   --th-bg: #0b0f19;
