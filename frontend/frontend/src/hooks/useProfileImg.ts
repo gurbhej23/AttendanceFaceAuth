@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { getMediaUrl } from "../utils/chatHelpers";
 import { PROFILE_IMG_STORAGE_KEY } from "../utils/profileStorage";
 
-export function useProfileImgUrl() {
+export function useProfileImgPath() {
   const [path, setPath] = useState(
     () => localStorage.getItem(PROFILE_IMG_STORAGE_KEY) || "",
   );
@@ -26,5 +26,9 @@ export function useProfileImgUrl() {
     };
   }, []);
 
-  return getMediaUrl(path);
+  return path;
+}
+
+export function useProfileImgUrl() {
+  return getMediaUrl(useProfileImgPath());
 }

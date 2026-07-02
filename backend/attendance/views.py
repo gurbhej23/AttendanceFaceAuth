@@ -11,6 +11,7 @@ from django.conf import settings
 from rest_framework.decorators import api_view
 from employees.face_utils import extract_and_save_embedding, verify_face_match
 from employees.views import generate_otp, otp_html, send_email
+from employees.media_utils import media_url, resolve_employee_profile_url
 from rest_framework.response import Response
 
 IST = pytz.timezone("Asia/Kolkata")
@@ -25,27 +26,6 @@ FACE_MATCH_THRESHOLD = settings.FACE_MATCH_THRESHOLD
 OFFICE_LATITUDE = os.getenv("OFFICE_LATITUDE")
 OFFICE_LONGITUDE = os.getenv("OFFICE_LONGITUDE")
 OFFICE_RADIUS_METERS = float(os.getenv("OFFICE_RADIUS_METERS", "250"))
-
-
-def media_url(path):
-    if not path:
-        return ""
-    normalized = path.replace("\\", "/")
-    if normalized.startswith(("http://", "https://")):
-        return normalized
-    if normalized.startswith("/media/"):
-        relative_path = normalized[len("/media/") :]
-        if not (settings.MEDIA_ROOT / relative_path).exists():
-            return ""
-        return normalized
-    if normalized.startswith("media/"):
-        relative_path = normalized[len("media/") :]
-        if not (settings.MEDIA_ROOT / relative_path).exists():
-            return ""
-        return f"/{normalized}"
-    if not (settings.MEDIA_ROOT / normalized.lstrip("/")).exists():
-        return ""
-    return f"/media/{normalized.lstrip('/')}"
 
 
 def current_ist():
@@ -239,9 +219,7 @@ def verify_face(request):
                 "message": "Face verified",
                 "employee_id": employee_id,
                 "employee_name": employee.name,
-                "profile_img": media_url(
-                    employee.profile_img or employee.photo_path or ""
-                ),
+                "profile_img": resolve_employee_profile_url(employee),
                 "cv_file": media_url(employee.cv_file or ""),
             }
         )
@@ -371,9 +349,7 @@ def verify_otp(request):
                 "message": "Email verified",
                 "employee_id": employee_id,
                 "employee_name": employee.name,
-                "profile_img": media_url(
-                    employee.profile_img or employee.photo_path or ""
-                ),
+                "profile_img": resolve_employee_profile_url(employee),
                 "cv_file": media_url(employee.cv_file or ""),
             }
         )
@@ -660,11 +636,7 @@ def attendance_report(request):
                     "status": r.status,
                     "reason": getattr(r, "reason", None) or "--",
                     "half_day_until": getattr(r, "half_day_until", None) or "--",
-                    "profile_img": media_url(
-                        (employee.profile_img or employee.photo_path)
-                        if employee
-                        else ""
-                    ),
+                    "profile_img": resolve_employee_profile_url(employee) if employee else "",
                     "cv_file": media_url(employee.cv_file if employee else ""),
                     **location_payload(r),
                 }
@@ -825,9 +797,7 @@ def admin_attendance_sheet(request):
                     "email": employee.email,
                     "department": employee.department,
                     "designation": employee.designation,
-                    "profile_img": media_url(
-                        employee.profile_img or employee.photo_path or ""
-                    ),
+                    "profile_img": resolve_employee_profile_url(employee),
                     "cv_file": media_url(employee.cv_file or ""),
                     "date": date,
                     "status": sheet_status,
@@ -1130,11 +1100,7 @@ def late_comers_report(request):
                     "employee_name": r.employee_name,
                     "department": emp.department if emp else "--",
                     "designation": emp.designation if emp else "--",
-                    "profile_img": (
-                        media_url(emp.profile_img or emp.photo_path or "")
-                        if emp
-                        else ""
-                    ),
+                    "profile_img": resolve_employee_profile_url(emp) if emp else "",
                     "late_count": 0,
                     "total_minutes_late": 0,
                     "late_days": [],
@@ -1296,11 +1262,7 @@ def admin_leave_requests(request):
                     "employee_name": r.employee_name,
                     "department": emp.department if emp else "--",
                     "designation": emp.designation if emp else "--",
-                    "profile_img": (
-                        media_url(emp.profile_img or emp.photo_path or "")
-                        if emp
-                        else ""
-                    ),
+                    "profile_img": resolve_employee_profile_url(emp) if emp else "",
                     "date": r.date,
                     "status": r.status,
                     "reason": r.reason or "--",

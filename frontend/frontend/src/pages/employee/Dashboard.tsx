@@ -14,7 +14,7 @@ import {
 import { dispatchNotificationAction } from "../../utils/notificationActions";
 import { clearAuthSession } from "../../utils/auth";
 import { getCurrentLocation } from "../../services/attendanceSecurity";
-import { useProfileImgUrl } from "../../hooks/useProfileImg";
+import { useProfileImgPath, useProfileImgUrl } from "../../hooks/useProfileImg";
 import { getMediaUrl } from "../../utils/chatHelpers";
 import LogOutModal from "../../components/modal/LogOutModal";
 import {
@@ -255,6 +255,7 @@ export default function Dashboard() {
     }
   }, [refreshNotifications, showNotifications]);
   const profileImg = useProfileImgUrl();
+  const profileImgPath = useProfileImgPath();
   const today = getLocalDate();
 
   const todayRecord = records.find((r) => r.date === today);
@@ -293,12 +294,19 @@ export default function Dashboard() {
       const response = await API.get("/attendance/mark-report/", {
         params: { date: selectedDate, employee_id: employeeId },
       });
-      setRecords(response.data.records || []);
+      const rows = (response.data.records || []) as AttendanceRecord[];
+      setRecords(
+        rows.map((record) =>
+          record.profile_img || record.employee_id !== employeeId
+            ? record
+            : { ...record, profile_img: profileImgPath || record.profile_img },
+        ),
+      );
       setLoading(false);
     } catch {
       setLoading(false);
     }
-  }, [employeeId, selectedDate]);
+  }, [employeeId, profileImgPath, selectedDate]);
 
   // ── Fetch monthly summary ─────────────────────────────────────────────
   const fetchMonthlySummary = useCallback(async () => {

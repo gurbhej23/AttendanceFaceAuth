@@ -83,11 +83,15 @@ export default function AttendanceTable({
                   <td className="px-4 py-4">
                     <div className="mx-auto h-14 w-14 overflow-hidden rounded-full border border-white/10 bg-slate-800">
                       {record.profile_img ? (
-                        <button onClick={() => navigate("/profile")}>
+                        <button
+                          type="button"
+                          onClick={() => navigate("/profile")}
+                          className="block h-full w-full"
+                        >
                           <ProfileAvatarImg
                             src={getMediaUrl(record.profile_img)}
                             alt={record.employee_name}
-                            className="cursor-pointer h-16 w-14 object-center"
+                            className="h-full w-full cursor-pointer"
                           />
                         </button>
                       ) : (
