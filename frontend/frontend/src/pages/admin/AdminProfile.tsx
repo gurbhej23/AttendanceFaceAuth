@@ -17,6 +17,10 @@ import ProfileAvatarImg from "../../components/common/ProfileAvatarImg";
 import SearchableSelect from "../../components/auth/SearchableSelect";
 import CvDropZone from "../../components/auth/CvDropZone";
 import { getMediaUrl } from "../../utils/chatHelpers";
+import {
+  mergeProfileImg,
+  persistProfileImg,
+} from "../../utils/profileStorage";
 import { ArrowLeft, BriefcaseBusiness, Camera, Download, FileText, X } from "lucide-react";
 import {
   DEPARTMENTS,
@@ -62,7 +66,9 @@ export default function AdminProfile() {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [photoSaving, setPhotoSaving] = useState(false);
   const [faceSaving, setFaceSaving] = useState(false);
+  const photoUploadInFlight = useRef(false);
   const [toast, setToast] = useState<{ ok: boolean; msg: string } | null>(null);
 
   const [showImageModal, setShowImageModal] = useState(false);
@@ -97,6 +103,7 @@ export default function AdminProfile() {
       });
       const data = res.data.employee as EmployeeProfile;
       setProfile(data);
+      persistProfileImg(data.profile_img);
       setName(data.name || "");
       setPhone(data.phone || "");
       setDepartment(data.department || "IT");
@@ -131,7 +138,8 @@ export default function AdminProfile() {
         cv_file_name: cvFileName,
       });
       const data = res.data.employee as EmployeeProfile;
-      setProfile(data);
+      setProfile((prev) => mergeProfileImg(data, prev));
+      persistProfileImg(data.profile_img);
       localStorage.setItem("employee_name", data.name);
       localStorage.setItem("cv_file", data.cv_file || "");
       setDepartment(data.department || "IT");
@@ -209,22 +217,38 @@ export default function AdminProfile() {
   };
 
   const saveCroppedPhoto = async (croppedBase64: string) => {
-    try {
-      setSaving(true);
-      const res = await API.post("/employees/update-profile-photo/", {
-        employee_id: employeeId,
-        image: croppedBase64,
-      });
+    if (photoUploadInFlight.current) return;
+    if (!croppedBase64?.startsWith("data:image")) {
+      showToast("Could not process image — try again", false);
+      return;
+    }
 
-      const data = res.data.employee;
-      setProfile(data);
-      localStorage.setItem("profile_img", data.profile_img || "");
+    photoUploadInFlight.current = true;
+    try {
+      setPhotoSaving(true);
+      const res = await API.post(
+        "/employees/update-profile-photo/",
+        {
+          employee_id: employeeId,
+          image: croppedBase64,
+        },
+        { timeout: 60_000 },
+      );
+
+      const data = res.data?.employee as EmployeeProfile | undefined;
+      if (!res.data?.success || !data?.profile_img) {
+        throw new Error("Photo saved but server did not return an image path");
+      }
+
+      setProfile((prev) => mergeProfileImg(data, prev));
+      persistProfileImg(data.profile_img);
       showToast("Profile photo updated");
       setSelectedImage(null);
     } catch (err) {
       showToast(getError(err, "Upload failed"), false);
     } finally {
-      setSaving(false);
+      photoUploadInFlight.current = false;
+      setPhotoSaving(false);
     }
   };
 
@@ -253,8 +277,8 @@ export default function AdminProfile() {
         { timeout: FACE_REQUEST_TIMEOUT_MS },
       );
       const data = res.data.employee as EmployeeProfile;
-      setProfile(data);
-      localStorage.setItem("profile_img", data.profile_img || "");
+      setProfile((prev) => mergeProfileImg(data, prev));
+      persistProfileImg(data.profile_img);
       setCapturedImage(null);
       showToast(res.data.message || "Face profile updated");
     } catch (err) {
@@ -313,6 +337,7 @@ export default function AdminProfile() {
               >
                 {profile?.profile_img ? (
                   <ProfileAvatarImg
+                    key={profile.profile_img}
                     src={getMediaUrl(profile.profile_img)}
                     alt={profile.name}
                     className="transition duration-300 group-hover:scale-105"
@@ -639,7 +664,7 @@ export default function AdminProfile() {
           imageSrc={selectedImage}
           onCancel={() => setSelectedImage(null)}
           onSave={saveCroppedPhoto}
-          saving={saving}
+          saving={photoSaving}
         />
       )}
     </div>

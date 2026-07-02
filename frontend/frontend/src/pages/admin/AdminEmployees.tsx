@@ -4,6 +4,7 @@ import API from "../../services/api";
 import Input from "../../components/common/Input";
 import Button from "../../components/common/Button";
 import { isAdminOrHR } from "../../utils/auth";
+import { getMediaUrl } from "../../utils/chatHelpers";
 import { ALL_JOB_ROLES, DEPARTMENTS } from "../../constants/departments";
 
 interface Employee {
@@ -18,12 +19,6 @@ interface Employee {
   profile_img: string;
   cv_file: string;
 }
-
-const getMediaUrl = (path?: string | null) => {
-  if (!path) return "";
-  if (path.startsWith("http")) return path;
-  return `http://localhost:8000${path.startsWith("/") ? path : `/${path}`}`;
-};
 
 const getError = (err: unknown, fallback: string) => {
   const e = err as { response?: { data?: { error?: string } } };

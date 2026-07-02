@@ -13,7 +13,9 @@ import {
 } from "../../hooks/useDashboardNotifications";
 import { dispatchNotificationAction } from "../../utils/notificationActions";
 import { clearAuthSession } from "../../utils/auth";
+import { useProfileImgUrl } from "../../hooks/useProfileImg";
 import { getMediaUrl } from "../../utils/chatHelpers";
+import { getApiBaseUrl } from "../../config/backend";
 import { DASH_CELL_EMPTY, isEmptyCellValue } from "../../utils/dashboardUi";
 import axios from "axios";
 import {
@@ -196,7 +198,7 @@ export default function AdminAttendanceSheet() {
   const adminRole = adminRoleRaw.toUpperCase();
   const isHr = adminRoleRaw === "hr";
   const dashboardTitle = isHr ? "HR Dashboard" : "Admin Dashboard";
-  const adminProfileImg = getMediaUrl(localStorage.getItem("profile_img"));
+  const adminProfileImg = useProfileImgUrl();
 
   const {
     notifications,
@@ -405,7 +407,7 @@ export default function AdminAttendanceSheet() {
   };
 
   const exportCsv = useCallback(() => {
-    const baseUrl = API.defaults.baseURL || "http://localhost:8000/api";
+    const baseUrl = getApiBaseUrl();
     window.open(
       `${baseUrl}/attendance/export-csv/?date=${selectedDate}`,
       "_blank",

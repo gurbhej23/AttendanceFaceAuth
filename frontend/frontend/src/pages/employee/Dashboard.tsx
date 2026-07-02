@@ -14,6 +14,8 @@ import {
 import { dispatchNotificationAction } from "../../utils/notificationActions";
 import { clearAuthSession } from "../../utils/auth";
 import { getCurrentLocation } from "../../services/attendanceSecurity";
+import { useProfileImgUrl } from "../../hooks/useProfileImg";
+import { getMediaUrl } from "../../utils/chatHelpers";
 import LogOutModal from "../../components/modal/LogOutModal";
 import {
   Bell,
@@ -69,12 +71,6 @@ const getLocalDate = () => {
 const getApiError = (err: unknown, fallback: string): string => {
   const e = err as { response?: { data?: { error?: string } } };
   return e?.response?.data?.error || fallback;
-};
-
-const getMediaUrl = (path?: string | null) => {
-  if (!path) return "";
-  if (path.startsWith("http")) return path;
-  return `http://localhost:8000${path.startsWith("/") ? path : `/${path}`}`;
 };
 
 const getStatusBadgeClass = (s: string) => {
@@ -258,7 +254,7 @@ export default function Dashboard() {
       void refreshNotifications();
     }
   }, [refreshNotifications, showNotifications]);
-  const profileImg = getMediaUrl(localStorage.getItem("profile_img"));
+  const profileImg = useProfileImgUrl();
   const today = getLocalDate();
 
   const todayRecord = records.find((r) => r.date === today);

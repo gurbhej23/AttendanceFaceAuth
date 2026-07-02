@@ -6,6 +6,8 @@ import os
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(os.path.join(BASE_DIR, ".env"))
 
+_IS_RENDER = os.getenv("RENDER", "").lower() in ("1", "true", "yes")
+
 me.connect(
     db="attendance_system",
     host=os.getenv("MONGO_URI"),
@@ -18,7 +20,7 @@ me.connect(
 )
 
 SECRET_KEY = "django-insecure-9hkbfp9ssh4%(k5ae=s88se+^q81_-=e#vee!c1#uk(qh#gfhy"
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "true").lower() in ("1", "true", "yes")
 
 ALLOWED_HOSTS = [
     "127.0.0.1",
@@ -118,6 +120,12 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
 ]
 
+_extra_cors = os.getenv("FRONTEND_ORIGINS", "").strip()
+if _extra_cors:
+    CORS_ALLOWED_ORIGINS.extend(
+        o.strip().rstrip("/") for o in _extra_cors.split(",") if o.strip()
+    )
+
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = False
 
@@ -178,7 +186,16 @@ CHANNEL_ALLOWED_ORIGINS = [
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+# On Render, mount a persistent disk and set MEDIA_ROOT=/var/data/media (see render.yaml).
+_media_root = os.getenv("MEDIA_ROOT", "").strip()
+MEDIA_ROOT = Path(_media_root) if _media_root else BASE_DIR / "media"
+MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
+# Serve uploaded files from Django when DEBUG or explicitly enabled (required on Render).
+SERVE_MEDIA = (
+    DEBUG
+    or _IS_RENDER
+    or os.getenv("SERVE_MEDIA", "").lower() in ("1", "true", "yes")
+)
 DEEPFACE_HOME = Path(
     os.getenv("DEEPFACE_HOME", str(BASE_DIR / ".deepface"))
 )

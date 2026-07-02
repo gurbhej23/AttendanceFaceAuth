@@ -1067,15 +1067,19 @@ def update_profile_photo(request):
             {"success": False, "error": "employee_id and image are required"},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    employee = Employee.objects(employee_id=employee_id, is_active=True).first()
+    employee = find_employee(employee_id)
     if not employee:
         return Response(
             {"success": False, "error": "Employee not found"},
             status=status.HTTP_404_NOT_FOUND,
         )
     try:
-        employee.profile_img = save_base64_profile_image(image)
+        saved_path = save_base64_profile_image(image)
+        if not saved_path:
+            raise ValueError("Could not write profile image")
+        employee.profile_img = saved_path
         employee.save()
+        employee.reload()
     except Exception as exc:
         return Response(
             {"success": False, "error": f"Could not save photo: {exc}"},
