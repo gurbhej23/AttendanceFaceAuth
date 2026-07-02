@@ -28,6 +28,9 @@ ALLOWED_HOSTS = [
     ".ngrok-free.dev",
     ".ngrok-free.app",
     ".onrender.com",
+    ".vercel.app",
+    "attendanceauth.vercel.app",
+    "attendance-face-auth.vercel.app",
 ]
 
 _render_host = os.getenv("RENDER_EXTERNAL_HOSTNAME", "").strip()

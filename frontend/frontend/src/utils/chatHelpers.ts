@@ -99,11 +99,12 @@ export const getMediaUrl = (path?: string | null) => {
   if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
     return normalized;
   }
-  // Same-origin /media is proxied in Vite dev and Vercel production.
-  if (typeof window !== "undefined") {
+  // Dev: Vite proxies /media to Django on localhost.
+  if (import.meta.env.DEV) {
     return normalized.startsWith("/") ? normalized : `/${normalized}`;
   }
-  const root = getApiRoot();
+  // Production: load directly from Render (avoids Vercel proxy Host header errors).
+  const root = getBackendOrigin();
   return `${root}${normalized.startsWith("/") ? normalized : `/${normalized}`}`;
 };
 
