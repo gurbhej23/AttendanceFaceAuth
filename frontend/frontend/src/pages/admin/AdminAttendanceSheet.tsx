@@ -13,7 +13,6 @@ import {
 } from "../../hooks/useDashboardNotifications";
 import { dispatchNotificationAction } from "../../utils/notificationActions";
 import { clearAuthSession } from "../../utils/auth";
-import { useProfileImgUrl } from "../../hooks/useProfileImg";
 import { getMediaUrl } from "../../utils/chatHelpers";
 import { getApiBaseUrl } from "../../config/backend";
 import { DASH_CELL_EMPTY, isEmptyCellValue } from "../../utils/dashboardUi";
@@ -198,7 +197,7 @@ export default function AdminAttendanceSheet() {
   const adminRole = adminRoleRaw.toUpperCase();
   const isHr = adminRoleRaw === "hr";
   const dashboardTitle = isHr ? "HR Dashboard" : "Admin Dashboard";
-  const adminProfileImg = useProfileImgUrl();
+  const adminProfileImg = getMediaUrl(localStorage.getItem("profile_img"));
 
   const {
     notifications,

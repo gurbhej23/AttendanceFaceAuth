@@ -43,12 +43,16 @@ def media_url(path: str) -> str:
 def _media_file_exists(normalized: str) -> bool:
     if not normalized or normalized.startswith(("http://", "https://")):
         return bool(normalized)
-    rel = normalized[len("/media/") :] if normalized.startswith("/media/") else normalized.lstrip("/")
+    rel = (
+        normalized[len("/media/") :]
+        if normalized.startswith("/media/")
+        else normalized.lstrip("/")
+    )
     return (settings.MEDIA_ROOT / rel).exists()
 
 
 def resolve_employee_profile_url(employee) -> str:
-    """Resolve a loadable profile image path, including face-enrollment fallbacks."""
+    """Best profile image path for lists; falls back to latest face enrollment photo."""
     if not employee:
         return ""
 

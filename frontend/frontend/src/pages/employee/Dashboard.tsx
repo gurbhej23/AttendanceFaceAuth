@@ -14,7 +14,6 @@ import {
 import { dispatchNotificationAction } from "../../utils/notificationActions";
 import { clearAuthSession } from "../../utils/auth";
 import { getCurrentLocation } from "../../services/attendanceSecurity";
-import { useProfileImgPath, useProfileImgUrl } from "../../hooks/useProfileImg";
 import { getMediaUrl } from "../../utils/chatHelpers";
 import LogOutModal from "../../components/modal/LogOutModal";
 import {
@@ -254,8 +253,8 @@ export default function Dashboard() {
       void refreshNotifications();
     }
   }, [refreshNotifications, showNotifications]);
-  const profileImg = useProfileImgUrl();
-  const profileImgPath = useProfileImgPath();
+  const profileImg = getMediaUrl(localStorage.getItem("profile_img"));
+  const storedProfilePath = localStorage.getItem("profile_img") || "";
   const today = getLocalDate();
 
   const todayRecord = records.find((r) => r.date === today);
@@ -299,14 +298,14 @@ export default function Dashboard() {
         rows.map((record) =>
           record.profile_img || record.employee_id !== employeeId
             ? record
-            : { ...record, profile_img: profileImgPath || record.profile_img },
+            : { ...record, profile_img: storedProfilePath || record.profile_img },
         ),
       );
       setLoading(false);
     } catch {
       setLoading(false);
     }
-  }, [employeeId, profileImgPath, selectedDate]);
+  }, [employeeId, selectedDate, storedProfilePath]);
 
   // ── Fetch monthly summary ─────────────────────────────────────────────
   const fetchMonthlySummary = useCallback(async () => {

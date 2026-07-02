@@ -99,6 +99,10 @@ export const getMediaUrl = (path?: string | null) => {
   if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
     return normalized;
   }
+  // Same-origin /media is proxied in Vite dev and Vercel production.
+  if (typeof window !== "undefined") {
+    return normalized.startsWith("/") ? normalized : `/${normalized}`;
+  }
   const root = getApiRoot();
   return `${root}${normalized.startsWith("/") ? normalized : `/${normalized}`}`;
 };

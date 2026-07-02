@@ -42,7 +42,6 @@ export default function ProfilePhotoCropModal({
   }, []);
 
   const handleSave = async () => {
-    if (saving) return;
     const image = imgRef.current;
     if (!image || !crop?.width || !crop?.height) return;
 

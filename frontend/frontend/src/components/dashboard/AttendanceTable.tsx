@@ -81,7 +81,7 @@ export default function AttendanceTable({
                   }}
                 >
                   <td className="px-4 py-4">
-                    <div className="mx-auto h-14 w-14 overflow-hidden rounded-full border border-white/10 bg-slate-800">
+                    <div className="mx-auto h-14 w-14 overflow-hidden dash-squircle border border-white/15 bg-slate-800 shadow-sm">
                       {record.profile_img ? (
                         <button
                           type="button"
@@ -95,7 +95,7 @@ export default function AttendanceTable({
                           />
                         </button>
                       ) : (
-                        <div className="flex h-16 w-14 items-center justify-center bg-linear-to-br from-blue-500 to-cyan-400 text-sm font-bold text-white">
+                        <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-blue-600 to-cyan-500 text-sm font-bold text-white">
                           {record.employee_name?.charAt(0)}
                         </div>
                       )}

@@ -20,7 +20,7 @@ me.connect(
 )
 
 SECRET_KEY = "django-insecure-9hkbfp9ssh4%(k5ae=s88se+^q81_-=e#vee!c1#uk(qh#gfhy"
-DEBUG = os.getenv("DEBUG", "true").lower() in ("1", "true", "yes")
+DEBUG = True
 
 ALLOWED_HOSTS = [
     "127.0.0.1",
@@ -186,11 +186,9 @@ CHANNEL_ALLOWED_ORIGINS = [
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
-# On Render, mount a persistent disk and set MEDIA_ROOT=/var/data/media (see render.yaml).
 _media_root = os.getenv("MEDIA_ROOT", "").strip()
 MEDIA_ROOT = Path(_media_root) if _media_root else BASE_DIR / "media"
 MEDIA_ROOT.mkdir(parents=True, exist_ok=True)
-# Serve uploaded files from Django when DEBUG or explicitly enabled (required on Render).
 SERVE_MEDIA = (
     DEBUG
     or _IS_RENDER

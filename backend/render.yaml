@@ -17,12 +17,6 @@ services:
         value: "true"
       - key: SERVE_MEDIA
         value: "true"
-      # Mount a Render persistent disk at /var/data/media and uncomment:
-      # - key: MEDIA_ROOT
-      #   value: /var/data/media
-      # Add your live Vercel URL(s), comma-separated:
-      # - key: FRONTEND_ORIGINS
-      #   value: "https://your-app.vercel.app"
       - key: WEB_CONCURRENCY
         value: "1"
       - key: FORWARDED_ALLOW_IPS
