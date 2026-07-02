@@ -296,9 +296,9 @@ export default function Dashboard() {
       const rows = (response.data.records || []) as AttendanceRecord[];
       setRecords(
         rows.map((record) =>
-          record.profile_img || record.employee_id !== employeeId
-            ? record
-            : { ...record, profile_img: storedProfilePath || record.profile_img },
+          record.employee_id === employeeId && storedProfilePath
+            ? { ...record, profile_img: storedProfilePath }
+            : record,
         ),
       );
       setLoading(false);
@@ -630,6 +630,8 @@ export default function Dashboard() {
           setShowReasonModal={setShowReasonModal}
           getStatusBadgeClass={getStatusBadgeClass}
           getMediaUrl={getMediaUrl}
+          selfEmployeeId={employeeId}
+          selfProfileImg={profileImg}
         />
 
         {monthlySummary && (

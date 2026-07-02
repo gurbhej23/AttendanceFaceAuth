@@ -40,44 +40,8 @@ def media_url(path: str) -> str:
     return normalized
 
 
-def _media_file_exists(normalized: str) -> bool:
-    if not normalized or normalized.startswith(("http://", "https://")):
-        return bool(normalized)
-    rel = (
-        normalized[len("/media/") :]
-        if normalized.startswith("/media/")
-        else normalized.lstrip("/")
-    )
-    return (settings.MEDIA_ROOT / rel).exists()
-
-
 def resolve_employee_profile_url(employee) -> str:
-    """Best profile image path for lists; falls back to latest face enrollment photo."""
+    """Profile photo only (Profile page upload), not face-capture enrollment images."""
     if not employee:
         return ""
-
-    for raw in (employee.profile_img, employee.photo_path):
-        if not raw or not str(raw).strip():
-            continue
-        normalized = normalize_media_path(str(raw))
-        if normalized and _media_file_exists(normalized):
-            return normalized
-
-    employee_id = getattr(employee, "employee_id", "") or ""
-    if employee_id:
-        faces_dir = settings.MEDIA_ROOT / "faces"
-        if faces_dir.is_dir():
-            prefix = f"{employee_id}_"
-            matches = sorted(
-                (
-                    p
-                    for p in faces_dir.iterdir()
-                    if p.is_file() and p.name.startswith(prefix)
-                ),
-                key=lambda p: p.stat().st_mtime,
-                reverse=True,
-            )
-            if matches:
-                return f"/media/faces/{matches[0].name}"
-
-    return media_url(employee.profile_img or employee.photo_path or "")
+    return media_url(employee.profile_img or "")

@@ -12,6 +12,9 @@ interface AttendanceTableProps {
   setShowReasonModal: (value: boolean) => void;
   getStatusBadgeClass: (status: string) => string;
   getMediaUrl: (path?: string | null) => string;
+  selfEmployeeId?: string | null;
+  /** Resolved profile URL for the logged-in employee (same as header). */
+  selfProfileImg?: string;
 }
 
 export default function AttendanceTable({
@@ -21,6 +24,8 @@ export default function AttendanceTable({
   setShowReasonModal,
   getStatusBadgeClass,
   getMediaUrl,
+  selfEmployeeId,
+  selfProfileImg,
 }: AttendanceTableProps) {
   const navigate = useNavigate();
 
@@ -71,6 +76,14 @@ export default function AttendanceTable({
               const checkInEmpty = isEmptyCellValue(record.check_in);
               const checkOutEmpty = isEmptyCellValue(record.check_out);
               const durationEmpty = isEmptyCellValue(record.duration);
+              const isSelf = Boolean(
+                selfEmployeeId && record.employee_id === selfEmployeeId,
+              );
+              const avatarSrc = isSelf && selfProfileImg
+                ? selfProfileImg
+                : record.profile_img
+                  ? getMediaUrl(record.profile_img)
+                  : "";
 
               return (
                 <tr
@@ -82,14 +95,14 @@ export default function AttendanceTable({
                 >
                   <td className="px-4 py-4">
                     <div className="mx-auto h-14 w-14 overflow-hidden dash-squircle border border-white/15 bg-slate-800 shadow-sm">
-                      {record.profile_img ? (
+                      {avatarSrc ? (
                         <button
                           type="button"
                           onClick={() => navigate("/profile")}
                           className="block h-full w-full"
                         >
                           <ProfileAvatarImg
-                            src={getMediaUrl(record.profile_img)}
+                            src={avatarSrc}
                             alt={record.employee_name}
                             className="h-full w-full cursor-pointer"
                           />
