@@ -9,6 +9,7 @@ import Register from "./pages/auth/RegisterEmployee";
 import FaceVerification from "./pages/auth/FaceVerification";
 import VerificationChoice from "./pages/VerificationChoice";
 import EmailOtpVerification from "./pages/auth/EmailOtpVerification";
+import PinVerification from "./pages/auth/PinVerification";
 import Dashboard from "./pages/employee/Dashboard";
 import CheckOut from "./pages/employee/CheckOut";
 import AdminAttendanceSheet from "./pages/admin/AdminAttendanceSheet";
@@ -54,6 +55,7 @@ function App() {
           <Route path="/verify-choice" element={<VerificationChoice />} />
           <Route path="/verify-face" element={<FaceVerification />} />
           <Route path="/verify-otp" element={<EmailOtpVerification />} />
+          <Route path="/verify-pin" element={<PinVerification />} />
 
           <Route path="/dashboard" element={withPageTransition(<Dashboard />)} />
 

@@ -74,6 +74,14 @@ export default function Login() {
         localStorage.setItem("role", role);
         localStorage.setItem("profile_img", response.data.profile_img || "");
         localStorage.setItem("cv_file", response.data.cv_file || "");
+        localStorage.setItem(
+          "has_face",
+          response.data.has_face ? "1" : "0",
+        );
+        localStorage.setItem(
+          "has_pin",
+          response.data.has_attendance_pin ? "1" : "0",
+        );
 
         const skipVerification = Boolean(response.data.attendance_marked_today);
 
@@ -93,7 +101,7 @@ export default function Login() {
 
           setOverlay({
             title: "Login successful",
-            message: "Choose face or email OTP verification.",
+            message: "Choose face, PIN, or email OTP verification.",
             loading: true,
           });
 

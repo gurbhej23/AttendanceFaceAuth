@@ -30,6 +30,10 @@ class Employee(me.Document):
     last_seen = me.DateTimeField(default=datetime.now)
     date_of_birth = me.StringField(default="")
     join_date = me.StringField(default="")
+    registration_method = me.StringField(default="face")  # face | pin
+    attendance_pin_hash = me.StringField(default="")
+    pin_failed_attempts = me.IntField(default=0)
+    pin_locked_until = me.DateTimeField(default=None, null=True)
 
     meta = {"collection": "employees", "strict": False}
 

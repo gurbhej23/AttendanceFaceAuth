@@ -6,6 +6,8 @@ const SESSION_KEYS = [
   "role",
   "profile_img",
   "cv_file",
+  "has_face",
+  "has_pin",
 ] as const;
 
 export const getToken = () => localStorage.getItem("token");

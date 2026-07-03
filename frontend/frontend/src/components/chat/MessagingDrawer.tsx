@@ -30,6 +30,7 @@ const HIDDEN_PATHS = new Set([
   "/verify-choice",
   "/verify-face",
   "/verify-otp",
+  "/verify-pin",
   "/forgot-password",
 ]);
 
@@ -552,7 +553,7 @@ export default function MessagingDrawer() {
 
   const drawerPanel = (
     <div
-      className={`chat-panel flex flex-col overflow-hidden border border-slate-700/60 bg-slate-800/98 shadow-2xl backdrop-blur-xl ${isMobile
+      className={`chat-panel flex flex-col overflow-hidden border border-slate-700/60 bg-slate-800/98 shadow-2xl backdrop-blur-xl rounded-t-2xl ${isMobile
         ? "max-h-[min(80dvh,640px)] w-full border-b-0"
         : "max-h-[min(75vh,520px)] w-full border-b-0"
         }`}

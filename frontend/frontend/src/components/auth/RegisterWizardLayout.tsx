@@ -1,12 +1,18 @@
 import { BadgeCheck } from "lucide-react";
 
-export type RegisterWizardStep = "form" | "otp" | "face";
+export type RegisterWizardStep = "form" | "otp" | "method" | "face" | "pin";
 
 const STEPS: { id: RegisterWizardStep; label: string }[] = [
   { id: "form", label: "Employee details" },
   { id: "otp", label: "Email verification" },
-  { id: "face", label: "Face enrollment" },
+  { id: "method", label: "Secure setup" },
 ];
+
+function stepIndex(step: RegisterWizardStep): number {
+  if (step === "form") return 0;
+  if (step === "otp") return 1;
+  return 2;
+}
 
 function SidebarWatermark() {
   return (
@@ -45,7 +51,7 @@ interface Props {
 }
 
 export default function RegisterWizardLayout({ step, children, animClass }: Props) {
-  const stepIndex = STEPS.findIndex((s) => s.id === step);
+  const currentIndex = stepIndex(step);
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] p-4 sm:p-6">
@@ -76,57 +82,49 @@ export default function RegisterWizardLayout({ step, children, animClass }: Prop
 
             <nav className="space-y-2" aria-label="Registration progress">
               {STEPS.map((item, index) => {
-                const done = index < stepIndex;
-                const active = item.id === step;
+                const done = index < currentIndex;
+                const active = index === currentIndex;
+
                 return (
                   <div
                     key={item.id}
                     className={`register-step-pill flex items-center gap-2.5 rounded-2xl border px-2.5 py-2.5 text-sm transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] ${
                       active
-                        ? "border-blue-400/40 bg-blue-500/15 text-blue-100 shadow-[0_0_20px_rgba(59,130,246,0.12)]"
+                        ? "border-blue-500/40 bg-blue-500/15 text-white shadow-lg shadow-blue-500/10"
                         : done
                           ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
-                          : "border-slate-700/80 bg-slate-950/40 text-slate-500"
+                          : "border-white/10 bg-white/[0.03] text-slate-500"
                     }`}
                   >
                     <span
-                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold transition-all duration-300 ${
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-xl text-xs font-bold ${
                         active
-                          ? "bg-linear-to-r from-blue-600 to-cyan-500 text-white"
+                          ? "bg-blue-600 text-white"
                           : done
-                            ? "bg-emerald-600/80 text-white"
-                            : "bg-slate-800 text-slate-500"
+                            ? "bg-emerald-600 text-white"
+                            : "bg-slate-800 text-slate-400"
                       }`}
                     >
                       {done ? "✓" : index + 1}
                     </span>
-                    <span className="font-semibold leading-snug">{item.label}</span>
+                    <span className="font-medium">{item.label}</span>
                   </div>
                 );
               })}
             </nav>
 
-            <div className="dash-squircle flex gap-2.5 border border-slate-800/80 bg-slate-900/40 p-3.5 text-xs leading-relaxed text-slate-300 sm:text-sm">
-              <span
-                className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-slate-700/80 bg-slate-800/80 text-[10px] font-bold text-slate-300"
-                aria-hidden
-              >
-                ℹ
-              </span>
-              <p>
-                <span className="sr-only">Information: </span>
-                Credentials are issued after verification and sent to your registered
-                email.
-              </p>
-            </div>
+            <p className="text-center text-[11px] leading-relaxed text-slate-500">
+              Credentials are issued after verification and sent to your registered
+              email.
+            </p>
           </div>
         </aside>
 
-        <section className="relative min-h-[380px] overflow-hidden dash-shell-panel border border-white/12 bg-white/8 p-5 shadow-inner sm:p-7">
-          <div key={`${step}-${animClass}`} className={`wizard-step-panel ${animClass}`}>
-            {children}
-          </div>
-        </section>
+        <main
+          className={`wizard-step-panel min-h-[min(72vh,640px)] dash-shell-panel border border-white/12 bg-slate-950/40 p-5 shadow-inner sm:p-7 ${animClass}`}
+        >
+          {children}
+        </main>
       </div>
     </div>
   );

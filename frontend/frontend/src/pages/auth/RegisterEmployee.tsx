@@ -5,7 +5,8 @@ import Webcam from "react-webcam";
 import API, { FACE_REQUEST_TIMEOUT_MS } from "../../services/api";
 import RegisterEmployeeView from "./RegisterEmployeeView";
 
-type Step = "form" | "otp" | "face";
+type Step = "form" | "otp" | "method" | "face" | "pin";
+type RegistrationMethod = "face" | "pin";
 type VerifyMethod = "email" | "phone";
 type BorderStatus = "idle" | "scanning" | "success" | "error";
 
@@ -19,7 +20,11 @@ export default function Register() {
   const [stepAnim, setStepAnim] = useState<"wizard-step-forward" | "wizard-step-back">(
     "wizard-step-forward",
   );
+  const [registrationMethod, setRegistrationMethod] =
+    useState<RegistrationMethod>("pin");
   const [verifyMethod, setVerifyMethod] = useState<VerifyMethod>("email");
+  const [attendancePin, setAttendancePin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [borderStatus, setBorderStatus] = useState<BorderStatus>("idle");
@@ -113,7 +118,7 @@ export default function Register() {
       if (response.data.success) {
         setOtpVerified(true);
         setError("");
-        setTimeout(() => goToStep("face", "forward"), 800);
+        setTimeout(() => goToStep("method", "forward"), 800);
       } else {
         setError(response.data.error || "Invalid OTP");
       }
@@ -291,9 +296,19 @@ export default function Register() {
   };
 
   const handleRegisterSubmit = async () => {
-    if (!capturedImage) {
+    if (registrationMethod === "face" && !capturedImage) {
       setError("Please capture your face");
       return;
+    }
+    if (registrationMethod === "pin") {
+      if (!attendancePin || attendancePin.length < 4) {
+        setError("PIN must be 4–6 digits");
+        return;
+      }
+      if (attendancePin !== confirmPin) {
+        setError("PIN entries do not match");
+        return;
+      }
     }
     if (!cvFile) {
       setError("Please upload your CV");
@@ -302,20 +317,26 @@ export default function Register() {
     setLoading(true);
     setError("");
     try {
-      const response = await API.post(
-        "/employees/register/",
-        {
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          department: formData.department,
-          designation: formData.designation,
-          image: capturedImage,
-          cv_file: cvFile,
-          cv_file_name: cvFileName,
-        },
-        { timeout: FACE_REQUEST_TIMEOUT_MS },
-      );
+      const payload: Record<string, string> = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        department: formData.department,
+        designation: formData.designation,
+        cv_file: cvFile,
+        cv_file_name: cvFileName,
+        registration_method: registrationMethod,
+      };
+      if (registrationMethod === "face") {
+        payload.image = capturedImage!;
+      } else {
+        payload.attendance_pin = attendancePin;
+      }
+
+      const response = await API.post("/employees/register/", payload, {
+        timeout:
+          registrationMethod === "face" ? FACE_REQUEST_TIMEOUT_MS : 30_000,
+      });
       if (response.data.success) {
         const credentials = response.data.credentials;
         const successMessage = credentials
@@ -416,6 +437,26 @@ export default function Register() {
       setMessage={setMessage}
       captureFace={captureFace}
       onRegisterSubmit={handleRegisterSubmit}
+      registrationMethod={registrationMethod}
+      setRegistrationMethod={setRegistrationMethod}
+      attendancePin={attendancePin}
+      setAttendancePin={setAttendancePin}
+      confirmPin={confirmPin}
+      setConfirmPin={setConfirmPin}
+      onSelectMethod={(method) => {
+        setRegistrationMethod(method);
+        setError("");
+        goToStep(method === "face" ? "face" : "pin", "forward");
+      }}
+      onBackToMethod={() => {
+        setError("");
+        setCapturedImage(null);
+        setAttendancePin("");
+        setConfirmPin("");
+        setBorderStatus("idle");
+        setMessage("Position your face in the oval");
+        goToStep("method", "back");
+      }}
       onBackToOtp={() => {
         setCapturedImage(null);
         setBorderStatus("idle");

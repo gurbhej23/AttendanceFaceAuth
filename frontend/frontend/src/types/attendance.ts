@@ -6,6 +6,7 @@ export interface AttendanceRecord {
   check_out: string;
   duration: string;
   status: string;
+  minutes_late?: number;
   reason?: string;
   half_day_until?: string;
   profile_img?: string;

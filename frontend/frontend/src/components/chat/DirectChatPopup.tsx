@@ -378,7 +378,12 @@ export default function DirectChatPopup({
     setMessages((cur) =>
       cur.map((m) =>
         m.id === msgId
-          ? { ...m, is_deleted: true, message: "This message was deleted" }
+          ? {
+              ...m,
+              is_deleted: true,
+              message: "This message was deleted",
+              attachments: [],
+            }
           : m,
       ),
     );
@@ -678,7 +683,9 @@ export default function DirectChatPopup({
                             <p className="whitespace-pre-wrap wrap-break-words">{body}</p>
                           ) : null;
                         })()}
-                        <ChatAttachments attachments={msg.attachments} mine={mine} />
+                        {!msg.is_deleted && (
+                          <ChatAttachments attachments={msg.attachments} mine={mine} />
+                        )}
                         <div className="mt-1 flex items-center justify-end gap-1 text-[10px] opacity-70">
                           {msg.is_edited && !msg.is_deleted && <span>edited</span>}
                           {mine && msg.read_at && (

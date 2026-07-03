@@ -8,6 +8,7 @@ import SearchableSelect from "../../components/auth/SearchableSelect";
 import CvDropZone from "../../components/auth/CvDropZone";
 import {
   BriefcaseBusiness,
+  KeyRound,
   Mail,
   Phone,
   ScanFace,
@@ -21,8 +22,9 @@ import {
   pickDesignationForDepartment,
 } from "../../constants/departments";
 
-type Step = "form" | "otp" | "face";
+type Step = "form" | "otp" | "method" | "face" | "pin";
 type VerifyMethod = "email" | "phone";
+type RegistrationMethod = "face" | "pin";
 type BorderStatus = "idle" | "scanning" | "success" | "error";
 
 export interface RegisterViewProps {
@@ -73,6 +75,14 @@ export interface RegisterViewProps {
   captureFace: () => void;
   onRegisterSubmit: () => void;
   onBackToOtp: () => void;
+  onBackToMethod: () => void;
+  registrationMethod: RegistrationMethod;
+  setRegistrationMethod: (m: RegistrationMethod) => void;
+  attendancePin: string;
+  setAttendancePin: (v: string) => void;
+  confirmPin: string;
+  setConfirmPin: (v: string) => void;
+  onSelectMethod: (method: RegistrationMethod) => void;
   webcamRef: RefObject<Webcam | null>;
   canvasRef: RefObject<HTMLCanvasElement | null>;
   overlay: {
@@ -118,6 +128,12 @@ export default function RegisterEmployeeView(props: RegisterViewProps) {
     captureFace,
     onRegisterSubmit,
     onBackToOtp,
+    onBackToMethod,
+    attendancePin,
+    setAttendancePin,
+    confirmPin,
+    setConfirmPin,
+    onSelectMethod,
     webcamRef,
     canvasRef,
     overlay,
@@ -349,7 +365,7 @@ export default function RegisterEmployeeView(props: RegisterViewProps) {
 
             {otpVerified && (
               <div className="mb-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-center text-sm text-emerald-300">
-                Verified. Preparing face enrollment…
+                Verified. Choose how to secure your account…
               </div>
             )}
 
@@ -411,6 +427,130 @@ export default function RegisterEmployeeView(props: RegisterViewProps) {
               className="mt-6 text-sm text-slate-400 transition hover:text-white"
             >
               ← Back to employee details
+            </button>
+          </div>
+        )}
+
+        {step === "method" && (
+          <div className="flex h-full flex-col justify-center">
+            <header className="mb-6 text-center">
+              <h2 className="text-2xl font-bold text-white sm:text-3xl">
+                Secure your account
+              </h2>
+              <p className="mt-2 text-sm text-slate-400">
+                Choose how you will verify attendance each day
+              </p>
+            </header>
+
+            <div className="grid gap-4">
+              <button
+                type="button"
+                onClick={() => onSelectMethod("pin")}
+                className="flex items-center gap-4 rounded-3xl border border-amber-500/30 bg-amber-600/10 p-5 text-left transition hover:border-amber-400 hover:bg-amber-600/20 cursor-pointer"
+              >
+                <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-amber-600 text-white">
+                  <KeyRound size={28} />
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-white">PIN verification</p>
+                  <p className="mt-1 text-sm text-slate-400">
+                    Recommended for cloud hosting — no camera required
+                  </p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onSelectMethod("face")}
+                className="flex items-center gap-4 rounded-3xl border border-cyan-500/30 bg-cyan-600/10 p-5 text-left transition hover:border-cyan-400 hover:bg-cyan-600/20 cursor-pointer"
+              >
+                <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-cyan-600 text-white">
+                  <ScanFace size={28} />
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-white">Face enrollment</p>
+                  <p className="mt-1 text-sm text-slate-400">
+                    Use camera — works best on local servers
+                  </p>
+                </div>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={onBackToOtp}
+              className="mt-8 text-sm text-slate-400 transition hover:text-white"
+            >
+              ← Back to email verification
+            </button>
+          </div>
+        )}
+
+        {step === "pin" && (
+          <div className="flex h-full flex-col justify-center">
+            <header className="mb-6 text-center">
+              <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-amber-500/30 bg-amber-500/10 text-amber-300">
+                <KeyRound size={26} />
+              </div>
+              <h2 className="text-2xl font-bold text-white">Set attendance PIN</h2>
+              <p className="mt-2 text-sm text-slate-400">
+                4–6 digits — used for daily login verification
+              </p>
+            </header>
+
+            {error && (
+              <div className="mb-5 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-center text-sm text-red-300">
+                {error}
+              </div>
+            )}
+
+            <label className="block text-sm text-slate-300">
+              PIN
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={6}
+                value={attendancePin}
+                onChange={(e) => {
+                  setAttendancePin(e.target.value.replace(/\D/g, "").slice(0, 6));
+                  setError("");
+                }}
+                className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950/80 p-4 text-center font-mono text-2xl tracking-[0.4em] text-white outline-none focus:border-amber-500"
+              />
+            </label>
+
+            <label className="mt-4 block text-sm text-slate-300">
+              Confirm PIN
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={6}
+                value={confirmPin}
+                onChange={(e) => {
+                  setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, 6));
+                  setError("");
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") onRegisterSubmit();
+                }}
+                className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950/80 p-4 text-center font-mono text-2xl tracking-[0.4em] text-white outline-none focus:border-amber-500"
+              />
+            </label>
+
+            <Button
+              text={loading ? "Creating account..." : "Complete registration"}
+              onClick={onRegisterSubmit}
+              disabled={loading}
+              loading={loading}
+              className="mt-6 w-full bg-linear-to-r from-amber-600 to-orange-500 p-4 font-bold text-white disabled:opacity-50"
+            />
+
+            <button
+              type="button"
+              onClick={onBackToMethod}
+              className="mt-6 text-sm text-slate-400 transition hover:text-white"
+            >
+              ← Choose another method
             </button>
           </div>
         )}
@@ -527,10 +667,10 @@ export default function RegisterEmployeeView(props: RegisterViewProps) {
 
               <button
                 type="button"
-                onClick={onBackToOtp}
+                onClick={onBackToMethod}
                 className="text-sm text-slate-500 transition hover:text-slate-300"
               >
-                ← Back to verification
+                ← Choose another method
               </button>
             </div>
           </div>

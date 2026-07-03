@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from django.conf import settings
 
 
@@ -45,3 +47,31 @@ def resolve_employee_profile_url(employee) -> str:
     if not employee:
         return ""
     return media_url(employee.profile_img or "")
+
+
+def delete_chat_attachment_files(attachments) -> None:
+    """Remove stored chat attachment files from disk."""
+    if not attachments:
+        return
+    base = Path(settings.MEDIA_ROOT) / "chat_attachments"
+    for item in attachments:
+        if not isinstance(item, dict):
+            continue
+        url = str(item.get("url", "") or "").replace("\\", "/")
+        if "chat_attachments/" not in url:
+            continue
+        filename = url.split("chat_attachments/")[-1].split("?")[0].strip()
+        if not filename or ".." in filename:
+            continue
+        path = base / filename
+        try:
+            if path.is_file():
+                path.unlink()
+        except OSError:
+            pass
+
+
+def clear_message_attachments(message) -> None:
+    """Delete attachment files and clear them on a chat message document."""
+    delete_chat_attachment_files(getattr(message, "attachments", []) or [])
+    message.attachments = []

@@ -171,6 +171,20 @@ def compute_attendance_streak(employee_id: str) -> dict:
     }
 
 
+def _parse_join_date(join):
+    """Return (month_day 'MM-DD', join_year int) from join_date or created_at."""
+    if not join:
+        return "", 0
+    if isinstance(join, str) and len(join) >= 10:
+        try:
+            return join[5:10], int(join[:4])
+        except ValueError:
+            return join[5:10], 0
+    if hasattr(join, "strftime"):
+        return join.strftime("%m-%d"), join.year
+    return "", 0
+
+
 def celebrations_for_today() -> list[dict]:
     today = datetime.now(IST)
     md = today.strftime("%m-%d")
@@ -178,12 +192,7 @@ def celebrations_for_today() -> list[dict]:
     for emp in Employee.objects(is_active=True):
         dob = getattr(emp, "date_of_birth", "") or ""
         join = getattr(emp, "join_date", "") or getattr(emp, "created_at", None)
-        join_md = ""
-        if join:
-            if isinstance(join, str) and len(join) >= 10:
-                join_md = join[5:10]
-            elif hasattr(join, "strftime"):
-                join_md = join.strftime("%m-%d")
+        join_md, join_year = _parse_join_date(join)
         if dob and len(dob) >= 10 and dob[5:10] == md:
             items.append(
                 {
@@ -195,22 +204,17 @@ def celebrations_for_today() -> list[dict]:
                 }
             )
         if join_md == md:
-            years = today.year
-            if isinstance(join, str) and len(join) >= 4:
-                try:
-                    years = today.year - int(join[:4])
-                except ValueError:
-                    years = 1
-            items.append(
-                {
-                    "type": "anniversary",
-                    "employee_id": emp.employee_id,
-                    "name": emp.name,
-                    "years": max(1, years),
-                    "department": emp.department,
-                    "profile_img": media_url(emp.profile_img or ""),
-                }
-            )
+            years = today.year - join_year if join_year else 0
+            base = {
+                "employee_id": emp.employee_id,
+                "name": emp.name,
+                "department": emp.department,
+                "profile_img": media_url(emp.profile_img or ""),
+            }
+            if years < 1:
+                items.append({**base, "type": "welcome"})
+            else:
+                items.append({**base, "type": "anniversary", "years": years})
     return items
 
 

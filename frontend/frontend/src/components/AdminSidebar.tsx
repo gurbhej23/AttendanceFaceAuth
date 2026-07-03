@@ -41,7 +41,7 @@ function ProfileAvatar({
       className={`${SQUIRCLE} overflow-hidden rounded-2xl border border-white/10 bg-slate-800`}
     >
       {profileImg ? (
-        <ProfileAvatarImg src={profileImg} alt={adminName} />
+        <ProfileAvatarImg src={profileImg} alt={adminName} className="h-full w-full" />
       ) : (
         <div className="grid h-full w-full place-items-center bg-blue-600 text-sm font-bold text-white">
           {adminName.charAt(0)}

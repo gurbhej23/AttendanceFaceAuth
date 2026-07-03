@@ -11,6 +11,12 @@ from django.conf import settings
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from employees.face_utils import extract_and_save_embedding, verify_face_match
+from employees.pin_utils import (
+    clear_pin_failures,
+    is_pin_locked,
+    record_pin_failure,
+    verify_attendance_pin,
+)
 from employees.views import generate_otp, otp_html, send_email
 from employees.media_utils import media_url, resolve_employee_profile_url
 from attendance.hr_utils import (
@@ -374,6 +380,70 @@ def verify_otp(request):
         return Response({"success": False, "error": str(e)}, status=500)
 
 
+@api_view(["POST"])
+def verify_pin(request):
+    try:
+        employee_id = request.data.get("employee_id", "").strip()
+        pin = str(request.data.get("pin", "")).strip()
+
+        if not employee_id or not pin:
+            return Response(
+                {"success": False, "error": "Employee ID and PIN are required"},
+                status=400,
+            )
+
+        employee = Employee.objects(employee_id=employee_id, is_active=True).first()
+        if not employee:
+            return Response(
+                {"success": False, "error": "Employee not found"},
+                status=404,
+            )
+
+        pin_hash = getattr(employee, "attendance_pin_hash", "") or ""
+        if not pin_hash:
+            return Response(
+                {
+                    "success": False,
+                    "error": "No attendance PIN on file. Use Email OTP instead.",
+                },
+                status=400,
+            )
+
+        locked, lock_msg = is_pin_locked(employee)
+        if locked:
+            return Response({"success": False, "error": lock_msg}, status=429)
+
+        if is_before_shift_start(employee):
+            return Response(
+                {"success": False, "error": shift_start_message(employee)}, status=403
+            )
+
+        if not verify_attendance_pin(pin, pin_hash):
+            record_pin_failure(employee)
+            return Response(
+                {"success": False, "error": "Invalid PIN. Please try again."},
+                status=401,
+            )
+
+        clear_pin_failures(employee)
+
+        return Response(
+            {
+                "success": True,
+                "message": "PIN verified",
+                "employee_id": employee_id,
+                "employee_name": employee.name,
+                "profile_img": resolve_employee_profile_url(employee),
+                "cv_file": media_url(employee.cv_file or ""),
+            }
+        )
+    except Exception as e:
+        import traceback
+
+        traceback.print_exc()
+        return Response({"success": False, "error": str(e)}, status=500)
+
+
 # ─── Check In ────────────────────────────────────────────────────────────────
 
 
@@ -652,6 +722,7 @@ def attendance_report(request):
                     "check_out": format_time(r.check_out_time),
                     "duration": format_duration(r.duration_minutes),
                     "status": r.status,
+                    "minutes_late": getattr(r, "minutes_late", 0) or 0,
                     "reason": getattr(r, "reason", None) or "--",
                     "half_day_until": getattr(r, "half_day_until", None) or "--",
                     "profile_img": resolve_employee_profile_url(employee) if employee else "",

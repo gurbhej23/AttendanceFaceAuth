@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 
+from .media_utils import clear_message_attachments
 from .models import ChatGroup, ChatMessage, Employee, GroupMessage
 
 def chat_datetime_iso(value):
@@ -12,6 +13,12 @@ def chat_datetime_iso(value):
     if value.tzinfo is None:
         value = value.replace(tzinfo=timezone.utc)
     return value.astimezone(timezone.utc).isoformat()
+
+
+def _message_attachments(message):
+    if getattr(message, "is_deleted", False):
+        return []
+    return getattr(message, "attachments", []) or []
 
 
 def message_payload(message):
@@ -27,7 +34,7 @@ def message_payload(message):
         "is_edited": getattr(message, "is_edited", False),
         "is_deleted": getattr(message, "is_deleted", False),
         "reactions": getattr(message, "reactions", {}) or {},
-        "attachments": getattr(message, "attachments", []) or [],
+        "attachments": _message_attachments(message),
         "mentions": getattr(message, "mentions", []) or [],
         "read_at": chat_datetime_iso(getattr(message, "read_at", None)),
         "created_at": chat_datetime_iso(message.created_at),
@@ -83,6 +90,7 @@ def delete_message(message_id, employee_id):
         return None
     message.message = "This message was deleted"
     message.is_deleted = True
+    clear_message_attachments(message)
     message.save()
     return message_payload(message)
 
@@ -300,6 +308,9 @@ def group_message_payload(message, group=None):
         "total_recipients": total_recipients,
         "is_fully_read": is_fully_read,
         "reactions": getattr(message, "reactions", {}) or {},
+        "attachments": _message_attachments(message),
+        "mentions": getattr(message, "mentions", []) or [],
+        "poll_data": getattr(message, "poll_data", {}) or {},
         "created_at": chat_datetime_iso(message.created_at),
     }
 
@@ -355,6 +366,7 @@ def delete_group_message(message_id, employee_id):
         return None
     message.message = "This message was deleted"
     message.is_deleted = True
+    clear_message_attachments(message)
     message.save()
     return group_message_payload(message, group)
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Mail, ScanFace } from "lucide-react";
+import { KeyRound, Mail, ScanFace } from "lucide-react";
 import API from "../services/api";
 import Button from "../components/common/Button";
 import { notifyAuthChanged } from "../hooks/useEmployeeSession";
@@ -8,6 +8,8 @@ import { notifyAuthChanged } from "../hooks/useEmployeeSession";
 export default function VerificationChoice() {
   const navigate = useNavigate();
   const employeeName = localStorage.getItem("employee_name") || "Employee";
+  const hasFace = localStorage.getItem("has_face") === "1";
+  const hasPin = localStorage.getItem("has_pin") === "1";
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
@@ -67,21 +69,41 @@ export default function VerificationChoice() {
         </div>
 
         <div className="mt-8 grid gap-4">
-          <button
-            type="button"
-            onClick={() => navigate("/verify-face", { replace: true })}
-            className="flex items-center gap-4 rounded-3xl border border-cyan-500/30 bg-cyan-600/15 p-5 text-left transition hover:border-cyan-400 hover:bg-cyan-600/25 cursor-pointer"
-          >
-            <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-cyan-600 text-white">
-              <ScanFace size={28} />
-            </div>
-            <div>
-              <p className="text-lg font-bold text-white">Face Verification</p>
-              <p className="mt-1 text-sm text-slate-400">
-                Use your camera and face profile
-              </p>
-            </div>
-          </button>
+          {hasPin && (
+            <button
+              type="button"
+              onClick={() => navigate("/verify-pin", { replace: true })}
+              className="flex items-center gap-4 rounded-3xl border border-amber-500/30 bg-amber-600/15 p-5 text-left transition hover:border-amber-400 hover:bg-amber-600/25 cursor-pointer"
+            >
+              <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-amber-600 text-white">
+                <KeyRound size={28} />
+              </div>
+              <div>
+                <p className="text-lg font-bold text-white">PIN verification</p>
+                <p className="mt-1 text-sm text-slate-400">
+                  Enter your attendance PIN
+                </p>
+              </div>
+            </button>
+          )}
+
+          {hasFace && (
+            <button
+              type="button"
+              onClick={() => navigate("/verify-face", { replace: true })}
+              className="flex items-center gap-4 rounded-3xl border border-cyan-500/30 bg-cyan-600/15 p-5 text-left transition hover:border-cyan-400 hover:bg-cyan-600/25 cursor-pointer"
+            >
+              <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-cyan-600 text-white">
+                <ScanFace size={28} />
+              </div>
+              <div>
+                <p className="text-lg font-bold text-white">Face Verification</p>
+                <p className="mt-1 text-sm text-slate-400">
+                  Use your camera and face profile
+                </p>
+              </div>
+            </button>
+          )}
 
           <button
             type="button"

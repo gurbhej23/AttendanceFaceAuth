@@ -616,7 +616,12 @@ export default function GroupChatSection({
     setMessages((cur) =>
       cur.map((m) =>
         m.id === msgId
-          ? { ...m, is_deleted: true, message: "This message was deleted" }
+          ? {
+              ...m,
+              is_deleted: true,
+              message: "This message was deleted",
+              attachments: [],
+            }
           : m,
       ),
     );
@@ -1261,7 +1266,9 @@ export default function GroupChatSection({
                                 })}
                               </div>
                             )}
-                            <ChatAttachments attachments={msg.attachments} mine={mine} />
+                            {!msg.is_deleted && (
+                              <ChatAttachments attachments={msg.attachments} mine={mine} />
+                            )}
                             <div className="mt-1 flex items-center justify-end gap-2">
                               {msg.is_edited && !msg.is_deleted && (
                                 <span className="text-[10px] opacity-50">edited</span>

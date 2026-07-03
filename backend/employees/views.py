@@ -28,6 +28,7 @@ from .models import (
     RegistrationOTP,
 )
 from .face_utils import extract_and_save_embedding, verify_face_match
+from .pin_utils import hash_attendance_pin, validate_attendance_pin
 from attendance.models import AttendanceRecord
 
 IST = pytz.timezone("Asia/Kolkata")
@@ -209,7 +210,7 @@ def chat_datetime_iso(value) -> str:
     return value.astimezone(pytz.UTC).isoformat()
 
 
-from .media_utils import media_url
+from .media_utils import clear_message_attachments, media_url
 
 
 def save_base64_cv(data_url: str, original_name: str = "") -> str:
@@ -310,6 +311,9 @@ def employee_payload(employee: Employee) -> dict:
         "cv_file": media_url(employee.cv_file or ""),
         "date_of_birth": getattr(employee, "date_of_birth", "") or "",
         "join_date": getattr(employee, "join_date", "") or "",
+        "registration_method": getattr(employee, "registration_method", "face") or "face",
+        "has_attendance_pin": bool(getattr(employee, "attendance_pin_hash", "") or ""),
+        "has_face": bool(getattr(employee, "face_embedding", None)),
     }
 
 
@@ -326,7 +330,11 @@ def chat_payload(message: ChatMessage) -> dict:
         "is_edited": getattr(message, "is_edited", False),
         "is_deleted": getattr(message, "is_deleted", False),
         "reactions": getattr(message, "reactions", {}) or {},
-        "attachments": getattr(message, "attachments", []) or [],
+        "attachments": (
+            []
+            if getattr(message, "is_deleted", False)
+            else (getattr(message, "attachments", []) or [])
+        ),
         "mentions": getattr(message, "mentions", []) or [],
         "read_at": chat_datetime_iso(getattr(message, "read_at", None)),
         "created_at": chat_datetime_iso(message.created_at),
@@ -357,7 +365,11 @@ def group_message_payload(message: GroupMessage, group: ChatGroup | None = None)
         "total_recipients": total_recipients,
         "is_fully_read": is_fully_read,
         "reactions": getattr(message, "reactions", {}) or {},
-        "attachments": getattr(message, "attachments", []) or [],
+        "attachments": (
+            []
+            if getattr(message, "is_deleted", False)
+            else (getattr(message, "attachments", []) or [])
+        ),
         "mentions": getattr(message, "mentions", []) or [],
         "poll_data": getattr(message, "poll_data", {}) or {},
         "scheduled_for": chat_datetime_iso(getattr(message, "scheduled_for", None)),
@@ -595,14 +607,38 @@ def register_employee(request):
         cv_file_name = request.data.get("cv_file_name", "").strip()
         department = request.data.get("department", "General").strip()
         designation = request.data.get("designation", "Employee").strip()
+        registration_method = (
+            request.data.get("registration_method", "face").strip().lower()
+        )
+        attendance_pin = request.data.get("attendance_pin", "").strip()
 
-        print(f"Register attempt: {email}")
+        print(f"Register attempt: {email} method={registration_method}")
 
-        if not all([name, email, image]):
+        if registration_method not in ("face", "pin"):
             return Response(
-                {"success": False, "error": "Name, email, and face image are required"},
+                {"success": False, "error": "Invalid registration method"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        if not name or not email:
+            return Response(
+                {"success": False, "error": "Name and email are required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if registration_method == "face" and not image:
+            return Response(
+                {"success": False, "error": "Face image is required for face registration"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if registration_method == "pin":
+            pin_error = validate_attendance_pin(attendance_pin)
+            if pin_error:
+                return Response(
+                    {"success": False, "error": pin_error},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         if Employee.objects(email=email).first():
             return Response(
@@ -620,37 +656,44 @@ def register_employee(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        print(f"Extracting face embedding for {email}...")
-        embedding, error, photo_path = extract_and_save_embedding(image, email)
+        embedding = []
+        photo_path = ""
+        pin_hash = ""
 
-        if error:
-            return Response(
-                {"success": False, "error": f"Face processing failed: {error}"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        if not embedding:
-            return Response(
-                {
-                    "success": False,
-                    "error": "Could not extract face features. Please use a clear photo.",
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        if registration_method == "face":
+            print(f"Extracting face embedding for {email}...")
+            embedding, error, photo_path = extract_and_save_embedding(image, email)
 
-        # Check for duplicate face
-        for existing in Employee.objects(face_embedding__ne=[]):
-            if not getattr(existing, "face_embedding", None):
-                continue
-            if verify_face_match(
-                embedding, existing.face_embedding, FACE_DUPLICATE_THRESHOLD
-            ):
+            if error:
+                return Response(
+                    {"success": False, "error": f"Face processing failed: {error}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if not embedding:
                 return Response(
                     {
                         "success": False,
-                        "error": "This face is already registered. Please log in with your existing account.",
+                        "error": "Could not extract face features. Please use a clear photo.",
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+
+            # Check for duplicate face
+            for existing in Employee.objects(face_embedding__ne=[]):
+                if not getattr(existing, "face_embedding", None):
+                    continue
+                if verify_face_match(
+                    embedding, existing.face_embedding, FACE_DUPLICATE_THRESHOLD
+                ):
+                    return Response(
+                        {
+                            "success": False,
+                            "error": "This face is already registered. Please log in with your existing account.",
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+        else:
+            pin_hash = hash_attendance_pin(attendance_pin)
 
         employee_id = generate_employee_id()
         raw_password = generate_password()
@@ -677,6 +720,8 @@ def register_employee(request):
             designation=designation,
             role="employee",
             is_active=True,
+            registration_method=registration_method,
+            attendance_pin_hash=pin_hash,
         ).save()
 
         otp_record.delete()
@@ -1427,6 +1472,7 @@ def chat_message_detail(request, message_id):
     if request.method == "DELETE":
         msg.is_deleted = True
         msg.message = "This message was deleted"
+        clear_message_attachments(msg)
         msg.save()
         return Response({"success": True, "message": chat_payload(msg)})
 
@@ -1871,6 +1917,7 @@ def group_message_detail(request, message_id):
             )
         message.message = "This message was deleted"
         message.is_deleted = True
+        clear_message_attachments(message)
         message.save()
         return Response(
             {"success": True, "message": group_message_payload(message, group)}

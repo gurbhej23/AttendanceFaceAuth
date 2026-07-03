@@ -616,7 +616,6 @@ export default function AdminAttendanceSheet() {
 
         <div className="mx-auto max-w-400 pb-10 pt-12 transition-all duration-500 ease-out sm:pb-12 sm:pt-5 lg:ml-22 lg:pt-0">
           <div>
-            <DashboardExtras data={dashboardExtras} />
             {/* HEADER */}
             <div className="dash-shell-panel relative mb-4 overflow-hidden border border-white/10 bg-white/5 shadow-xl backdrop-blur-xl dash-fade-up sm:mb-6 sm:shadow-2xl">
               <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-indigo-500/10 blur-3xl sm:h-40 sm:w-40" />
@@ -638,7 +637,7 @@ export default function AdminAttendanceSheet() {
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                      <p className="text-xs font-semibold dash-welcome-muted text-slate-300 sm:text-sm">
+                    <p className="text-xs font-semibold dash-welcome-muted text-slate-300 sm:text-sm">
                       {getGreeting()}, {adminName}
                     </p>
                     <h1 className="mt-0.5 text-lg font-bold leading-snug text-white sm:text-2xl lg:text-3xl">
@@ -669,17 +668,17 @@ export default function AdminAttendanceSheet() {
                 )}
               </div>
             </div>
-
+            
+            <DashboardExtras data={dashboardExtras} />
             {/* TABS */}
             <div className="dash-tab-shell mb-6 flex w-full flex-col gap-2 sm:inline-flex sm:w-auto sm:flex-row sm:rounded-2xl sm:border sm:border-white/10 sm:bg-slate-900/60 sm:p-1 dash-fade-up dash-fade-up-delay-1">
               <button
                 type="button"
                 onClick={() => setActiveTab("attendance")}
-                className={`inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] sm:w-auto ${
-                  activeTab === "attendance"
-                    ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
-                    : "dash-tab-inactive border border-slate-700 bg-slate-800 text-slate-400 hover:text-white sm:border-0 sm:bg-transparent"
-                }`}
+                className={`inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] sm:w-auto ${activeTab === "attendance"
+                  ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
+                  : "dash-tab-inactive border border-slate-700 bg-slate-800 text-slate-400 hover:text-white sm:border-0 sm:bg-transparent"
+                  }`}
               >
                 <ClipboardList className="h-4 w-4" />
                 Attendance Sheet
@@ -688,11 +687,10 @@ export default function AdminAttendanceSheet() {
               <button
                 type="button"
                 onClick={() => setActiveTab("leaves")}
-                className={`relative inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] sm:w-auto ${
-                  activeTab === "leaves"
-                    ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20"
-                    : "dash-tab-inactive border border-slate-700 bg-slate-800 text-slate-400 hover:text-white sm:border-0 sm:bg-transparent"
-                }`}
+                className={`relative inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] sm:w-auto ${activeTab === "leaves"
+                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20"
+                  : "dash-tab-inactive border border-slate-700 bg-slate-800 text-slate-400 hover:text-white sm:border-0 sm:bg-transparent"
+                  }`}
               >
                 <CalendarDays className="h-4 w-4" />
                 Leave Requests
@@ -706,11 +704,10 @@ export default function AdminAttendanceSheet() {
               <button
                 type="button"
                 onClick={() => setActiveTab("regularization")}
-                className={`relative inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] sm:w-auto ${
-                  activeTab === "regularization"
-                    ? "bg-violet-600 text-white shadow-lg shadow-violet-600/20"
-                    : "dash-tab-inactive border border-slate-700 bg-slate-800 text-slate-400 hover:text-white sm:border-0 sm:bg-transparent"
-                }`}
+                className={`relative inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] sm:w-auto ${activeTab === "regularization"
+                  ? "bg-violet-600 text-white shadow-lg shadow-violet-600/20"
+                  : "dash-tab-inactive border border-slate-700 bg-slate-800 text-slate-400 hover:text-white sm:border-0 sm:bg-transparent"
+                  }`}
               >
                 <PenLine className="h-4 w-4" />
                 Regularization
@@ -796,9 +793,8 @@ export default function AdminAttendanceSheet() {
                       key={filter}
                       type="button"
                       onClick={() => setStatusFilter(filter as StatusFilter)}
-                      className={`dash-metric-card dash-fade-up ${delay} border bg-slate-900/50 p-4 text-left ${ring} ${
-                        statusFilter === filter ? active : "hover:bg-slate-800/80"
-                      }`}
+                      className={`dash-metric-card dash-fade-up ${delay} border bg-slate-900/50 p-4 text-left ${ring} ${statusFilter === filter ? active : "hover:bg-slate-800/80"
+                        }`}
                     >
                       <p className="dash-metric-label text-xs font-semibold uppercase tracking-wide text-slate-500">
                         {label}
@@ -888,7 +884,7 @@ export default function AdminAttendanceSheet() {
                               <td className="px-5 py-4 text-sm text-slate-300 ">
                                 {record.employee_id}
                               </td>
-                              <td className="px-5 py-4 text-slate-300"> 
+                              <td className="px-5 py-4 text-slate-300">
                                 <p className="text-sm text-slate-500 font-bold">
                                   {record.designation}
                                 </p>
@@ -1051,11 +1047,10 @@ export default function AdminAttendanceSheet() {
                         key={key}
                         type="button"
                         onClick={() => setLeaveFilter(key)}
-                        className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition ${
-                          active
-                            ? activeClass
-                            : "dash-leave-filter-inactive border-slate-700 bg-slate-800/80 text-slate-400 hover:border-slate-600 hover:text-white"
-                        }`}
+                        className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition ${active
+                          ? activeClass
+                          : "dash-leave-filter-inactive border-slate-700 bg-slate-800/80 text-slate-400 hover:border-slate-600 hover:text-white"
+                          }`}
                       >
                         {icon}
                         {label}
@@ -1311,11 +1306,10 @@ export default function AdminAttendanceSheet() {
                         key={key}
                         type="button"
                         onClick={() => setRegFilter(key)}
-                        className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition ${
-                          active
-                            ? activeClass
-                            : "border-slate-700 bg-slate-800/80 text-slate-400 hover:border-slate-600 hover:text-white"
-                        }`}
+                        className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition ${active
+                          ? activeClass
+                          : "border-slate-700 bg-slate-800/80 text-slate-400 hover:border-slate-600 hover:text-white"
+                          }`}
                       >
                         {icon}
                         {label}

@@ -40,6 +40,7 @@ import { enqueueMarkPresent, flushOfflineQueue } from "../../utils/offlineQueue"
 import InstallPwaButton from "../../components/common/InstallPwaButton";
 import PortalModal from "../../components/common/PortalModal";
 import EmptyState from "../../components/common/EmptyState";
+import { formatLateDuration } from "../../utils/formatLateDuration";
 
 interface AttendanceRecord {
   employee_id: string;
@@ -49,6 +50,7 @@ interface AttendanceRecord {
   check_out: string;
   duration: string;
   status: string;
+  minutes_late?: number;
   reason?: string;
   half_day_until?: string;
   profile_img?: string;
@@ -290,6 +292,19 @@ export default function Dashboard() {
     !loading &&
     !todayRecord &&
     !anyModalOpen;
+
+  useEffect(() => {
+    if (
+      selectedDate === today &&
+      todayRecord &&
+      (todayRecord.status === "late" || (todayRecord.minutes_late ?? 0) > 0)
+    ) {
+      const mins = todayRecord.minutes_late ?? 0;
+      if (mins > 0) {
+        setLateAlert({ show: true, minutesLate: mins });
+      }
+    }
+  }, [todayRecord, today, selectedDate]);
 
   // ── Auto-dismiss alerts ───────────────────────────────────────────────
   const showSuccess = useCallback((msg: string) => {
@@ -634,8 +649,11 @@ export default function Dashboard() {
             <div>
               <p className="font-bold">You checked in late!</p>
               <p className="text-sm">
-                {lateAlert.minutesLate} minutes late today. Please be on time
-                tomorrow.
+                You are{" "}
+                <span className="font-semibold">
+                  {formatLateDuration(lateAlert.minutesLate)}
+                </span>{" "}
+                late today. Please be on time tomorrow.
               </p>
             </div>
           </div>

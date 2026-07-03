@@ -8,6 +8,7 @@ urlpatterns = [
     path("verify-face/", views.verify_face, name="verify-face"),
     path("send-verify-otp/", views.send_verify_otp, name="send-verify-otp"),
     path("verify-otp/", views.verify_otp, name="verify-otp"),
+    path("verify-pin/", views.verify_pin, name="verify-pin"),
     path("today-marked/", views.today_attendance_marked, name="today-marked"),
     path("check-in/", views.check_in_face, name="check-in"),
     path("check-out/", views.check_out_face, name="check-out"),
