@@ -9,10 +9,24 @@ from django.http import HttpResponse
 import pytz
 from django.conf import settings
 from rest_framework.decorators import api_view
+from rest_framework.response import Response
 from employees.face_utils import extract_and_save_embedding, verify_face_match
 from employees.views import generate_otp, otp_html, send_email
 from employees.media_utils import media_url, resolve_employee_profile_url
-from rest_framework.response import Response
+from attendance.hr_utils import (
+    is_holiday,
+    get_work_mode,
+    parse_location_for_mode,
+    is_before_shift_start,
+    shift_start_message,
+    compute_late_status,
+    compute_work_duration_minutes,
+    maybe_create_overtime_request,
+    check_leave_balance,
+    apply_leave_balance,
+    leave_days_between,
+    get_or_create_leave_balance,
+)
 
 IST = pytz.timezone("Asia/Kolkata")
 TEMP_DIR = "media/temp"
@@ -540,7 +554,9 @@ def check_out_face(request):
                 }
             )
 
-        location = parse_location(request.data)
+        location = parse_location_for_mode(
+            request.data, getattr(record, "work_mode", "office") or "office"
+        )
         if not location["allowed"]:
             return Response({"success": False, "error": location["message"]}, status=403)
 
@@ -548,15 +564,16 @@ def check_out_face(request):
         if check_in.tzinfo is None:
             check_in = IST.localize(check_in)
 
-        duration = max(0, int((now - check_in).total_seconds() / 60))
         record.check_out_time = now
         record.check_out_latitude = location["latitude"]
         record.check_out_longitude = location["longitude"]
         record.location_status = location["status"]
         record.location_distance_meters = location["distance"]
-        record.duration_minutes = duration
+        record.duration_minutes = compute_work_duration_minutes(record)
         record.save()
 
+        maybe_create_overtime_request(employee, record)
+        duration = record.duration_minutes
         hours = duration // 60
         minutes = duration % 60
 
@@ -570,6 +587,7 @@ def check_out_face(request):
                 "duration": format_duration(duration),
                 "location_status": location["status"],
                 "location_message": location["message"],
+                "overtime_minutes": getattr(record, "overtime_minutes", 0) or 0,
             }
         )
 
@@ -697,10 +715,10 @@ def monthly_summary(request):
                 counts["absent"] += 1
             elif s in ("half_day", "half day"):
                 counts["half_day"] += 1
-            elif s == "leave":
+            elif s in ("leave", "leave_approved"):
                 counts["leave"] += 1
 
-            total_minutes += r.duration_minutes or 0
+            total_minutes += compute_work_duration_minutes(r)
 
         total_hours = total_minutes // 60
         total_mins = total_minutes % 60
@@ -1156,6 +1174,7 @@ def request_leave(request):
         employee_id = request.data.get("employee_id", "").strip()
         reason = request.data.get("reason", "").strip()
         leave_date = request.data.get("leave_date", "").strip()
+        leave_end_date = request.data.get("leave_end_date", "").strip() or leave_date
         leave_type = request.data.get("leave_type", "casual").strip()
 
         if not all([employee_id, reason, leave_date]):
@@ -1173,30 +1192,51 @@ def request_leave(request):
                 {"success": False, "error": "Employee not found"}, status=404
             )
 
-        # Check if already applied for this date
-        existing = AttendanceRecord.objects(
-            employee_id=employee_id, date=leave_date
-        ).first()
-        if existing:
+        holiday = is_holiday(leave_date, employee.department)
+        if holiday:
             return Response(
-                {"success": False, "error": "Attendance already marked for this date"},
+                {"success": False, "error": f"{leave_date} is a holiday: {holiday.name}"},
                 status=400,
             )
 
-        record = AttendanceRecord(
-            employee_id=employee_id,
-            employee_name=employee.name,
-            date=leave_date,
-            status="leave_pending",  # pending approval
-            reason=reason,
-            leave_type=leave_type,
-        )
-        record.save()
+        days = leave_days_between(leave_date, leave_end_date)
+        ok, balance_err = check_leave_balance(employee_id, leave_type, days)
+        if not ok:
+            return Response({"success": False, "error": balance_err}, status=400)
+
+        # Check if already applied for any date in range
+        start_dt = datetime.strptime(leave_date, "%Y-%m-%d")
+        end_dt = datetime.strptime(leave_end_date, "%Y-%m-%d")
+        cur = start_dt
+        while cur <= end_dt:
+            d = cur.strftime("%Y-%m-%d")
+            existing = AttendanceRecord.objects(employee_id=employee_id, date=d).first()
+            if existing:
+                return Response(
+                    {"success": False, "error": f"Attendance already marked for {d}"},
+                    status=400,
+                )
+            cur += timedelta(days=1)
+
+        cur = start_dt
+        while cur <= end_dt:
+            d = cur.strftime("%Y-%m-%d")
+            record = AttendanceRecord(
+                employee_id=employee_id,
+                employee_name=employee.name,
+                date=d,
+                status="leave_pending",
+                reason=reason,
+                leave_type=leave_type,
+                leave_end_date=leave_end_date if leave_end_date != leave_date else "",
+            )
+            record.save()
+            cur += timedelta(days=1)
 
         return Response(
             {
                 "success": True,
-                "message": f"Leave requested for {leave_date}. Awaiting admin approval.",
+                "message": f"Leave requested for {leave_date}" + (f" to {leave_end_date}" if leave_end_date != leave_date else "") + ". Awaiting admin approval.",
             }
         )
 
@@ -1309,6 +1349,9 @@ def approve_leave(request):
         record.status = "leave_approved" if action == "approve" else "leave_rejected"
         record.leave_notification_seen = False
         record.save()
+
+        if action == "approve":
+            apply_leave_balance(record.employee_id, record.leave_type or "casual", 1.0)
 
         return Response(
             {
@@ -1431,29 +1474,28 @@ def mark_present(request):
         now = current_ist()
         today = now.strftime("%Y-%m-%d")
 
-        if is_before_attendance_start(now):
+        holiday = is_holiday(today, employee.department)
+        if holiday:
             return Response(
-                {"success": False, "error": attendance_start_message()}, status=403
+                {"success": False, "error": f"Today is a holiday: {holiday.name}"},
+                status=400,
+            )
+
+        if is_before_shift_start(employee, now):
+            return Response(
+                {"success": False, "error": shift_start_message(employee)}, status=403
             )
 
         existing = AttendanceRecord.objects(employee_id=employee_id, date=today).first()
         if existing:
             return Response({"success": True, "message": "⚠️ Already marked for today"})
 
-        location = parse_location(request.data)
+        work_mode = get_work_mode(employee, request.data.get("work_mode", ""))
+        location = parse_location_for_mode(request.data, work_mode)
         if not location["allowed"]:
             return Response({"success": False, "error": location["message"]}, status=403)
 
-        expected_time = now.replace(
-            hour=ATTENDANCE_START_HOUR, minute=ATTENDANCE_START_MINUTE
-        )
-        grace_deadline = expected_time + timedelta(minutes=LATE_GRACE_MINUTES)
-        att_status = "present" if now <= grace_deadline else "late"
-        minutes_late = (
-            max(0, int((now - grace_deadline).total_seconds() / 60))
-            if att_status == "late"
-            else 0
-        )
+        att_status, minutes_late = compute_late_status(employee, now)
 
         record = AttendanceRecord(
             employee_id=employee_id,
@@ -1462,6 +1504,7 @@ def mark_present(request):
             check_in_time=now,
             status=att_status,
             minutes_late=minutes_late,
+            work_mode=work_mode,
             check_in_latitude=location["latitude"],
             check_in_longitude=location["longitude"],
             location_status=location["status"],
@@ -1470,6 +1513,8 @@ def mark_present(request):
         record.save()
 
         msg = "Marked as present"
+        if work_mode in ("wfh", "remote"):
+            msg = "Marked as present (WFH)"
         if att_status == "late":
             msg = f"Marked as present (⚠️ {minutes_late} mins late)"
 

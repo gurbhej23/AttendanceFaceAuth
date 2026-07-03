@@ -5,6 +5,7 @@ import {
   CheckCheck,
   Minus,
   MoreVertical,
+  Paperclip,
   Pencil,
   Trash2,
   User,
@@ -13,13 +14,18 @@ import {
 import API from "../../services/api";
 import EmojiPicker from "./EmojiPicker";
 import Button from "../common/Button";
+import { MotionMessageBubble } from "../motion/MotionPrimitives";
+import { chatWindowSlide } from "../../motion/presets";
+import { motion } from "framer-motion";
 import ProfileAvatarImg from "../common/ProfileAvatarImg";
+import ChatAttachments from "./ChatAttachments";
 import type { ChatMessage, Contact } from "../../utils/chatHelpers";
 import {
   formatLastSeen,
   formatMessageDate,
   getMediaUrl,
   mergeChatMessages,
+  visibleChatMessage,
 } from "../../utils/chatHelpers";
 
 function AvatarWithPresence({
@@ -120,6 +126,8 @@ export default function DirectChatPopup({
   const contactRef = useRef(contact);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
+  const [pendingFiles, setPendingFiles] = useState<{ data: string; name: string }[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState("");
   const [showInputEmoji, setShowInputEmoji] = useState(false);
@@ -305,12 +313,12 @@ export default function DirectChatPopup({
 
   const sendMessage = async () => {
     const text = draft.trim();
-    if (!text || sending) return;
+    if ((!text && !pendingFiles.length) || sending) return;
     setSendError("");
     setSending(true);
     const socket = socketRef.current;
 
-    if (socket?.readyState === WebSocket.OPEN) {
+    if (socket?.readyState === WebSocket.OPEN && !pendingFiles.length) {
       const optimistic: ChatMessage = {
         id: `pending-${Date.now()}`,
         sender_id: employeeId,
@@ -341,11 +349,13 @@ export default function DirectChatPopup({
         sender_id: employeeId,
         recipient_id: contact.employee_id,
         message: text,
+        attachments: pendingFiles,
       });
       if (res.data.success && res.data.message) {
         const saved = res.data.message as ChatMessage;
         if (belongsToChat(saved)) upsertMessage(saved);
         setDraft("");
+        setPendingFiles([]);
       } else {
         setSendError(res.data.error || "Message not sent");
       }
@@ -445,10 +455,14 @@ export default function DirectChatPopup({
           {notification.message}
         </div>
       )}
-      <div
+      <motion.div
+        initial={chatWindowSlide.initial}
+        animate={chatWindowSlide.animate}
+        exit={chatWindowSlide.exit}
+        transition={chatWindowSlide.transition}
         className={`chat-popup flex flex-col overflow-hidden bg-slate-900 ${fullScreen
           ? "h-[100dvh] w-full"
-          : "h-[min(70vh,480px)] w-[min(calc(100vw-1.5rem),450px)] rounded-2xl border border-b-0 border-slate-700/80 shadow-2xl shadow-black/50 sm:rounded-t-2xl"
+          : "h-[min(70vh,480px)] w-[min(calc(100vw-1.5rem),450px)] rounded-t-2xl border border-b-0 border-slate-700/80 shadow-2xl shadow-black/50 sm:rounded-t-2xl"
           }`}
       >
         <div className="flex shrink-0 items-center gap-2 border-b border-slate-800 px-4 py-3">
@@ -560,7 +574,7 @@ export default function DirectChatPopup({
             const isEditing = editingMsgId === msg.id;
 
             return (
-              <div key={msg.id}>
+              <MotionMessageBubble key={msg.id}>
                 {showDate && (
                   <div className="my-3 text-center text-[10px] text-slate-500">
                     <span className="rounded-full bg-slate-800 px-2 py-1">
@@ -658,11 +672,20 @@ export default function DirectChatPopup({
                             : "chat-bubble-in bg-slate-800 text-slate-100"
                           }`}
                       >
-                        <p className="whitespace-pre-wrap wrap-break-words">
-                          {msg.message}
-                        </p>
+                        {(() => {
+                          const body = visibleChatMessage(msg.message, msg.attachments);
+                          return body ? (
+                            <p className="whitespace-pre-wrap wrap-break-words">{body}</p>
+                          ) : null;
+                        })()}
+                        <ChatAttachments attachments={msg.attachments} mine={mine} />
                         <div className="mt-1 flex items-center justify-end gap-1 text-[10px] opacity-70">
                           {msg.is_edited && !msg.is_deleted && <span>edited</span>}
+                          {mine && msg.read_at && (
+                            <span title={`Read ${new Date(msg.read_at).toLocaleString()}`}>
+                              read
+                            </span>
+                          )}
                           <span>
                             {new Date(msg.created_at).toLocaleTimeString([], {
                               hour: "2-digit",
@@ -683,7 +706,7 @@ export default function DirectChatPopup({
                     )}
                   </div>
                 </div>
-              </div>
+              </MotionMessageBubble>
             );
           })}
           <div ref={bottomRef} />
@@ -692,6 +715,18 @@ export default function DirectChatPopup({
         <div className="shrink-0 border-t border-slate-800 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           {sendError && (
             <p className="mb-2 text-xs text-red-300">{sendError}</p>
+          )}
+          {pendingFiles.length > 0 && (
+            <p className="mb-2 text-xs text-slate-400">
+              {pendingFiles.length} file(s) attached
+              <button
+                type="button"
+                onClick={() => setPendingFiles([])}
+                className="ml-2 text-red-300 hover:underline cursor-pointer"
+              >
+                clear
+              </button>
+            </p>
           )}
           <div className="flex items-end gap-2">
             <div className="relative">
@@ -717,6 +752,32 @@ export default function DirectChatPopup({
                 />
               )}
             </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,.pdf"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const data = await new Promise<string>((resolve, reject) => {
+                  const reader = new FileReader();
+                  reader.onload = () => resolve(reader.result as string);
+                  reader.onerror = reject;
+                  reader.readAsDataURL(file);
+                });
+                setPendingFiles((f) => [...f, { data, name: file.name }]);
+                e.target.value = "";
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 cursor-pointer"
+              title="Attach file"
+            >
+              <Paperclip size={18} />
+            </button>
             <textarea
               ref={inputRef}
               value={draft}
@@ -734,14 +795,14 @@ export default function DirectChatPopup({
             <Button
               type="button"
               onClick={sendMessage}
-              disabled={!draft.trim() || sending}
+              disabled={(!draft.trim() && !pendingFiles.length) || sending}
               loading={sending}
               text="Send"
               className="h-10 shrink-0 rounded-xl bg-blue-600 px-4 text-sm hover:bg-blue-700"
             />
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {deleteMsgId && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">

@@ -28,6 +28,8 @@ class Employee(me.Document):
     attendance_otp = me.StringField(default="")
     is_online = me.BooleanField(default=False)
     last_seen = me.DateTimeField(default=datetime.now)
+    date_of_birth = me.StringField(default="")
+    join_date = me.StringField(default="")
 
     meta = {"collection": "employees", "strict": False}
 
@@ -52,6 +54,9 @@ class ChatMessage(me.Document):
     is_edited = me.BooleanField(default=False)
     is_deleted = me.BooleanField(default=False)
     reactions = me.DictField(default=dict)
+    attachments = me.ListField(me.DictField(), default=list)
+    mentions = me.ListField(me.StringField(), default=list)
+    read_at = me.DateTimeField(null=True)
     created_at = me.DateTimeField(default=utc_now)
 
     meta = {
@@ -108,12 +113,17 @@ class GroupMessage(me.Document):
     sender_name = me.StringField(default="")
 
     message = me.StringField(required=True)
-    message_type = me.StringField(default="user")  # user | system
+    message_type = me.StringField(default="user")  # user | system | poll | scheduled
 
     is_edited = me.BooleanField(default=False)
     is_deleted = me.BooleanField(default=False)
     read_by = me.ListField(me.StringField(), default=list)
     reactions = me.DictField(default=dict)
+    attachments = me.ListField(me.DictField(), default=list)
+    mentions = me.ListField(me.StringField(), default=list)
+    poll_data = me.DictField(default=dict)
+    scheduled_for = me.DateTimeField(null=True)
+    scheduled_published = me.BooleanField(default=False)
     created_at = me.DateTimeField(default=utc_now)
 
     meta = {

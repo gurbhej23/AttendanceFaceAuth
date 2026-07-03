@@ -1,4 +1,5 @@
 from django.urls import path
+from . import extras_views
 from .views import (
     register_employee,
     login_employee,
@@ -95,4 +96,20 @@ urlpatterns = [
         name="chat-groups-remove-member",
     ),
     path("chat-groups/<str:group_id>/", delete_group, name="chat-groups-delete"),
+    # Extras: directory, announcements, streak, polls, reminders
+    path("team-directory/", extras_views.team_directory, name="team-directory"),
+    path("announcements/", extras_views.announcements, name="announcements"),
+    path(
+        "announcements/<str:announcement_id>/",
+        extras_views.announcement_delete,
+        name="announcement-delete",
+    ),
+    path("dashboard-extras/", extras_views.dashboard_extras, name="dashboard-extras"),
+    path("attendance-streak/", extras_views.attendance_streak, name="attendance-streak"),
+    path(
+        "send-attendance-reminders/",
+        extras_views.send_attendance_reminders,
+        name="send-attendance-reminders",
+    ),
+    path("group-poll/vote/", extras_views.group_poll_vote, name="group-poll-vote"),
 ]

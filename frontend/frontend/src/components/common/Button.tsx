@@ -1,4 +1,5 @@
 import type React from "react";
+import { motion } from "framer-motion";
 
 interface ButtonProps {
   text?: React.ReactNode;
@@ -36,13 +37,15 @@ export default function Button({
     : "cursor-pointer rounded-2xl font-semibold transition duration-200 disabled:cursor-not-allowed disabled:opacity-50";
 
   return (
-    <button
+    <motion.button
       type={type}
       onClick={onClick}
       disabled={isDisabled}
       title={title}
       aria-label={ariaLabel}
       aria-busy={loading || undefined}
+      whileTap={isDisabled ? undefined : { scale: 0.97 }}
+      transition={{ duration: 0.12 }}
       className={`${baseClass} ${badgeCount != null && badgeCount > 0 ? "relative" : ""} ${className}`.trim()}
     >
       {loading ? (
@@ -55,10 +58,10 @@ export default function Button({
       )}
 
       {badgeCount != null && badgeCount > 0 && (
-        <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
+        <span className="notification-badge-pulse absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
           {badgeCount > 9 ? "9+" : badgeCount}
         </span>
       )}
-    </button>
+    </motion.button>
   );
 }

@@ -1,7 +1,10 @@
 import { LogOut, X } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import Button from "./common/Button";
 import ProfileAvatarImg from "./common/ProfileAvatarImg";
 import ThemeToggle from "./common/ThemeToggle";
+import { createPortal } from "react-dom";
+import { sidebarDrawer, sidebarOverlay } from "../motion/presets";
 
 export interface AdminNavItem {
   icon: React.ReactNode;
@@ -58,7 +61,7 @@ function NavIcon({ children }: { children: React.ReactNode }) {
 
 function NavBadge({ count }: { count: number }) {
   return (
-    <span className="sidebar-nav-badge absolute -right-1.5 -top-1.5 z-10 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-slate-950">
+    <span className="notification-badge-pulse sidebar-nav-badge absolute -right-1.5 -top-1.5 z-10 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-slate-950">
       {count > 99 ? "99+" : count}
     </span>
   );
@@ -73,6 +76,7 @@ export default function AdminSidebar({
   adminRole = "HR",
   profileImg,
 }: Props) {
+  const reducedMotion = useReducedMotion();
   const iconWellTone = (isActive: boolean) =>
     isActive
       ? "bg-blue-600/30 text-blue-100"
@@ -90,15 +94,13 @@ export default function AdminSidebar({
           item.onClick();
           onMobileClose();
         }}
-        className={`sidebar-nav-item group/item flex shrink-0 items-center rounded-2xl ${
-          mobile
-            ? "h-12 w-full gap-3 px-1.5"
-            : `mx-auto ${SQUIRCLE} justify-center p-0 lg:group-hover/sidebar:h-12 lg:group-hover/sidebar:w-full lg:group-hover/sidebar:justify-start lg:group-hover/sidebar:gap-3 lg:group-hover/sidebar:px-0`
-        } ${
-          isActive
+        className={`sidebar-nav-item group/item flex shrink-0 items-center rounded-2xl ${mobile
+          ? "h-12 w-full gap-3 px-1.5"
+          : `mx-auto ${SQUIRCLE} justify-center p-0 lg:group-hover/sidebar:h-12 lg:group-hover/sidebar:w-full lg:group-hover/sidebar:justify-start lg:group-hover/sidebar:gap-3 lg:group-hover/sidebar:px-0`
+          } ${isActive
             ? "sidebar-nav-item-active bg-blue-600/15 text-blue-100"
             : "text-slate-300 hover:bg-white/[0.07] hover:text-white"
-        }`}
+          }`}
         title={item.label}
         aria-label={item.label}
         aria-current={isActive ? "page" : undefined}
@@ -110,11 +112,10 @@ export default function AdminSidebar({
           {hasBadge && <NavBadge count={item.badgeCount!} />}
         </span>
         <span
-          className={`truncate text-xs font-semibold ${
-            mobile
-              ? "block min-w-0 flex-1 text-left"
-              : "hidden w-0 overflow-hidden lg:group-hover/sidebar:block lg:group-hover/sidebar:w-auto lg:group-hover/sidebar:flex-1"
-          }`}
+          className={`sidebar-nav-label truncate text-xs font-semibold transition-opacity duration-200 ${mobile
+            ? "block min-w-0 flex-1 text-left opacity-100"
+            : "hidden w-0 overflow-hidden opacity-0 lg:group-hover/sidebar:block lg:group-hover/sidebar:w-auto lg:group-hover/sidebar:flex-1 lg:group-hover/sidebar:opacity-100"
+            }`}
         >
           {item.label}
         </span>
@@ -131,11 +132,10 @@ export default function AdminSidebar({
       }}
       title="Logout"
       aria-label="Logout"
-      className={`sidebar-nav-logout flex shrink-0 items-center rounded-2xl text-red-200 hover:bg-red-500/10 ${
-        mobile
-          ? "h-12 w-full gap-3 px-1.5 text-sm font-semibold"
-          : `mx-auto ${SQUIRCLE} justify-center p-0 lg:group-hover/sidebar:h-12 lg:group-hover/sidebar:w-full lg:group-hover/sidebar:justify-start lg:group-hover/sidebar:gap-3 lg:group-hover/sidebar:px-1.5`
-      }`}
+      className={`sidebar-nav-logout flex shrink-0 items-center rounded-2xl text-red-200 hover:bg-red-500/10 ${mobile
+        ? "h-12 w-full gap-3 px-1.5 text-sm font-semibold"
+        : `mx-auto ${SQUIRCLE} justify-center p-0 lg:group-hover/sidebar:h-12 lg:group-hover/sidebar:w-full lg:group-hover/sidebar:justify-start lg:group-hover/sidebar:gap-3 lg:group-hover/sidebar:px-1.5`
+        }`}
     >
       <span
         className={`sidebar-nav-icon-box flex items-center justify-center rounded-2xl border border-red-500/25 bg-red-500/15 text-red-300 ${SQUIRCLE}`}
@@ -143,11 +143,10 @@ export default function AdminSidebar({
         <LogOut size={18} className="shrink-0" />
       </span>
       <span
-        className={`truncate text-sm font-semibold ${
-          mobile
-            ? "block"
-            : "hidden w-0 overflow-hidden lg:group-hover/sidebar:block lg:group-hover/sidebar:w-auto"
-        }`}
+        className={`sidebar-nav-label truncate text-sm font-semibold transition-opacity duration-200 ${mobile
+          ? "block opacity-100"
+          : "hidden w-0 overflow-hidden opacity-0 lg:group-hover/sidebar:block lg:group-hover/sidebar:w-auto lg:group-hover/sidebar:opacity-100"
+          }`}
       >
         Logout
       </span>
@@ -160,23 +159,33 @@ export default function AdminSidebar({
   const mobileRailShell =
     "sidebar-rail flex h-dvh max-h-dvh flex-col overflow-hidden pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]";
 
-  return (
+  return createPortal(
     <>
-      <div
-        className={`fixed inset-0 z-40 bg-black/60 backdrop-blur-sm sidebar-transition lg:hidden ${
-          mobileOpen
-            ? "pointer-events-auto opacity-100"
-            : "pointer-events-none opacity-0"
-        }`}
-        onClick={onMobileClose}
-        aria-hidden={!mobileOpen}
-      />
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.div
+            key="sidebar-overlay"
+            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+            initial={reducedMotion ? false : sidebarOverlay.initial}
+            animate={reducedMotion ? { opacity: 1 } : sidebarOverlay.animate}
+            exit={sidebarOverlay.exit}
+            transition={sidebarOverlay.transition}
+            onClick={onMobileClose}
+            aria-hidden={!mobileOpen}
+          />
+        )}
+      </AnimatePresence>
 
-      <aside
-        className={`${mobileRailShell} fixed left-0 top-0 z-99 w-[min(88vw,320px)] border-r border-white/10 bg-slate-950 shadow-2xl backdrop-blur-xl sidebar-transition lg:hidden ${
-          mobileOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.aside
+            key="sidebar-drawer"
+            className={`${mobileRailShell} z-app-sidebar fixed left-0 top-0 w-[min(88vw,320px)] border-r border-white/10 bg-slate-950 shadow-2xl backdrop-blur-xl lg:hidden`}
+            initial={reducedMotion ? false : sidebarDrawer.initial}
+            animate={reducedMotion ? { x: 0 } : sidebarDrawer.animate}
+            exit={sidebarDrawer.exit}
+            transition={sidebarDrawer.transition}
+          >
         <div className="sidebar-rail-top w-full shrink-0 px-4 pb-2">
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
@@ -205,14 +214,16 @@ export default function AdminSidebar({
           <ThemeToggle mobile showLabel />
           {logoutButton(true)}
         </div>
-      </aside>
+          </motion.aside>
+        )}
+      </AnimatePresence>
 
       <aside
-        className={`${railShell} group/sidebar fixed bottom-4 left-3 top-4 z-30 hidden w-[72px] rounded-[28px] border border-white/10 bg-slate-950 shadow-2xl backdrop-blur-xl transition-[width] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] hover:w-64 lg:flex`}
+        className={`${railShell} group/sidebar z-app-sidebar fixed bottom-4 left-3 top-4 hidden w-[72px] rounded-[28px] border border-white/10 bg-slate-950 shadow-2xl backdrop-blur-xl transition-[width] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] hover:w-64 lg:flex`}
       >
         <div className="sidebar-rail-top flex w-full shrink-0 items-center gap-2 p-3">
           <ProfileAvatar adminName={adminName} profileImg={profileImg} />
-          <div className="hidden w-full min-w-0 px-1 text-center group-hover/sidebar:block">
+          <div className="hidden w-full min-w-0 px-1 text-center opacity-0 transition-opacity duration-200 group-hover/sidebar:block group-hover/sidebar:opacity-100">
             <p className="truncate text-sm font-bold text-white">{adminName}</p>
             <p className="truncate text-[11px] text-slate-400">{adminRole}</p>
           </div>
@@ -227,6 +238,7 @@ export default function AdminSidebar({
           {logoutButton(false)}
         </div>
       </aside>
-    </>
+    </>,
+    document.body
   );
 }

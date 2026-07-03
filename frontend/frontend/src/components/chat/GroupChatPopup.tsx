@@ -97,7 +97,7 @@ export default function GroupChatPopup({
       className={`chat-popup flex flex-col overflow-hidden bg-slate-900 ${
         fullScreen
           ? "h-[100dvh] w-full"
-          : "h-[min(70vh,480px)] w-[min(calc(100vw-1.5rem),450px)] rounded-2xl border border-b-0 border-violet-700/40 shadow-2xl shadow-black/50 sm:rounded-t-2xl"
+          : "h-[min(70vh,480px)] w-[min(calc(100vw-1.5rem),450px)] rounded-t-2xl border border-b-0 border-violet-700/40 shadow-2xl shadow-black/50 sm:rounded-t-2xl"
       }`}
     >
       <div className="flex shrink-0 items-center gap-2 border-b border-slate-800 px-3 py-3">

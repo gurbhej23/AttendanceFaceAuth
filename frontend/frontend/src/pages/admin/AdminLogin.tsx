@@ -14,6 +14,12 @@ import {
   LOGIN_SUBMIT_BUTTON,
 } from "../../components/auth/loginStyles";
 import { Eye, EyeOff, ShieldUser, UserRound } from "lucide-react";
+import {
+  MotionButton,
+  MotionCard,
+  MotionNav,
+  StaggerGroup,
+} from "../../components/motion/MotionPrimitives";
 
 export default function AdminLogin() {
   const navigate = useNavigate();
@@ -86,115 +92,119 @@ export default function AdminLogin() {
   };
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center gap-5 overflow-hidden bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] p-6">
-      <div className={LOGIN_ROLE_TOGGLE_SHELL}>
-        <Button
-          text="Employee"
-          onClick={() => navigate("/", { replace: true })}
-          className="bg-slate-800/80 py-3 text-slate-400 hover:bg-slate-700 cursor-pointer"
-        />
-
-        <Button
-          text="Admin"
-          className="bg-linear-to-r from-blue-600 to-cyan-500 py-3 text-white shadow-lg shadow-cyan-500/20 cursor-pointer"
-        />
-      </div>
-
-      <div className={`${LOGIN_OUTER_SHELL} xl:grid-cols-[250px_1.45fr]`}>
-        <section
-          className={`${LOGIN_INNER_PANEL} flex flex-col items-center justify-evenly gap-5 p-4 text-center`}
-        >
-          <h1 className="text-3xl font-bold text-white">Attendance</h1>
-          <div className="rounded-full border border-cyan-300/30 bg-slate-950/70 p-2 text-white shadow-xl shadow-cyan-500/10">
-            <ShieldUser size={150} strokeWidth={0.5} />
-          </div>
-          <div>
-            <h2 className="text-xl font-semibold text-white">Admin Portal Login</h2> 
-          </div>
-        </section>
-
-        <section
-          className={`${LOGIN_INNER_PANEL} flex flex-col justify-center p-5`}
-        >
-          <form
-            className="space-y-5"
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleLogin();
-            }}
-          >
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-200">
-                Administrator ID
-              </label>
-              <div className="relative">
-                <UserRound size={20} className={LOGIN_FIELD_ICON} />
-                <input
-                  type="text"
-                  placeholder="Enter admin ID"
-                  value={formData.employee_id}
-                  autoComplete="username"
-                  name="username"
-                  onChange={(e) =>
-                    setFormData({ ...formData, employee_id: e.target.value })
-                  }
-                  onKeyDown={handleKeyPress}
-                  className={LOGIN_INPUT_WITH_LEADING_ICON}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-200">
-                Password
-              </label>
-              <div className="relative">
-                <input
-                  type={showPass ? "text" : "password"}
-                  placeholder="Enter password"
-                  value={formData.password}
-                  autoComplete="current-password"
-                  name="password"
-                  onChange={(e) =>
-                    setFormData({ ...formData, password: e.target.value })
-                  }
-                  onKeyDown={handleKeyPress}
-                  className={LOGIN_PASSWORD_INPUT}
-                />
-                <Button
-                  text={showPass ? <EyeOff size={20} /> : <Eye size={20} />}
-                  type="button"
-                  unstyled
-                  onClick={() => setShowPass(!showPass)}
-                  className={LOGIN_EYE_BUTTON}
-                  aria-label={showPass ? "Hide password" : "Show password"}
-                />
-              </div>
-            </div>
-
-            {error && (
-              <div className="dash-squircle border border-red-500/30 bg-red-500/10 p-4 text-center text-sm text-red-300">
-                {error}
-              </div>
-            )}
-
-            <div className="text-right">
-              <Button
-                text="Forgot Password?"
-                onClick={() => navigate("/forgot-password")}
-                className="text-sm text-blue-300 hover:text-blue-200 cursor-pointer"
-              />
-            </div>
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] p-6">
+      <StaggerGroup className="flex w-full max-w-5xl flex-col items-center">
+        <MotionNav className="w-full max-w-md">
+          <div className={LOGIN_ROLE_TOGGLE_SHELL}>
+            <Button
+              text="Employee"
+              onClick={() => navigate("/", { replace: true })}
+              className="bg-slate-800/80 py-3 text-slate-400 hover:bg-slate-700 cursor-pointer"
+            />
 
             <Button
-              text={loading ? "Verifying..." : "Secure Login"}
-              type="submit"
-              disabled={loading}
-              className={LOGIN_SUBMIT_BUTTON}
+              text="Admin"
+              className="bg-linear-to-r from-blue-600 to-cyan-500 py-3 text-white shadow-lg shadow-blue-500/20 cursor-pointer"
             />
-          </form>
-        </section>
-      </div>
+          </div>
+        </MotionNav>
+
+        <div className={`${LOGIN_OUTER_SHELL} mt-6 xl:grid-cols-[250px_1.45fr]`}>
+          <MotionCard
+            className={`${LOGIN_INNER_PANEL} flex flex-col items-center justify-evenly gap-5 p-4 text-center`}
+          >
+            <h1 className="text-3xl font-bold text-white">Attendance</h1>
+            <div className="rounded-full border border-cyan-300/30 bg-slate-950/70 p-2 text-white shadow-xl shadow-cyan-500/10">
+              <ShieldUser size={150} strokeWidth={0.5} />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold text-white">Admin Portal Login</h2>
+            </div>
+          </MotionCard>
+
+          <MotionCard className={`${LOGIN_INNER_PANEL} flex flex-col justify-center p-5`}>
+            <form
+              className="space-y-5"
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleLogin();
+              }}
+            >
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-200">
+                  Administrator ID
+                </label>
+                <div className="relative">
+                  <UserRound size={20} className={LOGIN_FIELD_ICON} />
+                  <input
+                    type="text"
+                    placeholder="Enter admin ID"
+                    value={formData.employee_id}
+                    autoComplete="username"
+                    name="username"
+                    onChange={(e) =>
+                      setFormData({ ...formData, employee_id: e.target.value })
+                    }
+                    onKeyDown={handleKeyPress}
+                    className={LOGIN_INPUT_WITH_LEADING_ICON}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-200">
+                  Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPass ? "text" : "password"}
+                    placeholder="Enter password"
+                    value={formData.password}
+                    autoComplete="current-password"
+                    name="password"
+                    onChange={(e) =>
+                      setFormData({ ...formData, password: e.target.value })
+                    }
+                    onKeyDown={handleKeyPress}
+                    className={LOGIN_PASSWORD_INPUT}
+                  />
+                  <Button
+                    text={showPass ? <EyeOff size={20} /> : <Eye size={20} />}
+                    type="button"
+                    unstyled
+                    onClick={() => setShowPass(!showPass)}
+                    className={LOGIN_EYE_BUTTON}
+                    aria-label={showPass ? "Hide password" : "Show password"}
+                  />
+                </div>
+              </div>
+
+              {error && (
+                <div className="dash-squircle border border-red-500/30 bg-red-500/10 p-4 text-center text-sm text-red-300">
+                  {error}
+                </div>
+              )}
+
+              <div className="text-right">
+                <Button
+                  text="Forgot Password?"
+                  onClick={() => navigate("/forgot-password")}
+                  className="text-sm text-blue-300 hover:text-blue-200 cursor-pointer"
+                />
+              </div>
+
+              <MotionButton>
+                <Button
+                  text={loading ? "Verifying..." : "Secure Login"}
+                  type="submit"
+                  disabled={loading}
+                  className={LOGIN_SUBMIT_BUTTON}
+                />
+              </MotionButton>
+            </form>
+          </MotionCard>
+        </div>
+      </StaggerGroup>
     </div>
   );
 }

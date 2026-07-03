@@ -94,21 +94,21 @@ export default function AttendanceTable({
                   }}
                 >
                   <td className="px-4 py-4">
-                    <div className="mx-auto h-14 w-14 overflow-hidden dash-squircle border border-white/15 bg-slate-800 shadow-sm">
+                    <div className="mx-auto h-14 w-14 overflow-hidden border border-white/15 bg-slate-800 shadow-sm rounded-full">
                       {avatarSrc ? (
                         <button
                           type="button"
                           onClick={() => navigate("/profile")}
-                          className="block h-full w-full"
+                          className="block h-full w-full rounded-full"
                         >
                           <ProfileAvatarImg
                             src={avatarSrc}
                             alt={record.employee_name}
-                            className="h-full w-full cursor-pointer"
+                            className="h-full w-full cursor-pointer  rounded-full"
                           />
                         </button>
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-blue-600 to-cyan-500 text-sm font-bold text-white">
+                        <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-blue-600 to-cyan-500 text-sm font-bold text-white  rounded-full">
                           {record.employee_name?.charAt(0)}
                         </div>
                       )}

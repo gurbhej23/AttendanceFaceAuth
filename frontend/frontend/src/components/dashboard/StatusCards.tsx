@@ -1,5 +1,9 @@
 import type { AttendanceRecord } from "../../types/attendance";
 import DashboardDatePicker from "../common/DashboardDatePicker";
+import {
+  MotionStaggerItem,
+  StaggerGroup,
+} from "../motion/MotionPrimitives";
 
 interface StatusProps {
   selectedDate: string;
@@ -41,8 +45,8 @@ export default function StatusCard({
   const isNotMarked = !todayStatus;
 
   return (
-    <div className="mb-3 grid grid-cols-2 gap-2 sm:mb-4 sm:gap-3 xl:grid-cols-3 xl:gap-5">
-      <div className="dash-shell-panel dash-fade-up dash-fade-up-delay-1 col-span-2 flex items-center gap-2.5 border border-white/10 bg-white/5 px-3 py-2 shadow-lg backdrop-blur-xl sm:gap-3 sm:px-4 sm:py-3 xl:col-span-1 xl:flex-col xl:items-stretch xl:gap-2 xl:p-4">
+    <StaggerGroup className="mb-3 grid grid-cols-2 gap-2 sm:mb-4 sm:gap-3 xl:grid-cols-3 xl:gap-5">
+      <MotionStaggerItem className="dash-shell-panel col-span-2 flex items-center gap-2.5 border border-white/10 bg-white/5 px-3 py-2 shadow-lg backdrop-blur-xl sm:gap-3 sm:px-4 sm:py-3 xl:col-span-1 xl:flex-col xl:items-stretch xl:gap-2 xl:p-4">
         <p className="dash-metric-label shrink-0 text-xs font-semibold text-slate-300 sm:text-sm xl:mb-0.5">
           Selected Date
         </p>
@@ -53,10 +57,10 @@ export default function StatusCard({
           compact
           className="min-w-0 flex-1"
         />
-      </div>
+      </MotionStaggerItem>
 
-      <div
-        className={`dash-fade-up dash-fade-up-delay-2 ${metricCard} bg-linear-to-br ${cardStyle.bg} ${cardStyle.border}`}
+      <MotionStaggerItem
+        className={`${metricCard} bg-linear-to-br ${cardStyle.bg} ${cardStyle.border}`}
       >
         <p className={`dash-metric-label font-semibold ${cardStyle.text} text-xs sm:text-sm`}>Today's Status</p>
         <div className="flex items-end justify-between gap-2">
@@ -73,10 +77,10 @@ export default function StatusCard({
             {cardStyle.icon}
           </div>
         </div>
-      </div>
+      </MotionStaggerItem>
 
-      <div
-        className={`dash-fade-up dash-fade-up-delay-3 ${metricCard} border-blue-500/20 bg-linear-to-br from-blue-500/20 to-cyan-500/10`}
+      <MotionStaggerItem
+        className={`${metricCard} border-blue-500/20 bg-linear-to-br from-blue-500/20 to-cyan-500/10`}
       >
         <p className="dash-metric-label text-xs font-semibold text-blue-300 sm:text-sm">Working Hours</p>
         <div className="flex items-end justify-between gap-2">
@@ -91,7 +95,7 @@ export default function StatusCard({
             ⏰
           </div>
         </div>
-      </div>
-    </div>
+      </MotionStaggerItem>
+    </StaggerGroup>
   );
 }

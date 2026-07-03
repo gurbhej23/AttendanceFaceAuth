@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import { useLocation } from "react-router-dom";
 import {
   MessageSquare,
   Search,
   Users,
-  ChevronUp,
+  X,
 } from "lucide-react";
 import API from "../../services/api";
 import DirectChatPopup from "./DirectChatPopup";
@@ -16,8 +18,10 @@ import type { ChatGroup, Contact, OpenChat } from "../../utils/chatHelpers";
 import { chatKey, getMediaUrl, getWsUrl, resolveBackendOrigin } from "../../utils/chatHelpers";
 import { listenNotificationAction } from "../../utils/notificationActions";
 import Button from "../common/Button";
+import EmptyState from "../common/EmptyState";
 import Input from "../common/Input";
 import ProfileAvatarImg from "../common/ProfileAvatarImg";
+import { chatPanelSlide } from "../../motion/presets";
 
 const HIDDEN_PATHS = new Set([
   "/",
@@ -452,6 +456,14 @@ export default function MessagingDrawer() {
   useEffect(() => {
     return listenNotificationAction((action) => {
       if (action.type === "open_chat") {
+        if (action.contact) {
+          setContacts((cur) => {
+            if (cur.some((c) => c.employee_id === action.contact!.employee_id)) {
+              return cur;
+            }
+            return [...cur, action.contact!];
+          });
+        }
         openChat(action.chat);
       }
     });
@@ -541,15 +553,28 @@ export default function MessagingDrawer() {
   const drawerPanel = (
     <div
       className={`chat-panel flex flex-col overflow-hidden border border-slate-700/60 bg-slate-800/98 shadow-2xl backdrop-blur-xl ${isMobile
-          ? "max-h-[min(85dvh,640px)] w-full border-b-0"
-          : "max-h-[min(75vh,520px)] w-full border-b-0"
+        ? "max-h-[min(80dvh,640px)] w-full border-b-0"
+        : "max-h-[min(75vh,520px)] w-full border-b-0"
         }`}
     >
+      <div className="flex justify-end gap-3 border-b border-slate-800 p-3">
+        <button
+          type="button"
+          onClick={() => setExpanded(false)}
+          aria-label="Close messages"
+          className="grid h-8 w-8 shrink-0 cursor-pointer place-items-center rounded-full text-slate-400 transition hover:bg-slate-700 hover:text-white"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+
       {groupAddedNotice && (
         <div className="border-b border-emerald-500/30 bg-emerald-500/15 px-4 py-2.5 text-center text-sm font-medium text-emerald-200">
           {groupAddedNotice}
         </div>
       )}
+
+      {/* rest of drawerPanel stays exactly the same */}
 
       <div className="border-b border-slate-800 p-3">
         <div className="relative">
@@ -575,8 +600,8 @@ export default function MessagingDrawer() {
           type="button"
           onClick={() => setTab("direct")}
           className={`flex flex-1 items-center justify-center gap-2 border-b-2 py-3 text-sm font-semibold transition cursor-pointer ${tab === "direct"
-              ? "border-cyan-500 text-cyan-300"
-              : "border-transparent text-slate-500 hover:text-slate-300"
+            ? "border-cyan-500 text-cyan-300"
+            : "border-transparent text-slate-500 hover:text-slate-300"
             }`}
         />
         <Button
@@ -589,8 +614,8 @@ export default function MessagingDrawer() {
           type="button"
           onClick={() => setTab("group")}
           className={`flex flex-1 items-center justify-center gap-2 border-b-2 py-3 text-sm font-semibold transition cursor-pointer ${tab === "group"
-              ? "border-violet-500 text-violet-300"
-              : "border-transparent text-slate-500 hover:text-slate-300"
+            ? "border-violet-500 text-violet-300"
+            : "border-transparent text-slate-500 hover:text-slate-300"
             }`}
         />
       </div>
@@ -602,9 +627,11 @@ export default function MessagingDrawer() {
           </p>
         ) : tab === "direct" ? (
           filteredContacts.length === 0 ? (
-            <p className="p-6 text-center text-sm text-slate-500">
-              No personal chats found
-            </p>
+            <EmptyState
+              icon={<MessageSquare className="h-7 w-7 text-slate-600" />}
+              title="No personal chats found"
+              className="py-8"
+            />
           ) : (
             filteredContacts.map((contact) => (
               <button
@@ -656,10 +683,12 @@ export default function MessagingDrawer() {
             ))
           )
         ) : filteredGroups.length === 0 ? (
-          <p className="p-6 text-center text-sm text-slate-500">
-            No groups found
-          </p>
-        ) : (
+            <EmptyState
+              icon={<Users className="h-7 w-7 text-slate-600" />}
+              title="No groups found"
+              className="py-8"
+            />
+          ) : (
           filteredGroups.map((group) => (
             <button
               key={group.id}
@@ -705,18 +734,18 @@ export default function MessagingDrawer() {
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className={`chat-fab relative flex h-14 w-14 shrink-0 cursor-pointer items-center justify-center rounded-full border border-cyan-800 bg-slate-800 px-4 text-cyan-500 shadow-xl shadow-cyan-950/40 backdrop-blur-xl transition-transform duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] hover:scale-105 active:scale-95 md:h-14 md:w-full md:max-w-none md:justify-start md:gap-3 md:rounded-none md:rounded-t-2xl md:border-slate-700 md:hover:scale-100 md:hover:bg-slate-700 ${fabAttention ? "fab-attention-bounce" : ""
+        className={`chat-fab relative flex h-14 w-14 shrink-0 cursor-pointer items-center justify-center rounded-full border border-cyan-800 bg-slate-800 px-4 text-cyan-500 shadow-xl shadow-cyan-950/40 backdrop-blur-xl transition-transform duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] hover:scale-105 active:scale-95 md:h-14 md:w-14 md:p-0 md:gap-3 md:border-slate-700 md:hover:scale-100 md:hover:bg-slate-700 fixed right-4 bottom-4 ${fabAttention ? "fab-attention-bounce" : ""
           }`}
         aria-label={expanded ? "Close messages" : "Open messages"}
       >
-        <div className="relative flex items-center gap-3">
+        <div className="relative flex items-center  gap-3">
           <MessageSquare className="h-8 w-8 md:hidden" />
           <div className="relative hidden md:block">
             {profileImg ? (
               <ProfileAvatarImg
                 src={profileImg}
                 alt={employeeName}
-                className="h-10 w-10 rounded-full "
+                className="h-13.5 w-13.5 rounded-full "
               />
             ) : (
               <div className="grid h-10 w-10 place-items-center rounded-full bg-cyan-700 text-xs font-bold text-white">
@@ -724,11 +753,8 @@ export default function MessagingDrawer() {
               </div>
             )}
           </div>
-          <span className="hidden text-sm font-semibold text-white md:inline">
-            Messages
-          </span>
           <span
-            className={`absolute bottom-0 left-6 md:left-7.5 h-3 w-3 rounded-full ring-1 ring-slate-900 ${wsConnected ? "bg-emerald-400" : "bg-amber-400"
+            className={`absolute bottom-0 left-6 md:left-9.5 h-3 w-3 rounded-full ring-1 ring-slate-900 ${wsConnected ? "bg-emerald-400" : "bg-amber-400"
               }`}
             title={
               wsConnected
@@ -737,24 +763,24 @@ export default function MessagingDrawer() {
             }
           />
           {summary.total > 0 && (
-            <span className="absolute -left-1 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-bold text-white ring-1 ring-slate-900">
+            <span className="notification-badge-pulse absolute -left-1 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[9px] font-bold text-white ring-1 ring-slate-900">
               {summary.total > 99 ? "99+" : summary.total}
             </span>
           )}
         </div>
-        <div className="absolute right-5 top-4">
+        {/* <div className="absolute right-5 top-4">
           <ChevronUp
             className={`h-5 w-5 transition-transform duration-400 hidden md:block ${expanded ? "rotate-180" : ""
               }`}
           />
-        </div>
+        </div> */}
       </button>
     </>
   );
 
   if (!visible) return null;
 
-  return (
+  return createPortal(
     <>
       {connectionError && (
         <div className="fixed left-1/2 top-5 z-[90] max-w-md -translate-x-1/2 rounded-2xl border border-red-500/40 bg-red-950/95 px-4 py-3 text-center text-sm text-red-200 shadow-xl">
@@ -780,27 +806,52 @@ export default function MessagingDrawer() {
       )}
 
       {/* Desktop: floating chat windows */}
-      <div className="fixed bottom-0 right-0 z-50 hidden items-end gap-2 md:flex">
+      <div className="z-app-chat fixed bottom-0 right-0 hidden items-end gap-2 md:flex">
         {openChats.map((chat) => (
-          <div key={chatKey(chat)} className="pointer-events-auto shrink-0">
+          <div key={chatKey(chat)} className="pointer-events-auto fixed right-4 shrink-0 z-999">
             {renderChatPopup(chat, false)}
           </div>
         ))}
-        <div className="pointer-events-auto flex w-[min(calc(100vw-2rem),460px)] flex-col">
-          {fabButton}
-          {expanded && drawerPanel}
+        <div className="pointer-events-auto flex w-[min(calc(100vw-2rem),460px)] flex-col items-end fixed right-4">
+          {!expanded && fabButton}
+          <AnimatePresence>
+            {expanded && (
+              <motion.div
+                key="chat-drawer-desktop"
+                className="pointer-events-auto mb-0 w-full"
+                initial={chatPanelSlide.initial}
+                animate={chatPanelSlide.animate}
+                exit={chatPanelSlide.exit}
+                transition={chatPanelSlide.transition}
+              >
+                {drawerPanel}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
       {/* Mobile: bottom sheet + FAB */}
       {!showMobileChat && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex flex-col items-end p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden">
-          {expanded && (
-            <div className="pointer-events-auto mb-3 w-full">{drawerPanel}</div>
-          )}
-          <div className="pointer-events-auto">{fabButton}</div>
+        <div className="z-app-chat pointer-events-none fixed inset-x-0 bottom-0 flex flex-col items-end p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:hidden">
+          <AnimatePresence>
+            {expanded && (
+              <motion.div
+                key="chat-drawer-mobile"
+                className="pointer-events-auto mb-3 w-full"
+                initial={chatPanelSlide.initial}
+                animate={chatPanelSlide.animate}
+                exit={chatPanelSlide.exit}
+                transition={chatPanelSlide.transition}
+              >
+                {drawerPanel}
+              </motion.div>
+            )}
+          </AnimatePresence>
+          {!expanded && <div className="pointer-events-auto">{fabButton}</div>}
         </div>
       )}
-    </>
+    </>,
+    document.body
   );
 }

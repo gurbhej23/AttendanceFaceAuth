@@ -29,6 +29,14 @@ class AttendanceRecord(me.Document):
     minutes_late = me.IntField(default=0)
     leave_type = me.StringField(default="") 
     leave_notification_seen = me.BooleanField(default=False)
+    leave_end_date = me.StringField(default="")
+    work_mode = me.StringField(default="office")
+    break_start_time = me.DateTimeField(null=True)
+    break_end_time = me.DateTimeField(null=True)
+    break_minutes = me.IntField(default=0)
+    overtime_minutes = me.IntField(default=0)
+    overtime_status = me.StringField(default="")
+    qr_check_in = me.BooleanField(default=False)
 
     meta = {
         "collection": "attendance",

@@ -25,6 +25,9 @@ export interface ChatMessage {
   reactions?: Record<string, string[]>;
   is_edited?: boolean;
   is_deleted?: boolean;
+  attachments?: { url: string; name: string; mime: string }[];
+  mentions?: string[];
+  read_at?: string;
 }
 
 export interface ChatGroup {
@@ -159,6 +162,17 @@ export type OpenChat =
   | { type: "group"; id: string };
 
 export const chatKey = (chat: OpenChat) => `${chat.type}:${chat.id}`;
+
+/** Hide placeholder text when a message is attachment-only. */
+export const visibleChatMessage = (
+  message: string,
+  attachments?: { url: string }[] | null,
+) => {
+  const trimmed = (message || "").trim();
+  if (trimmed === "(attachment)" || trimmed === "attachment") return "";
+  if (!trimmed && attachments?.length) return "";
+  return message;
+};
 
 export const mergeChatMessages = (
   base: ChatMessage[],

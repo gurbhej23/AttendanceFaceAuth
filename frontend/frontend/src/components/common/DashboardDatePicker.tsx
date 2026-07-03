@@ -214,7 +214,7 @@ export default function DashboardDatePicker({
           left: panelPos.left,
           width: panelPos.width,
         }}
-        className={`date-picker-panel date-picker-panel-portal fixed z-[110] rounded-2xl border border-slate-700 bg-slate-950 p-4 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.85)] ${
+        className={`date-picker-panel date-picker-panel-portal fixed z-[210] rounded-2xl border border-slate-700 bg-slate-950 p-4 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.85)] ${
           visible ? "date-picker-panel-visible" : ""
         }`}
       >

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import API from "../../services/api";
 import Button from "../../components/common/Button";
+import EmptyState from "../../components/common/EmptyState";
 import AdminSidebar from "../../components/AdminSidebar";
 import MobileMenuButton from "../../components/common/MobileMenuButton";
 import NotificationPanel from "../../components/common/NotificationPanel";
@@ -21,6 +22,7 @@ import {
   AlertTriangle,
   Bell,
   CalendarDays,
+  Calendar,
   ChartNoAxesCombined,
   Check,
   CheckCircle2,
@@ -30,14 +32,20 @@ import {
   FileText,
   IdCardLanyard,
   List,
+  PenLine,
   Stethoscope,
   User,
+  Users,
   X,
   XCircle,
 } from "lucide-react";
 import Input from "../../components/common/Input";
 import DashboardDatePicker from "../../components/common/DashboardDatePicker";
 import AttendanceTableSkeleton from "../../components/admin/AttendanceTableSkeleton";
+import DashboardExtras, {
+  fetchDashboardExtras,
+  type DashboardExtrasData,
+} from "../../components/dashboard/DashboardExtras";
 
 interface SheetRecord {
   employee_id: string;
@@ -86,8 +94,21 @@ interface LeaveRequest {
   leave_type: string;
 }
 
+interface RegularizationRequest {
+  id: string;
+  employee_id: string;
+  employee_name: string;
+  date: string;
+  requested_status: string;
+  requested_check_in: string;
+  requested_check_out: string;
+  reason: string;
+  status: string;
+}
+
 type StatusFilter = "all" | "present" | "absent" | "half_day";
-type ActiveTab = "attendance" | "leaves";
+type ActiveTab = "attendance" | "leaves" | "regularization";
+type RegFilter = "pending" | "approved" | "rejected" | "all";
 
 const getLocalDate = () => {
   const now = new Date();
@@ -186,9 +207,16 @@ export default function AdminAttendanceSheet() {
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
 
+  const [regRecords, setRegRecords] = useState<RegularizationRequest[]>([]);
+  const [regLoading, setRegLoading] = useState(false);
+  const [regFilter, setRegFilter] = useState<RegFilter>("pending");
+  const [regSearch, setRegSearch] = useState("");
+  const [regPendingCount, setRegPendingCount] = useState(0);
+
   const [showMenu, setShowMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [dashboardExtras, setDashboardExtras] = useState<DashboardExtrasData | null>(null);
 
   const today = getLocalDate();
   const adminId = localStorage.getItem("employee_id") || "";
@@ -210,6 +238,11 @@ export default function AdminAttendanceSheet() {
     adminId,
     adminRoleRaw === "hr" ? "hr" : "admin",
   );
+
+  useEffect(() => {
+    if (!adminId) return;
+    void fetchDashboardExtras(adminId).then(setDashboardExtras);
+  }, [adminId]);
 
   const handleNotificationSelect = useCallback(
     (item: DashboardNotification) => {
@@ -307,6 +340,41 @@ export default function AdminAttendanceSheet() {
     return () => clearInterval(interval);
   }, [fetchPendingCount]);
 
+  const fetchRegularizations = useCallback(async () => {
+    setRegLoading(true);
+    try {
+      const res = await API.get("/attendance/hr/regularization/admin/", {
+        params: { status: regFilter },
+      });
+      if (res.data.success) setRegRecords(res.data.records || []);
+    } catch {
+      /* silent */
+    } finally {
+      setRegLoading(false);
+    }
+  }, [regFilter]);
+
+  const fetchRegPendingCount = useCallback(async () => {
+    try {
+      const res = await API.get("/attendance/hr/regularization/admin/", {
+        params: { status: "pending" },
+      });
+      if (res.data.success) setRegPendingCount(res.data.records?.length || 0);
+    } catch {
+      /* silent */
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchRegularizations();
+  }, [fetchRegularizations]);
+
+  useEffect(() => {
+    fetchRegPendingCount();
+    const interval = setInterval(fetchRegPendingCount, 30000);
+    return () => clearInterval(interval);
+  }, [fetchRegPendingCount]);
+
   useEffect(() => {
     const role = localStorage.getItem("role");
     if (!["admin", "hr"].includes(role || "")) navigate("/", { replace: true });
@@ -327,6 +395,34 @@ export default function AdminAttendanceSheet() {
         showToast(res.data.message, true);
         fetchLeaveRequests();
         fetchPendingCount();
+      } else {
+        showToast(res.data.error || "Action failed", false);
+      }
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        showToast(err.response?.data?.error || "Action failed", false);
+      } else {
+        showToast("Action failed", false);
+      }
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleRegularizationAction = async (
+    requestId: string,
+    action: "approve" | "reject",
+  ) => {
+    setActionLoading(requestId + action);
+    try {
+      const res = await API.post("/attendance/hr/regularization/resolve/", {
+        request_id: requestId,
+        action,
+      });
+      if (res.data.success) {
+        showToast(`Regularization ${action}d`, true);
+        fetchRegularizations();
+        fetchRegPendingCount();
       } else {
         showToast(res.data.error || "Action failed", false);
       }
@@ -394,6 +490,23 @@ export default function AdminAttendanceSheet() {
     );
   }, [leaveRecords, leaveSearch]);
 
+  const filteredRegistrations = useMemo(() => {
+    const search = regSearch.trim().toLowerCase();
+    if (!search) return regRecords;
+    return regRecords.filter((r) =>
+      [
+        r.employee_name,
+        r.employee_id,
+        r.date,
+        r.requested_status,
+        r.reason,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(search),
+    );
+  }, [regRecords, regSearch]);
+
   const tableFilterKey = `${statusFilter}:${searchTerm.trim().toLowerCase()}`;
 
   const handleLogout = () => {
@@ -417,6 +530,12 @@ export default function AdminAttendanceSheet() {
   const sidebarItems = useMemo(
     () => [
       {
+        icon: <Users size={18} />,
+        label: "Team",
+        onClick: () => navigate("/team"),
+        active: location.pathname === "/team",
+      },
+      {
         icon: <User size={18} />,
         label: "Profile",
         onClick: () => navigate("/admin-profile"),
@@ -427,6 +546,12 @@ export default function AdminAttendanceSheet() {
         label: "Notifications",
         onClick: () => setShowNotifications(true),
         badgeCount: unreadCount,
+      },
+      {
+        icon: <Calendar size={18} />,
+        label: "HR Center",
+        onClick: () => navigate("/admin-hr"),
+        active: location.pathname === "/admin-hr",
       },
       {
         icon: <ChartNoAxesCombined size={18} />,
@@ -491,6 +616,7 @@ export default function AdminAttendanceSheet() {
 
         <div className="mx-auto max-w-400 pb-10 pt-12 transition-all duration-500 ease-out sm:pb-12 sm:pt-5 lg:ml-22 lg:pt-0">
           <div>
+            <DashboardExtras data={dashboardExtras} />
             {/* HEADER */}
             <div className="dash-shell-panel relative mb-4 overflow-hidden border border-white/10 bg-white/5 shadow-xl backdrop-blur-xl dash-fade-up sm:mb-6 sm:shadow-2xl">
               <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-indigo-500/10 blur-3xl sm:h-40 sm:w-40" />
@@ -576,6 +702,46 @@ export default function AdminAttendanceSheet() {
                   </span>
                 )}
               </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab("regularization")}
+                className={`relative inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] sm:w-auto ${
+                  activeTab === "regularization"
+                    ? "bg-violet-600 text-white shadow-lg shadow-violet-600/20"
+                    : "dash-tab-inactive border border-slate-700 bg-slate-800 text-slate-400 hover:text-white sm:border-0 sm:bg-transparent"
+                }`}
+              >
+                <PenLine className="h-4 w-4" />
+                Regularization
+                {regPendingCount > 0 && (
+                  <span className="ml-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-[10px] font-bold text-white">
+                    {regPendingCount > 99 ? "99+" : regPendingCount}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            <div className="mb-6 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+              <span>HR settings:</span>
+              {(
+                [
+                  { tab: "holidays", label: "Holidays" },
+                  { tab: "shifts", label: "Shifts" },
+                  { tab: "roster", label: "Roster" },
+                  { tab: "overtime", label: "Overtime" },
+                  { tab: "announcements", label: "Announcements" },
+                ] as const
+              ).map(({ tab: hrTab, label }) => (
+                <button
+                  key={hrTab}
+                  type="button"
+                  onClick={() => navigate(`/admin-hr?tab=${hrTab}`)}
+                  className="rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-1 font-medium text-slate-300 transition hover:border-violet-500/50 hover:text-white cursor-pointer"
+                >
+                  {label}
+                </button>
+              ))}
             </div>
 
             {activeTab === "attendance" && (
@@ -920,19 +1086,16 @@ export default function AdminAttendanceSheet() {
                       Loading leave requests...
                     </div>
                   ) : filteredLeaves.length === 0 ? (
-                    <div className="dash-shell-panel border border-slate-700/80 bg-slate-900/40 p-12 text-center">
-                      <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-slate-700 bg-slate-800 text-slate-400">
-                        <CalendarDays className="h-7 w-7" />
-                      </div>
-                      <p className="text-lg font-semibold text-slate-200">
-                        No leave requests found
-                      </p>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {leaveFilter === "leave_pending"
+                    <EmptyState
+                      icon={<CalendarDays className="h-7 w-7 text-slate-500" />}
+                      title="No leave requests found"
+                      description={
+                        leaveFilter === "leave_pending"
                           ? "No pending requests at this time"
-                          : "No records matching your filter"}
-                      </p>
-                    </div>
+                          : "No records matching your filter"
+                      }
+                      className="dash-shell-panel border border-slate-700/80 bg-slate-900/40"
+                    />
                   ) : (
                     <div className="dash-table-panel overflow-hidden border border-slate-700/80 bg-slate-900/40 shadow-xl">
                       <div className="flex items-center justify-between border-b border-slate-700/80 p-5">
@@ -1100,6 +1263,222 @@ export default function AdminAttendanceSheet() {
                     </div>
                   )
                 }
+              </div>
+            )}
+
+            {activeTab === "regularization" && (
+              <div className="pb-2">
+                <p className="mb-4 text-sm text-slate-400">
+                  Employees use <strong className="text-slate-300">Regularize</strong> on their
+                  dashboard to request attendance corrections (missed check-in, wrong status, etc.).
+                </p>
+
+                <div className="mb-5 flex flex-wrap gap-2">
+                  {(
+                    [
+                      {
+                        key: "pending" as const,
+                        label: "Pending",
+                        icon: <Clock className="h-3.5 w-3.5" />,
+                        activeClass:
+                          "bg-amber-500/15 text-amber-200 border-amber-500/40",
+                      },
+                      {
+                        key: "approved" as const,
+                        label: "Approved",
+                        icon: <CheckCircle2 className="h-3.5 w-3.5" />,
+                        activeClass:
+                          "bg-emerald-500/15 text-emerald-200 border-emerald-500/40",
+                      },
+                      {
+                        key: "rejected" as const,
+                        label: "Rejected",
+                        icon: <XCircle className="h-3.5 w-3.5" />,
+                        activeClass: "bg-red-500/15 text-red-200 border-red-500/40",
+                      },
+                      {
+                        key: "all" as const,
+                        label: "All",
+                        icon: <List className="h-3.5 w-3.5" />,
+                        activeClass:
+                          "bg-slate-500/15 text-slate-200 border-slate-500/40",
+                      },
+                    ] as const
+                  ).map(({ key, label, icon, activeClass }) => {
+                    const active = regFilter === key;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setRegFilter(key)}
+                        className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition ${
+                          active
+                            ? activeClass
+                            : "border-slate-700 bg-slate-800/80 text-slate-400 hover:border-slate-600 hover:text-white"
+                        }`}
+                      >
+                        {icon}
+                        {label}
+                        {key === "pending" && regPendingCount > 0 && (
+                          <span className="ml-1 rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                            {regPendingCount}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="mb-5">
+                  <Input
+                    type="search"
+                    value={regSearch}
+                    onChange={(e) => setRegSearch(e.target.value)}
+                    placeholder="Search by name, ID, date, status..."
+                    className="w-full rounded-xl border border-slate-700 bg-slate-800 p-3 text-white outline-none focus:border-violet-500 md:w-96"
+                  />
+                </div>
+
+                {regLoading ? (
+                  <div className="rounded-3xl border border-slate-700 bg-slate-800 p-12 text-center text-slate-400">
+                    Loading regularization requests...
+                  </div>
+                ) : filteredRegistrations.length === 0 ? (
+                  <div className="dash-shell-panel border border-slate-700/80 bg-slate-900/40 p-12 text-center">
+                    <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-slate-700 bg-slate-800 text-slate-400">
+                      <PenLine className="h-7 w-7" />
+                    </div>
+                    <p className="text-lg font-semibold text-slate-200">
+                      No regularization requests found
+                    </p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      {regFilter === "pending"
+                        ? "No pending corrections at this time"
+                        : "No records matching your filter"}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="dash-table-panel overflow-hidden border border-slate-700/80 bg-slate-900/40 shadow-xl">
+                    <div className="flex items-center justify-between border-b border-slate-700/80 p-5">
+                      <h2 className="text-xl font-bold text-white">
+                        Attendance Regularization
+                      </h2>
+                      <span className="text-sm text-slate-400">
+                        {filteredRegistrations.length} record
+                        {filteredRegistrations.length !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="dash-data-table w-full text-white">
+                        <thead className="dash-data-table-head border-b border-slate-700 bg-slate-700/50 text-center text-xs uppercase tracking-wider text-slate-400">
+                          <tr>
+                            <th className="px-5 py-4">Employee</th>
+                            <th className="px-5 py-4">Date</th>
+                            <th className="px-5 py-4">Requested Status</th>
+                            <th className="px-5 py-4">Reason</th>
+                            <th className="px-5 py-4">Status</th>
+                            {regFilter === "pending" && (
+                              <th className="px-5 py-4">Actions</th>
+                            )}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredRegistrations.map((record) => (
+                            <tr
+                              key={record.id}
+                              className="dash-table-row border-b border-slate-700 text-center transition-colors"
+                            >
+                              <td className="px-5 py-4 text-left">
+                                <p className="text-sm font-semibold">
+                                  {record.employee_name}
+                                </p>
+                                <p className="text-xs text-slate-400">
+                                  {record.employee_id}
+                                </p>
+                              </td>
+                              <td className="px-5 py-4">
+                                <span className="rounded-lg bg-slate-700 px-3 py-1 font-mono text-sm text-slate-200">
+                                  {record.date}
+                                </span>
+                              </td>
+                              <td className="px-5 py-4 capitalize text-slate-300">
+                                {record.requested_status.replace(/_/g, " ")}
+                              </td>
+                              <td className="max-w-50 px-5 py-4">
+                                {record.reason ? (
+                                  <Button
+                                    text={record.reason}
+                                    onClick={() => setViewReason(record.reason)}
+                                    className="block w-full cursor-pointer truncate text-left text-sm text-slate-400 underline underline-offset-2 transition hover:text-violet-400"
+                                    title={record.reason}
+                                  />
+                                ) : (
+                                  <span className={`text-sm ${DASH_CELL_EMPTY}`}>
+                                    --
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-5 py-4">
+                                <span
+                                  className={`rounded-full px-3 py-1 font-semibold capitalize ${statusClass(record.status)}`}
+                                >
+                                  {record.status}
+                                </span>
+                              </td>
+                              {regFilter === "pending" && (
+                                <td className="px-5 py-4">
+                                  <div className="flex items-center justify-center gap-2">
+                                    <Button
+                                      text={
+                                        actionLoading === record.id + "approve"
+                                          ? "Processing..."
+                                          : (
+                                            <>
+                                              <Check className="h-3.5 w-3.5" />
+                                              Approve
+                                            </>
+                                          )
+                                      }
+                                      onClick={() =>
+                                        handleRegularizationAction(
+                                          record.id,
+                                          "approve",
+                                        )
+                                      }
+                                      disabled={!!actionLoading}
+                                      className="inline-flex items-center gap-1.5 bg-emerald-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
+                                    />
+                                    <Button
+                                      text={
+                                        actionLoading === record.id + "reject"
+                                          ? "Processing..."
+                                          : (
+                                            <>
+                                              <X className="h-3.5 w-3.5" />
+                                              Reject
+                                            </>
+                                          )
+                                      }
+                                      onClick={() =>
+                                        handleRegularizationAction(
+                                          record.id,
+                                          "reject",
+                                        )
+                                      }
+                                      disabled={!!actionLoading}
+                                      className="inline-flex items-center gap-1.5 bg-red-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-red-500 disabled:opacity-50"
+                                    />
+                                  </div>
+                                </td>
+                              )}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

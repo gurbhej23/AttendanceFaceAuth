@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import Button from "../common/Button";
+import PortalModal from "../common/PortalModal";
 
 const LOGOUT_DELAY_MS = 1000;
 
@@ -38,12 +39,10 @@ function LogOutModal({ open, onClose, onLogout }: LogOutProps) {
     }, LOGOUT_DELAY_MS);
   };
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-99 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <PortalModal open={open} onClose={onClose} cardClassName="max-w-md">
       <div
-        className="w-full max-w-md rounded-3xl border border-slate-700 bg-slate-900 p-6 shadow-2xl"
+        className="dash-modal-card w-full rounded-3xl border border-slate-700 bg-slate-900 p-6 shadow-2xl"
         role="dialog"
         aria-modal="true"
         aria-busy={loggingOut}
@@ -95,7 +94,7 @@ function LogOutModal({ open, onClose, onLogout }: LogOutProps) {
           </>
         )}
       </div>
-    </div>
+    </PortalModal>
   );
 }
 

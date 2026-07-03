@@ -3,10 +3,13 @@ import API from "../../services/api";
 import EmojiPicker from "./EmojiPicker";
 import NotificationBadge from "../common/NotificationBadge";
 import {
+  BarChart2,
   Camera,
   Check,
   CheckCheck,
+  Clock,
   MoreVertical,
+  Paperclip,
   Pencil,
   Plus,
   Settings,
@@ -15,6 +18,7 @@ import {
   UserPlus,
   Users,
 } from "lucide-react";
+import ChatAttachments from "./ChatAttachments";
 import type { Contact } from "../../utils/chatHelpers";
 import {
   formatGroupOnlineLabel,
@@ -23,8 +27,10 @@ import {
   formatMemberLabel,
   getGroupWsUrl,
   getMediaUrl,
+  visibleChatMessage,
 } from "../../utils/chatHelpers";
 import Button from "../common/Button";
+import { MotionMessageBubble } from "../motion/MotionPrimitives";
 
 interface ChatGroup {
   id: string;
@@ -49,7 +55,15 @@ interface GroupMessage {
   read_count?: number;
   total_recipients?: number;
   is_fully_read?: boolean;
-  message_type?: "user" | "system";
+  message_type?: "user" | "system" | "poll" | "scheduled";
+  attachments?: { url: string; name: string; mime?: string }[];
+  mentions?: string[];
+  poll_data?: {
+    question?: string;
+    options?: { id: string; text: string }[];
+    votes?: Record<string, string[]>;
+  };
+  scheduled_for?: string;
   created_at: string;
 }
 
@@ -109,6 +123,14 @@ export default function GroupChatSection({
   const [selectedGroupId, setSelectedGroupId] = useState("");
   const [messages, setMessages] = useState<GroupMessage[]>([]);
   const [draft, setDraft] = useState("");
+  const [pendingFiles, setPendingFiles] = useState<{ data: string; name: string }[]>([]);
+  const [showPollForm, setShowPollForm] = useState(false);
+  const [pollQuestion, setPollQuestion] = useState("");
+  const [pollOptions, setPollOptions] = useState(["", ""]);
+  const [showScheduleForm, setShowScheduleForm] = useState(false);
+  const [scheduleAt, setScheduleAt] = useState("");
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState("");
@@ -238,6 +260,24 @@ export default function GroupChatSection({
       () => sendGroupTyping(false),
       1200,
     );
+    const mentionMatch = value.match(/@([^\s@[\]]*)$/);
+    setMentionQuery(mentionMatch ? mentionMatch[1].toLowerCase() : null);
+  };
+
+  const mentionSuggestions = useMemo(() => {
+    if (!mentionQuery || !selectedGroup) return [] as Contact[];
+    return selectedGroup.member_details
+      .filter((member) => member.employee_id !== employeeId)
+      .filter((member) => member.name.toLowerCase().includes(mentionQuery))
+      .slice(0, 6);
+  }, [employeeId, mentionQuery, selectedGroup]);
+
+  const insertMention = (member: Contact) => {
+    setDraft((current) =>
+      `${current.replace(/@([^\s@[\]]*)$/, "")}@[${member.name}](${member.employee_id}) `,
+    );
+    setMentionQuery(null);
+    inputRef.current?.focus();
   };
 
   useEffect(() => {
@@ -384,16 +424,16 @@ export default function GroupChatSection({
       const incoming = data.message as GroupMessage;
       if (incoming.group_id !== selectedGroupId) return;
 
-      if (data.type === "message") {
+      if (["edit", "delete", "read", "poll_vote"].includes(String(data.type))) {
         setMessages((cur) =>
-          cur.some((m) => m.id === incoming.id) ? cur : [...cur, incoming],
+          cur.map((m) => (m.id === incoming.id ? { ...m, ...incoming } : m)),
         );
         return;
       }
 
-      if (["edit", "delete", "read"].includes(String(data.type))) {
+      if (data.type === "message" || !data.type) {
         setMessages((cur) =>
-          cur.map((m) => (m.id === incoming.id ? { ...m, ...incoming } : m)),
+          cur.some((m) => m.id === incoming.id) ? cur : [...cur, incoming],
         );
       }
     };
@@ -434,14 +474,16 @@ export default function GroupChatSection({
 
   const sendMessage = async () => {
     const text = draft.trim();
-    if (!text || !selectedGroup || sending) return;
+    if ((!text && !pendingFiles.length) || !selectedGroup || sending) return;
     setSendError("");
     setSending(true);
 
+    const scheduledFor = showScheduleForm && scheduleAt ? new Date(scheduleAt).toISOString() : "";
     const socket = socketRef.current;
-    if (socket?.readyState === WebSocket.OPEN) {
+    if (socket?.readyState === WebSocket.OPEN && !pendingFiles.length && !scheduledFor) {
       socket.send(JSON.stringify({ message: text }));
       setDraft("");
+      setMentionQuery(null);
       sendGroupTyping(false);
       setSending(false);
       inputRef.current?.focus();
@@ -453,6 +495,8 @@ export default function GroupChatSection({
         sender_id: employeeId,
         group_id: selectedGroup.id,
         message: text,
+        attachments: pendingFiles,
+        scheduled_for: scheduledFor || undefined,
       });
       if (res.data.success && res.data.message) {
         const saved = res.data.message as GroupMessage;
@@ -460,6 +504,10 @@ export default function GroupChatSection({
           cur.some((m) => m.id === saved.id) ? cur : [...cur, saved],
         );
         setDraft("");
+        setPendingFiles([]);
+        setShowScheduleForm(false);
+        setScheduleAt("");
+        setMentionQuery(null);
         inputRef.current?.focus();
       } else {
         setSendError(res.data.error || "Message not sent");
@@ -468,6 +516,60 @@ export default function GroupChatSection({
       setSendError(getError(err, "Message not sent"));
     } finally {
       setSending(false);
+    }
+  };
+
+  const sendPoll = async () => {
+    const question = pollQuestion.trim();
+    const options = pollOptions
+      .map((label, index) => ({ id: String(index + 1), text: label.trim() }))
+      .filter((option) => option.text);
+    if (!question || options.length < 2 || !selectedGroup || sending) return;
+    setSending(true);
+    setSendError("");
+    try {
+      const res = await API.post("/employees/chat-groups/message/send/", {
+        sender_id: employeeId,
+        group_id: selectedGroup.id,
+        message: question,
+        message_type: "poll",
+        poll_data: { question, options },
+      });
+      if (res.data.success && res.data.message) {
+        const saved = res.data.message as GroupMessage;
+        setMessages((cur) =>
+          cur.some((m) => m.id === saved.id) ? cur : [...cur, saved],
+        );
+        setShowPollForm(false);
+        setPollQuestion("");
+        setPollOptions(["", ""]);
+      } else {
+        setSendError(res.data.error || "Poll not sent");
+      }
+    } catch (err) {
+      setSendError(getError(err, "Poll not sent"));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const votePoll = async (messageId: string, optionId: string) => {
+    try {
+      const res = await API.post("/employees/group-poll/vote/", {
+        employee_id: employeeId,
+        message_id: messageId,
+        option_id: optionId,
+      });
+      if (res.data.success && res.data.message) {
+        const updated = res.data.message as GroupMessage;
+        setMessages((cur) =>
+          cur.map((message) =>
+            message.id === updated.id ? { ...message, ...updated } : message,
+          ),
+        );
+      }
+    } catch {
+      /* silent */
     }
   };
 
@@ -981,7 +1083,9 @@ export default function GroupChatSection({
             >
               {messages.map((msg, index) => {
                 const isSystem =
-                  msg.message_type === "system" || msg.sender_id === "system";
+                  (msg.message_type === "system" || msg.sender_id === "system") &&
+                  msg.message_type !== "poll";
+                const isPoll = msg.message_type === "poll";
                 const mine = !isSystem && msg.sender_id === employeeId;
                 const isEditing = editingMsgId === msg.id;
                 const isMenuOpen = menuMsgId === msg.id;
@@ -1016,7 +1120,7 @@ export default function GroupChatSection({
                 }
 
                 return (
-                  <div key={msg.id}>
+                  <MotionMessageBubble key={msg.id}>
                     {showDate && (
                       <div className="my-4 text-center text-xs text-slate-500">
                         <span className="rounded-full bg-slate-800 px-3 py-1">
@@ -1113,9 +1217,51 @@ export default function GroupChatSection({
                                 : "chat-bubble-in bg-slate-800 text-slate-100"
                               }`}
                           >
-                            <p className="whitespace-pre-wrap wrap-break-words">
-                              {msg.message}
-                            </p>
+                            {(() => {
+                              if (isPoll) {
+                                const q = msg.poll_data?.question || visibleChatMessage(msg.message, msg.attachments);
+                                return q ? (
+                                  <p className="whitespace-pre-wrap wrap-break-words">{q}</p>
+                                ) : null;
+                              }
+                              const body = visibleChatMessage(msg.message, msg.attachments);
+                              return body ? (
+                                <p className="whitespace-pre-wrap wrap-break-words">{body}</p>
+                              ) : null;
+                            })()}
+                            {isPoll && msg.poll_data?.options && (
+                              <div className="mt-3 space-y-2">
+                                {msg.poll_data.options.map((option) => {
+                                  const votes = msg.poll_data?.votes?.[option.id] || [];
+                                  const totalVotes = Object.values(
+                                    msg.poll_data?.votes || {},
+                                  ).reduce((sum, voters) => sum + voters.length, 0);
+                                  const pct =
+                                    totalVotes > 0
+                                      ? Math.round((votes.length / totalVotes) * 100)
+                                      : 0;
+                                  const voted = votes.includes(employeeId);
+                                  return (
+                                    <button
+                                      key={option.id}
+                                      type="button"
+                                      onClick={() => votePoll(msg.id, option.id)}
+                                      className={`block w-full rounded-xl border px-3 py-2 text-left text-xs transition cursor-pointer ${
+                                        voted
+                                          ? "border-violet-400 bg-violet-500/20"
+                                          : "border-white/10 bg-black/20 hover:border-white/20"
+                                      }`}
+                                    >
+                                      <span className="font-medium">{option.text}</span>
+                                      <span className="ml-2 opacity-70">
+                                        {votes.length} · {pct}%
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                            <ChatAttachments attachments={msg.attachments} mine={mine} />
                             <div className="mt-1 flex items-center justify-end gap-2">
                               {msg.is_edited && !msg.is_deleted && (
                                 <span className="text-[10px] opacity-50">edited</span>
@@ -1127,7 +1273,14 @@ export default function GroupChatSection({
                                 })}
                               </span>
                               {mine && !msg.is_deleted && (
-                                <span className="text-[10px] opacity-70">
+                                <span
+                                  className="text-[10px] opacity-70"
+                                  title={
+                                    msg.read_count != null && msg.total_recipients
+                                      ? `Read by ${msg.read_count}/${msg.total_recipients}`
+                                      : undefined
+                                  }
+                                >
                                   {msg.is_fully_read ? (
                                     <CheckCheck size={18} />
                                   ) : (
@@ -1140,7 +1293,7 @@ export default function GroupChatSection({
                         )}
                       </div>
                     </div>
-                  </div>
+                  </MotionMessageBubble>
                 );
               })}
               <div ref={bottomRef} />
@@ -1152,32 +1305,155 @@ export default function GroupChatSection({
                   {sendError}
                 </p>
               )}
-              <div className="flex items-end gap-2">
-                <div className="relative">
+              {showPollForm && (
+                <div className="mb-3 space-y-2 rounded-2xl border border-violet-500/30 bg-violet-500/10 p-3">
+                  <input
+                    value={pollQuestion}
+                    onChange={(e) => setPollQuestion(e.target.value)}
+                    placeholder="Poll question"
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none"
+                  />
+                  {pollOptions.map((option, index) => (
+                    <input
+                      key={index}
+                      value={option}
+                      onChange={(e) =>
+                        setPollOptions((current) =>
+                          current.map((value, i) =>
+                            i === index ? e.target.value : value,
+                          ),
+                        )
+                      }
+                      placeholder={`Option ${index + 1}`}
+                      className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none"
+                    />
+                  ))}
+                  <div className="flex flex-wrap gap-2">
+                    {pollOptions.length < 4 && (
+                      <Button
+                        type="button"
+                        onClick={() => setPollOptions((current) => [...current, ""])}
+                        text="Add option"
+                        className="rounded-xl bg-slate-800 px-3 py-1.5 text-xs"
+                      />
+                    )}
+                    <Button
+                      type="button"
+                      onClick={() => setShowPollForm(false)}
+                      text="Cancel"
+                      className="rounded-xl bg-slate-800 px-3 py-1.5 text-xs"
+                    />
+                    <Button
+                      type="button"
+                      onClick={sendPoll}
+                      text="Create poll"
+                      className="rounded-xl bg-violet-600 px-3 py-1.5 text-xs"
+                    />
+                  </div>
+                </div>
+              )}
+              {showScheduleForm && (
+                <div className="mb-3 flex flex-wrap items-center gap-2 rounded-2xl border border-blue-500/30 bg-blue-500/10 p-3">
+                  <label className="text-xs text-slate-300">Send at</label>
+                  <input
+                    type="datetime-local"
+                    value={scheduleAt}
+                    onChange={(e) => setScheduleAt(e.target.value)}
+                    className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none"
+                  />
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setShowScheduleForm(false);
+                      setScheduleAt("");
+                    }}
+                    text="Cancel"
+                    className="rounded-xl bg-slate-800 px-3 py-1.5 text-xs"
+                  />
+                </div>
+              )}
+              {pendingFiles.length > 0 && (
+                <p className="mb-2 text-xs text-slate-400">
+                  {pendingFiles.length} file(s) attached
                   <button
                     type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowInputEmoji((v) => !v);
-                    }}
-                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-800 text-xl transition hover:bg-slate-700 cursor-pointer"
+                    onClick={() => setPendingFiles([])}
+                    className="ml-2 text-red-300 hover:underline cursor-pointer"
                   >
-                    😊
+                    clear
                   </button>
-                  {showInputEmoji && (
-                    <EmojiPicker
-                      onSelect={(emoji) =>
-                        setDraft((current) => {
-                          const next = current + emoji;
-                          sendGroupTyping(Boolean(next.trim()));
-                          return next;
-                        })
-                      }
-                      onClose={() => setShowInputEmoji(false)}
-                      position="top"
-                      align="left"
-                    />
-                  )}
+                </p>
+              )}
+              <div className="relative flex items-end gap-1.5">
+                <div className="flex shrink-0 items-center gap-0.5 rounded-xl p-0.5">
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowInputEmoji((v) => !v);
+                      }}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg text-base transition hover:bg-slate-800 cursor-pointer"
+                    >
+                      😊
+                    </button>
+                    {showInputEmoji && (
+                      <EmojiPicker
+                        onSelect={(emoji) =>
+                          setDraft((current) => {
+                            const next = current + emoji;
+                            sendGroupTyping(Boolean(next.trim()));
+                            return next;
+                          })
+                        }
+                        onClose={() => setShowInputEmoji(false)}
+                        position="top"
+                        align="left"
+                      />
+                    )}
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,.pdf"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const data = await new Promise<string>((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result as string);
+                        reader.onerror = reject;
+                        reader.readAsDataURL(file);
+                      });
+                      setPendingFiles((files) => [...files, { data, name: file.name }]);
+                      e.target.value = "";
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-300 transition hover:bg-slate-800 cursor-pointer"
+                    title="Attach file"
+                  >
+                    <Paperclip size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowPollForm((value) => !value)}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-300 transition hover:bg-slate-800 cursor-pointer"
+                    title="Create poll"
+                  >
+                    <BarChart2 size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowScheduleForm((value) => !value)}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-300 transition hover:bg-slate-800 cursor-pointer"
+                    title="Schedule message"
+                  >
+                    <Clock size={15} />
+                  </button>
                 </div>
                 <textarea
                   ref={inputRef}
@@ -1190,13 +1466,27 @@ export default function GroupChatSection({
                     }
                   }}
                   placeholder="Message the group..."
-                  className="min-h-12 max-h-32 flex-1 resize-none rounded-2xl border border-slate-700 bg-slate-950 text-white p-3 text-sm outline-none transition focus:border-blue-500"
+                  className="min-h-10 max-h-32 flex-1 resize-none rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-sm text-white outline-none transition focus:border-blue-500"
                   rows={1}
                 />
+                {mentionSuggestions.length > 0 && (
+                  <div className="absolute bottom-full left-0 z-50 mb-2 w-full max-w-xs overflow-hidden rounded-xl border border-slate-700 bg-slate-900 shadow-xl">
+                    {mentionSuggestions.map((member) => (
+                      <button
+                        key={member.employee_id}
+                        type="button"
+                        onClick={() => insertMention(member)}
+                        className="block w-full px-3 py-2 text-left text-sm text-white hover:bg-slate-800 cursor-pointer"
+                      >
+                        {member.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <Button
                   type="button"
                   onClick={sendMessage}
-                  disabled={!draft.trim()}
+                  disabled={(!draft.trim() && !pendingFiles.length) || sending}
                   text={
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -1208,7 +1498,7 @@ export default function GroupChatSection({
                     </svg>
                   }
                   unstyled
-                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-600 transition hover:bg-blue-700"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 transition hover:bg-blue-700"
                 />
               </div>
             </div>

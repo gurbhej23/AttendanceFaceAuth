@@ -1,4 +1,5 @@
-import Button from "../common/Button";
+import Button from "./Button";
+import PortalModal from "./PortalModal";
 
 interface ModalProps {
   title: string;
@@ -8,11 +9,10 @@ interface ModalProps {
 
 export default function Modal({ title, children, onClose }: ModalProps) {
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-5">
-      <div className="bg-slate-800 p-8 rounded-3xl w-full max-w-md border border-slate-700">
-        <div className="flex justify-between items-center mb-5">
-          <h2 className="text-2xl text-white font-bold">{title}</h2>
-
+    <PortalModal onClose={onClose} cardClassName="max-w-md">
+      <div className="w-full rounded-3xl border border-slate-700 bg-slate-800 p-8">
+        <div className="mb-5 flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-white">{title}</h2>
           <Button
             text="✕"
             onClick={onClose}
@@ -20,9 +20,8 @@ export default function Modal({ title, children, onClose }: ModalProps) {
             className="text-xl text-slate-400 hover:text-white"
           />
         </div>
-
         {children}
       </div>
-    </div>
+    </PortalModal>
   );
 }

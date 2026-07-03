@@ -27,6 +27,9 @@ def message_payload(message):
         "is_edited": getattr(message, "is_edited", False),
         "is_deleted": getattr(message, "is_deleted", False),
         "reactions": getattr(message, "reactions", {}) or {},
+        "attachments": getattr(message, "attachments", []) or [],
+        "mentions": getattr(message, "mentions", []) or [],
+        "read_at": chat_datetime_iso(getattr(message, "read_at", None)),
         "created_at": chat_datetime_iso(message.created_at),
     }
 

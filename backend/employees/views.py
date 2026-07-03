@@ -34,9 +34,11 @@ IST = pytz.timezone("Asia/Kolkata")
 CV_DIR = settings.MEDIA_ROOT / "cv_files"
 PROFILE_DIR = settings.MEDIA_ROOT / "profile_images"
 GROUP_IMG_DIR = settings.MEDIA_ROOT / "group_images"
+CHAT_ATTACH_DIR = settings.MEDIA_ROOT / "chat_attachments"
 CV_DIR.mkdir(parents=True, exist_ok=True)
 PROFILE_DIR.mkdir(parents=True, exist_ok=True)
 GROUP_IMG_DIR.mkdir(parents=True, exist_ok=True)
+CHAT_ATTACH_DIR.mkdir(parents=True, exist_ok=True)
 
 FACE_DUPLICATE_THRESHOLD = 0.58
 
@@ -266,6 +268,32 @@ def save_base64_group_image(data_url: str) -> str:
     return f"media/group_images/{filename}"
 
 
+def save_base64_chat_attachment(data_url: str, filename_hint: str = "") -> dict:
+    if not data_url:
+        return {}
+    raw_data = data_url
+    extension = ".bin"
+    mime = "application/octet-stream"
+    if "," in data_url:
+        header, raw_data = data_url.split(",", 1)
+        if "image/jpeg" in header or "image/jpg" in header:
+            extension, mime = ".jpg", "image/jpeg"
+        elif "image/png" in header:
+            extension, mime = ".png", "image/png"
+        elif "image/webp" in header:
+            extension, mime = ".webp", "image/webp"
+        elif "pdf" in header:
+            extension, mime = ".pdf", "application/pdf"
+    safe_name = (filename_hint or "file").replace(" ", "_")[:80]
+    stored = f"attach_{uuid.uuid4().hex}{extension}"
+    (CHAT_ATTACH_DIR / stored).write_bytes(base64.b64decode(raw_data))
+    return {
+        "url": f"media/chat_attachments/{stored}",
+        "name": safe_name or stored,
+        "mime": mime,
+    }
+
+
 def employee_payload(employee: Employee) -> dict:
     return {
         "employee_id": employee.employee_id,
@@ -280,6 +308,8 @@ def employee_payload(employee: Employee) -> dict:
         "last_seen": chat_datetime_iso(getattr(employee, "last_seen", None)),
         "profile_img": media_url(employee.profile_img or employee.photo_path or ""),
         "cv_file": media_url(employee.cv_file or ""),
+        "date_of_birth": getattr(employee, "date_of_birth", "") or "",
+        "join_date": getattr(employee, "join_date", "") or "",
     }
 
 
@@ -296,6 +326,9 @@ def chat_payload(message: ChatMessage) -> dict:
         "is_edited": getattr(message, "is_edited", False),
         "is_deleted": getattr(message, "is_deleted", False),
         "reactions": getattr(message, "reactions", {}) or {},
+        "attachments": getattr(message, "attachments", []) or [],
+        "mentions": getattr(message, "mentions", []) or [],
+        "read_at": chat_datetime_iso(getattr(message, "read_at", None)),
         "created_at": chat_datetime_iso(message.created_at),
     }
 
@@ -324,6 +357,10 @@ def group_message_payload(message: GroupMessage, group: ChatGroup | None = None)
         "total_recipients": total_recipients,
         "is_fully_read": is_fully_read,
         "reactions": getattr(message, "reactions", {}) or {},
+        "attachments": getattr(message, "attachments", []) or [],
+        "mentions": getattr(message, "mentions", []) or [],
+        "poll_data": getattr(message, "poll_data", {}) or {},
+        "scheduled_for": chat_datetime_iso(getattr(message, "scheduled_for", None)),
         "created_at": chat_datetime_iso(message.created_at),
     }
 
@@ -1021,6 +1058,10 @@ def update_profile(request):
         employee.department = dept
     if desig := request.data.get("designation", "").strip():
         employee.designation = desig
+    if dob := str(request.data.get("date_of_birth", "")).strip():
+        employee.date_of_birth = dob
+    if join := str(request.data.get("join_date", "")).strip():
+        employee.join_date = join
 
     new_password = request.data.get("new_password", "").strip()
     if new_password:
@@ -1316,15 +1357,18 @@ def chat_history_clear(request):
 
 @api_view(["POST"])
 def chat_message_send(request):
+    from employees.extras_views import _parse_mentions
+
     sender_id = request.data.get("sender_id", "").strip()
     recipient_id = request.data.get("recipient_id", "").strip()
     text = request.data.get("message", "").strip()
+    attachments_in = request.data.get("attachments") or []
 
-    if not all([sender_id, recipient_id, text]):
+    if not all([sender_id, recipient_id]) or (not text and not attachments_in):
         return Response(
             {
                 "success": False,
-                "error": "sender_id, recipient_id, and message are required",
+                "error": "sender_id, recipient_id, and message or attachments required",
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
@@ -1337,13 +1381,25 @@ def chat_message_send(request):
             status=status.HTTP_404_NOT_FOUND,
         )
 
+    attachments = []
+    for item in attachments_in:
+        if isinstance(item, dict) and item.get("data"):
+            saved = save_base64_chat_attachment(
+                item["data"], str(item.get("name", "file"))
+            )
+            if saved:
+                saved["url"] = media_url(saved["url"])
+                attachments.append(saved)
+
     msg = ChatMessage(
         sender_id=sender.employee_id,
         sender_name=sender.name,
         sender_role=sender.role,
         recipient_id=recipient.employee_id,
         recipient_name=recipient.name,
-        message=text,
+        message=text or ("" if attachments else ""),
+        attachments=attachments,
+        mentions=_parse_mentions(text),
         created_at=datetime.now(pytz.UTC),
     )
     msg.save()
@@ -1501,11 +1557,22 @@ def group_history(request):
             status=status.HTTP_403_FORBIDDEN,
         )
 
+    from employees.extras_views import publish_due_scheduled_messages
+
+    publish_due_scheduled_messages()
     mark_group_messages_read(group, employee_id)
     messages = GroupMessage.objects(group_id=group_id).order_by("created_at")
     cleared_at = get_group_cleared_at(employee_id, group_id)
     if cleared_at:
         messages = [message for message in messages if message.created_at > cleared_at]
+    messages = [
+        m
+        for m in messages
+        if not (
+            getattr(m, "message_type", "") == "scheduled"
+            and not getattr(m, "scheduled_published", True)
+        )
+    ]
     return Response(
         {
             "success": True,
@@ -1559,16 +1626,24 @@ def group_chat_history_clear(request):
 
 @api_view(["POST"])
 def group_message_send(request):
+    from employees.extras_views import _parse_mentions
+
     sender_id = str(request.data.get("sender_id", "")).strip()
     group_id = str(request.data.get("group_id", "")).strip()
     text = str(request.data.get("message", "")).strip()
+    message_type = str(request.data.get("message_type", "user")).strip()
+    poll_data = request.data.get("poll_data") or {}
+    scheduled_for_raw = str(request.data.get("scheduled_for", "")).strip()
+    attachments_in = request.data.get("attachments") or []
 
-    if not all([sender_id, group_id, text]):
+    if not all([sender_id, group_id]):
         return Response(
-            {
-                "success": False,
-                "error": "sender_id, group_id, and message are required",
-            },
+            {"success": False, "error": "sender_id and group_id are required"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    if message_type == "user" and not text and not attachments_in:
+        return Response(
+            {"success": False, "error": "message or attachments required"},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -1586,17 +1661,51 @@ def group_message_send(request):
             status=status.HTTP_403_FORBIDDEN,
         )
 
+    attachments = []
+    for item in attachments_in:
+        if isinstance(item, dict) and item.get("data"):
+            saved = save_base64_chat_attachment(
+                item["data"], str(item.get("name", "file"))
+            )
+            if saved:
+                saved["url"] = media_url(saved["url"])
+                attachments.append(saved)
+
+    scheduled_for = None
+    if scheduled_for_raw:
+        try:
+            scheduled_for = datetime.fromisoformat(
+                scheduled_for_raw.replace("Z", "+00:00")
+            )
+        except ValueError:
+            pass
+
+    if message_type == "poll":
+        text = text or str(poll_data.get("question", "Poll"))
+        poll_data = {
+            "question": poll_data.get("question", text),
+            "options": poll_data.get("options", []),
+            "votes": {},
+        }
+
     message = GroupMessage(
         group_id=group_id,
         sender_id=sender.employee_id,
         sender_name=sender.name,
-        message=text,
+        message=text or ("" if attachments else ""),
+        message_type="scheduled" if scheduled_for and not request.data.get("publish_now") else message_type,
+        attachments=attachments,
+        mentions=_parse_mentions(text),
+        poll_data=poll_data if message_type == "poll" else {},
+        scheduled_for=scheduled_for,
+        scheduled_published=not scheduled_for or bool(request.data.get("publish_now")),
         created_at=datetime.now(pytz.UTC),
     )
     message.save()
     group = ChatGroup.objects(id=group_id).first()
     payload = group_message_payload(message, group)
-    broadcast_group_event(group_id, "message", payload)
+    if message.scheduled_published:
+        broadcast_group_event(group_id, "message", payload)
     return Response({"success": True, "message": payload})
 
 

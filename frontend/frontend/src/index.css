@@ -10,6 +10,54 @@
   --dash-shell-radius: 28px; /* matches desktop sidebar rail */
   --dash-squircle-radius: 1rem; /* rounded-2xl — nav wells & avatars */
   --dash-cell-empty: rgb(100 116 139 / 0.8); /* slate-500/80 */
+  --z-sidebar: 40;
+  --z-chat: 70;
+  --z-modal: 200;
+  --z-app-lock: 250;
+  --z-toast: 220;
+}
+
+/* Modals / forms — above sidebar & messaging */
+.app-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
+    max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  background: rgb(0 0 0 / 0.78);
+  backdrop-filter: blur(10px);
+  overflow-y: auto;
+}
+
+.app-modal-center {
+  width: 100%;
+  max-width: 32rem;
+  margin: auto;
+}
+
+.app-lock-overlay {
+  z-index: var(--z-app-lock);
+}
+
+.z-app-sidebar {
+  z-index: var(--z-sidebar);
+}
+
+.z-app-chat {
+  z-index: var(--z-chat);
+}
+
+/* Hide floating UI while a portaled modal is open */
+body.app-modal-open .z-app-sidebar,
+body.app-modal-open .sidebar-rail,
+body.app-modal-open .chat-fab,
+body.app-modal-open .z-app-chat,
+body.app-modal-open .theme-floating-toggle {
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
 html {
@@ -21,6 +69,20 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
+}
+
+/* Intro loader — always light text on dark overlay (light theme overrides text-slate-*) */
+.app-intro .intro-loader-text {
+  color: #f8fafc;
+}
+
+html.light .app-intro .intro-loader-text {
+  color: #f8fafc !important;
+}
+
+html.light .app-intro.text-white,
+html.light .app-intro .text-white {
+  color: #ffffff !important;
 }
 
 /* Global viewport scrollbar — dark theme */
@@ -286,6 +348,28 @@ textarea {
   animation: fab-attention-bounce 520ms var(--ease-out-quart);
 }
 
+@keyframes notification-badge-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+.notification-badge-pulse {
+  animation: notification-badge-pulse 2s var(--ease-standard) infinite;
+}
+
+.motion-tap-btn {
+  transition: transform var(--motion-fast) var(--ease-out-quart);
+}
+
+.motion-tap-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
 .sidebar-rail {
   overflow: hidden;
   scrollbar-width: none;
@@ -356,7 +440,9 @@ textarea {
   .dash-row-enter,
   .skeleton-shimmer,
   .status-not-marked-pulse,
-  .fab-attention-bounce {
+  .fab-attention-bounce,
+  .notification-badge-pulse,
+  .empty-state-icon {
     animation: none !important;
   }
 
@@ -383,6 +469,10 @@ textarea {
   .dash-metric-card:hover {
     transform: none;
     box-shadow: none;
+  }
+
+  .motion-tap-btn:active:not(:disabled) {
+    transform: none;
   }
 
   .wizard-step-panel,

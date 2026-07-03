@@ -1,7 +1,7 @@
-import type { OpenChat } from "./chatHelpers";
+import type { Contact, OpenChat } from "./chatHelpers";
 
 export type NotificationAction =
-  | { type: "open_chat"; chat: OpenChat }
+  | { type: "open_chat"; chat: OpenChat; contact?: Contact }
   | { type: "admin_leaves_tab" }
   | { type: "employee_leaves_modal" };
 

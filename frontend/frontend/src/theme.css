@@ -389,44 +389,95 @@ html.light .login-face-frame .text-cyan-100 {
 
 /* Status / metric cards — darker, bolder text in light mode */
 html.light .dash-metric-label {
-  color: #334155 !important;
   font-weight: 600 !important;
 }
 
+html.light .dash-metric-label.text-slate-300,
+html.light .dash-metric-card .dash-metric-label.text-slate-300 {
+  color: #475569 !important;
+}
+
 html.light .dash-metric-value {
-  color: #0f172a !important;
   font-weight: 700 !important;
 }
 
+html.light .dash-metric-value.text-white {
+  color: #0f172a !important;
+}
+
+html.light .dash-metric-value.text-slate-300 {
+  color: #64748b !important;
+}
+
+html.light .dash-metric-value.text-slate-400 {
+  color: #64748b !important;
+}
+
 html.light .dash-metric-card .text-green-300,
-html.light .dash-metric-value.text-green-300 {
+html.light .dash-metric-value.text-green-300,
+html.light .dash-metric-card .dash-metric-label.text-green-300 {
   color: #15803d !important;
+}
+
+html.light .dash-metric-card .text-green-500,
+html.light .dash-metric-value.text-green-500 {
+  color: #16a34a !important;
 }
 
 html.light .dash-metric-card .text-yellow-300,
 html.light .dash-metric-card .text-yellow-400,
-html.light .dash-metric-value.text-yellow-300 {
+html.light .dash-metric-value.text-yellow-300,
+html.light .dash-metric-card .dash-metric-label.text-yellow-400 {
   color: #a16207 !important;
 }
 
+html.light .dash-metric-card .text-yellow-500,
+html.light .dash-metric-value.text-yellow-500 {
+  color: #ca8a04 !important;
+}
+
 html.light .dash-metric-card .text-red-300,
-html.light .dash-metric-value.text-red-300 {
+html.light .dash-metric-value.text-red-300,
+html.light .dash-metric-card .dash-metric-label.text-red-300 {
   color: #b91c1c !important;
 }
 
+html.light .dash-metric-card .text-red-500,
+html.light .dash-metric-value.text-red-500 {
+  color: #dc2626 !important;
+}
+
 html.light .dash-metric-card .text-orange-300,
-html.light .dash-metric-value.text-orange-300 {
+html.light .dash-metric-value.text-orange-300,
+html.light .dash-metric-card .dash-metric-label.text-orange-300 {
   color: #c2410c !important;
 }
 
+html.light .dash-metric-card .text-orange-500,
+html.light .dash-metric-value.text-orange-500 {
+  color: #ea580c !important;
+}
+
 html.light .dash-metric-card .text-purple-300,
-html.light .dash-metric-value.text-purple-300 {
+html.light .dash-metric-value.text-purple-300,
+html.light .dash-metric-card .dash-metric-label.text-purple-300 {
   color: #7e22ce !important;
 }
 
+html.light .dash-metric-card .text-purple-500,
+html.light .dash-metric-value.text-purple-500 {
+  color: #9333ea !important;
+}
+
 html.light .dash-metric-card .text-blue-300,
-html.light .dash-metric-value.text-blue-300 {
+html.light .dash-metric-value.text-blue-300,
+html.light .dash-metric-card .dash-metric-label.text-blue-300 {
   color: #1d4ed8 !important;
+}
+
+html.light .dash-metric-card .text-blue-500,
+html.light .dash-metric-value.text-blue-500 {
+  color: #2563eb !important;
 }
 
 html.light .dash-metric-card .text-emerald-400,
@@ -444,8 +495,7 @@ html.light .dash-metric-value.text-orange-400 {
   color: #ea580c !important;
 }
 
-html.light .dash-metric-card .text-slate-300.text-3xl,
-html.light .dash-metric-value.text-slate-300 {
+html.light .dash-metric-card .text-slate-300.text-3xl {
   color: #0f172a !important;
 }
 
@@ -617,6 +667,28 @@ html.light .dash-table-panel .text-slate-400 {
   color: #475569 !important;
 }
 
+html.light .dash-shell-panel .text-white,
+html.light .dash-table-panel .text-white,
+html.light .dash-monthly-summary .text-white {
+  color: #0f172a !important;
+}
+
+html.light .dash-shell-panel .text-slate-300,
+html.light .dash-table-panel .text-slate-300,
+html.light .dash-monthly-summary .text-slate-300 {
+  color: #475569 !important;
+}
+
+html.light .chat-panel .text-white,
+html.light .chat-popup .text-white,
+html.light .chat-popup-minimized .text-white {
+  color: #0f172a !important;
+}
+
+html.light .chat-panel input.text-white {
+  color: #0f172a !important;
+}
+
 /* Sidebar — icon wells with visible borders */
 html.light .sidebar-rail {
   border-color: #e2e8f0 !important;
@@ -664,23 +736,39 @@ html.light .dash-metric-card h2.text-white {
   color: #0f172a !important;
 }
 
-/* ── Chat / messages (light only) ── */
+/* ── Chat / messages widget ── */
+.chat-widget-panel,
+.chat-widget-popup {
+  background-color: #ffffff;
+  border-color: #e2e8f0;
+  color: #0f172a;
+}
+
+.chat-widget-fab {
+  background-color: #0f172a;
+  border-color: #ffffff;
+}
+
 html.light .chat-panel,
 html.light .chat-popup,
-html.light .chat-popup-minimized {
+html.light .chat-popup-minimized,
+html.light .chat-widget-panel,
+html.light .chat-widget-popup {
   background-color: #ffffff !important;
   border-color: #e2e8f0 !important;
-  color: #000000;
+  color: #0f172a;
 }
 
-html.light .chat-fab {
-  background-color: #ffffff !important;
-  border-color: #e2e8f0 !important;
-  box-shadow: 0 4px 20px rgb(15 23 42 / 0.08) !important;
+html.light .chat-fab,
+html.light .chat-widget-fab {
+  background-color: transparent !important;
+  border-color: #ffffff !important;
+  box-shadow: 0 4px 20px rgb(15 23 42 / 0.15) !important;
 }
 
-html.light .chat-fab:hover {
-  background-color: #f8fafc !important;
+html.light .chat-fab:hover,
+html.light .chat-widget-fab:hover {
+  box-shadow: 0 6px 24px rgb(15 23 42 / 0.2) !important;
 }
 
 html.light .chat-panel .text-cyan-300,
@@ -794,6 +882,12 @@ html.light .date-picker-panel .text-slate-500 {
 }
 
 /* Notification panel */
+html.light .notification-panel.dash-modal-card,
+html.light .notification-panel.dash-modal-card .text-white {
+  background-color: #111827 !important;
+  color: #f8fafc !important;
+}
+
 html.light .notification-panel-overlay {
   background-color: rgb(15 23 42 / 0.35) !important;
 }
@@ -1043,4 +1137,151 @@ html.light .dash-leave-search {
 
 html.light .dash-leave-search::placeholder {
   color: #94a3b8 !important;
+}
+
+/* ── HR Management page ── */
+.hr-page-title {
+  color: var(--th-text);
+}
+
+.hr-page-subtitle {
+  color: var(--th-text-muted);
+}
+
+.hr-panel {
+  border-radius: 1rem;
+  border: 1px solid var(--th-border-subtle);
+  background: var(--th-surface);
+  padding: 1.25rem;
+  box-shadow: 0 8px 30px rgb(15 23 42 / 0.08);
+}
+
+html.dark .hr-panel,
+html:not(.light) .hr-panel {
+  background: rgb(15 23 42 / 0.55);
+  backdrop-filter: blur(12px);
+}
+
+html.light .hr-panel {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 4px 20px rgb(15 23 42 / 0.04);
+}
+
+.hr-card {
+  border-radius: 0.75rem;
+  border: 1px solid var(--th-border-subtle);
+  background: var(--th-input-bg);
+  padding: 1rem;
+}
+
+html.light .hr-card {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.hr-info-banner {
+  border-radius: 0.75rem;
+  border: 1px solid rgb(59 130 246 / 0.25);
+  background: rgb(59 130 246 / 0.08);
+  padding: 1rem 1.25rem;
+  color: var(--th-text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+html.light .hr-info-banner {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1e40af;
+}
+
+.hr-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--th-border-subtle);
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.hr-tab-inactive {
+  color: var(--th-text-muted);
+  background: transparent;
+}
+
+.hr-tab-inactive:hover {
+  color: var(--th-text);
+  border-color: var(--th-border);
+}
+
+.hr-tab-active {
+  border-color: rgb(59 130 246 / 0.45);
+  background: rgb(59 130 246 / 0.12);
+  color: #60a5fa;
+}
+
+html.light .hr-tab-active {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+.hr-input {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid var(--th-border-subtle);
+  background: var(--th-input-bg);
+  padding: 0.625rem 0.75rem;
+  color: var(--th-text);
+}
+
+html.light .hr-input {
+  border-color: #cbd5e1;
+  background: #ffffff;
+}
+
+.hr-table-head {
+  border-bottom: 1px solid var(--th-border-subtle);
+  color: var(--th-text-muted);
+}
+
+.hr-table-row {
+  border-bottom: 1px solid var(--th-border-subtle);
+}
+
+.hr-text-primary {
+  color: var(--th-text);
+}
+
+.hr-text-secondary {
+  color: var(--th-text-secondary);
+}
+
+.hr-text-muted {
+  color: var(--th-text-muted);
+}
+
+html.light .hr-text-muted {
+  color: #64748b !important;
+}
+
+html.light .hr-text-primary {
+  color: #0f172a !important;
+}
+
+html.light .hr-text-secondary {
+  color: #334155 !important;
+}
+
+html.light .hr-page-title {
+  color: #0f172a !important;
+}
+
+html.light .hr-page-subtitle {
+  color: #64748b !important;
 }

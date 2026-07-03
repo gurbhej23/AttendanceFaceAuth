@@ -1,5 +1,7 @@
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import ProfileAvatarImg from "../common/ProfileAvatarImg";
+import { imageReveal } from "../../motion/presets";
 
 interface WelcomeCardProps {
   employeeName: string | null;
@@ -43,11 +45,18 @@ function WelcomeCard({
             title="View profile"
           >
             {profileImg ? (
-              <ProfileAvatarImg
-                src={profileImg}
-                alt={employeeName || "Employee"}
-                className="h-full w-full"
-              />
+              <motion.div
+                className="h-full w-full will-change-transform"
+                variants={imageReveal}
+                initial="hidden"
+                animate="visible"
+              >
+                <ProfileAvatarImg
+                  src={profileImg}
+                  alt={employeeName || "Employee"}
+                  className="h-full w-full"
+                />
+              </motion.div>
             ) : (
               <div className="grid h-full w-full place-items-center bg-linear-to-br from-blue-600 to-cyan-500 text-lg font-bold text-white sm:text-2xl">
                 {(employeeName || "E").charAt(0)}

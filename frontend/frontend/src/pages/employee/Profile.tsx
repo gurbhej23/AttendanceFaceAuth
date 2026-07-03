@@ -11,12 +11,19 @@ import API, { FACE_REQUEST_TIMEOUT_MS } from "../../services/api";
 import Button from "../../components/common/Button";
 import Input from "../../components/common/Input";
 import PasswordField from "../../components/common/PasswordField";
+import { AnimatePresence } from "framer-motion";
 import Toast from "../../components/common/Toast";
 import ProfilePhotoCropModal from "../../components/common/ProfilePhotoCropModal";
 import ProfileAvatarImg from "../../components/common/ProfileAvatarImg";
 import SearchableSelect from "../../components/auth/SearchableSelect";
 import CvDropZone from "../../components/auth/CvDropZone";
+import DashboardDatePicker from "../../components/common/DashboardDatePicker";
 import { getMediaUrl } from "../../utils/chatHelpers";
+import {
+  isAppLockEnabled,
+  registerBiometricCredential,
+  setAppLockEnabled,
+} from "../../utils/biometricLock";
 import { ArrowLeft, BriefcaseBusiness, Camera, Download, FileText, X } from "lucide-react";
 import {
   DEPARTMENTS,
@@ -33,10 +40,17 @@ interface EmployeeProfile {
   designation: string;
   profile_img: string;
   cv_file: string;
+  date_of_birth?: string;
+  join_date?: string;
 }
 
 const fieldClass =
   "profile-field mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 p-3 text-white outline-none";
+
+const getLocalDate = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 
 const getError = (err: unknown, fallback: string) => {
   const e = err as { response?: { data?: { error?: string } } };
@@ -51,6 +65,8 @@ export default function Profile() {
   const [phone, setPhone] = useState("");
   const [department, setDepartment] = useState("IT");
   const [designation, setDesignation] = useState("Software Engineer");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [joinDate, setJoinDate] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -62,6 +78,7 @@ export default function Profile() {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [appLock, setAppLock] = useState(() => isAppLockEnabled());
   const [faceSaving, setFaceSaving] = useState(false);
   const [toast, setToast] = useState<{ ok: boolean; msg: string } | null>(null);
 
@@ -101,6 +118,8 @@ export default function Profile() {
       setPhone(data.phone || "");
       setDepartment(data.department || "IT");
       setDesignation(data.designation || "Software Engineer");
+      setDateOfBirth(data.date_of_birth || "");
+      setJoinDate(data.join_date || "");
     } catch (err) {
       showToast(getError(err, "Could not load profile"), false);
     } finally {
@@ -125,6 +144,8 @@ export default function Profile() {
         phone,
         department,
         designation,
+        date_of_birth: dateOfBirth,
+        join_date: joinDate,
         current_password: "",
         new_password: "",
         cv_file: cvFile,
@@ -279,7 +300,9 @@ export default function Profile() {
 
   return (
     <div className="profile-page min-h-screen bg-linear-to-br from-slate-950 via-[#0f172a] to-slate-950 px-4 py-6 text-white">
-      {toast && <Toast message={toast.msg} ok={toast.ok} />}
+      <AnimatePresence>
+        {toast && <Toast key={toast.msg} message={toast.msg} ok={toast.ok} />}
+      </AnimatePresence>
 
       <div className="mx-auto max-w-6xl">
         <div className="mb-6 flex items-center gap-3">
@@ -301,7 +324,7 @@ export default function Profile() {
 
         <div className="grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)]">
           <section className="profile-card flex flex-col rounded-3xl border border-slate-800/80 bg-slate-900/80 p-6 shadow-xl backdrop-blur-sm">
-            <label className="group relative mx-auto mb-5 block h-32 w-32 cursor-pointer">
+            <label className="group relative mx-auto mb-5 block h-35 w-35 cursor-pointer">
               <div
                 onClick={(e) => {
                   e.preventDefault();
@@ -313,7 +336,7 @@ export default function Profile() {
                   <ProfileAvatarImg
                     src={getMediaUrl(profile.profile_img)}
                     alt={profile.name}
-                    className="transition duration-300 group-hover:scale-105"
+                    className="transition duration-300 group-hover:scale-105 h-35 w-35"
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-blue-600 to-cyan-500 text-4xl font-bold">
@@ -330,7 +353,7 @@ export default function Profile() {
               <Input
                 type="file"
                 accept="image/*"
-                className="absolute inset-0 cursor-pointer opacity-0"
+                className="absolute inset-0 cursor-pointer opacity-0 right-20"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) uploadProfilePhoto(file);
@@ -342,7 +365,7 @@ export default function Profile() {
             <h2 className="text-center text-xl font-bold">{profile?.name}</h2>
             <p className="text-center text-sm text-slate-400">{profile?.employee_id}</p>
 
-            <div className="mt-6 flex-1 space-y-3 text-sm">
+            <div className="mt-6 space-y-3 text-sm">
               <div className="profile-info-tile rounded-2xl border border-slate-800 bg-slate-950/80 p-3.5">
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
                   Email
@@ -440,6 +463,72 @@ export default function Profile() {
                 </div>
               )}
             </div>
+
+            <div className="mt-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4">
+              <h3 className="text-sm font-bold text-white">Face re-enrollment</h3>
+              <p className="mt-1 text-xs text-slate-400">
+                Use when face verification keeps failing.
+              </p>
+              <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-200">
+                <span className="biometric-status-dot h-2 w-2 rounded-full bg-emerald-400" />
+                Enrolled &amp; active
+              </div>
+              <Button
+                text={showFaceEnrollment ? "Close" : "Re-enroll face"}
+                onClick={() => {
+                  setShowFaceEnrollment((value) => !value);
+                  setCapturedImage(null);
+                }}
+                className="mt-3 w-full rounded-xl bg-cyan-600 px-4 py-2.5 text-sm font-bold transition hover:bg-cyan-500"
+              />
+              {showFaceEnrollment && (
+                <div className="mt-3 space-y-3">
+                  <div className="relative aspect-video overflow-hidden rounded-2xl border-2 border-slate-700 bg-black">
+                    {capturedImage ? (
+                      <img
+                        src={capturedImage}
+                        alt="Captured face"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <Webcam
+                        ref={webcamRef}
+                        audio={false}
+                        mirrored
+                        screenshotFormat="image/jpeg"
+                        screenshotQuality={0.95}
+                        onUserMedia={() => setCameraReady(true)}
+                        videoConstraints={{
+                          facingMode: "user",
+                          width: { ideal: 1280 },
+                          height: { ideal: 720 },
+                        }}
+                        className="h-full w-full object-cover"
+                      />
+                    )}
+                  </div>
+                  <Button
+                    text="Capture new face"
+                    onClick={captureFace}
+                    disabled={!cameraReady || faceSaving}
+                    className="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold hover:bg-blue-700 disabled:opacity-50"
+                  />
+                  <Button
+                    text={faceSaving ? "Updating..." : "Save face profile"}
+                    onClick={saveFace}
+                    disabled={!capturedImage || faceSaving}
+                    className="w-full rounded-xl bg-green-600 px-4 py-2.5 text-sm font-bold hover:bg-green-700 disabled:opacity-50"
+                  />
+                  {capturedImage && (
+                    <Button
+                      text="Retake photo"
+                      onClick={() => setCapturedImage(null)}
+                      className="w-full rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-300 hover:bg-slate-800"
+                    />
+                  )}
+                </div>
+              )}
+            </div>
           </section>
 
           <div className="grid gap-5">
@@ -463,6 +552,26 @@ export default function Profile() {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     className={fieldClass}
+                  />
+                </label>
+                <label className="min-w-0 text-sm text-slate-400">
+                  Date of birth
+                  <DashboardDatePicker
+                    value={dateOfBirth}
+                    onChange={setDateOfBirth}
+                    max={getLocalDate()}
+                    placeholder="Select date of birth"
+                    className="profile-field mt-2 w-full"
+                  />
+                </label>
+                <label className="min-w-0 text-sm text-slate-400">
+                  Join date
+                  <DashboardDatePicker
+                    value={joinDate}
+                    onChange={setJoinDate}
+                    max={getLocalDate()}
+                    placeholder="Select join date"
+                    className="profile-field mt-2 w-full"
                   />
                 </label>
                 <div className="min-w-0">
@@ -492,6 +601,32 @@ export default function Profile() {
                 disabled={saving}
                 className="mt-6 rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
               />
+            </section>
+
+            <section className="profile-card rounded-3xl border border-slate-800/80 bg-slate-900/80 p-6 shadow-xl backdrop-blur-sm">
+              <div className="mb-5 border-b border-slate-800 pb-5">
+                <h2 className="text-xl font-bold">App lock</h2>
+                <p className="mt-1 text-sm text-slate-400">
+                  Locks when you switch tabs or after 2 minutes idle. Use biometrics to unlock.
+                </p>
+              </div>
+              <label className="flex cursor-pointer items-center gap-3 text-sm text-slate-200">
+                <input
+                  type="checkbox"
+                  checked={appLock}
+                  onChange={async (event) => {
+                    const enabled = event.target.checked;
+                    if (enabled) {
+                      const registered = await registerBiometricCredential();
+                      if (!registered) return;
+                    }
+                    setAppLockEnabled(enabled);
+                    setAppLock(enabled);
+                  }}
+                  className="h-4 w-4 rounded border-slate-600"
+                />
+                Enable biometric app lock
+              </label>
             </section>
 
             <section className="profile-card rounded-3xl border border-slate-800/80 border-t-indigo-500/20 bg-slate-900/80 p-6 shadow-xl backdrop-blur-sm">
@@ -529,87 +664,6 @@ export default function Profile() {
                 className="mt-6 rounded-2xl bg-indigo-600 px-5 py-3 font-bold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
               />
             </section>
-
-            <section className="profile-card rounded-3xl border border-slate-800/80 bg-slate-900/80 p-6 shadow-xl backdrop-blur-sm">
-              <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-                <div>
-                  <h2 className="text-xl font-bold">Face re-enrollment</h2>
-                  <p className="mt-1 text-sm text-slate-400">
-                    Use this when face verification is failing repeatedly.
-                  </p>
-                </div>
-                <div className="flex shrink-0 flex-col items-stretch gap-3 sm:items-end">
-                  <div className="inline-flex items-center gap-2.5 self-start rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-200 sm:self-end">
-                    <span className="biometric-status-dot h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
-                    Status: Biometrics Enrolled &amp; Active
-                  </div>
-                  <Button
-                    text={
-                      showFaceEnrollment
-                        ? "Close re-enrollment"
-                        : "Start re-enrollment"
-                    }
-                    onClick={() => {
-                      setShowFaceEnrollment((value) => !value);
-                      setCapturedImage(null);
-                    }}
-                    className="rounded-2xl bg-cyan-600 px-5 py-3 font-bold transition hover:bg-cyan-500"
-                  />
-                </div>
-              </div>
-
-              {showFaceEnrollment && (
-                <div className="mt-5 grid gap-5 lg:grid-cols-[420px_1fr]">
-                  <div className="relative aspect-video overflow-hidden rounded-[28px] border-4 border-slate-700 bg-black">
-                    {capturedImage ? (
-                      <img
-                        src={capturedImage}
-                        alt="Captured face"
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <Webcam
-                        ref={webcamRef}
-                        audio={false}
-                        mirrored
-                        screenshotFormat="image/jpeg"
-                        screenshotQuality={0.95}
-                        onUserMedia={() => setCameraReady(true)}
-                        videoConstraints={{
-                          facingMode: "user",
-                          width: { ideal: 1280 },
-                          height: { ideal: 720 },
-                        }}
-                        className="h-full w-full object-cover"
-                      />
-                    )}
-                  </div>
-                  <div className="flex flex-col justify-center gap-3">
-                    <Button
-                      text="Capture new face"
-                      onClick={captureFace}
-                      disabled={!cameraReady || faceSaving}
-                      className="rounded-2xl bg-blue-600 px-5 py-3 font-bold hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
-                    />
-
-                    <Button
-                      text={faceSaving ? "Updating..." : "Save face profile"}
-                      onClick={saveFace}
-                      disabled={!capturedImage || faceSaving}
-                      className="rounded-2xl bg-green-600 px-5 py-3 font-bold hover:bg-green-700 disabled:opacity-50 cursor-pointer"
-                    />
-
-                    {capturedImage && (
-                      <Button
-                        text="Retake photo"
-                        onClick={() => setCapturedImage(null)}
-                        className="rounded-2xl border border-slate-700 px-5 py-3 font-semibold text-slate-300 hover:bg-slate-800 cursor-pointer"
-                      />
-                    )}
-                  </div>
-                </div>
-              )}
-            </section>
           </div>
         </div>
       </div>
@@ -620,7 +674,7 @@ export default function Profile() {
             <Button
               text={<X />}
               onClick={() => setShowImageModal(false)}
-              className="absolute top-2 right-2 text-black text-xl cursor-pointer"
+              className="absolute top-2 right-2 rounded-full bg-black/50 p-2 text-white cursor-pointer"
             />
 
             <img

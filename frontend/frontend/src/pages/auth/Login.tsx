@@ -17,6 +17,12 @@ import {
   LOGIN_SUBTITLE,
 } from "../../components/auth/loginStyles";
 import { Eye, EyeOff, UserRound } from "lucide-react";
+import {
+  MotionButton,
+  MotionCard,
+  MotionNav,
+  StaggerGroup,
+} from "../../components/motion/MotionPrimitives";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -132,21 +138,24 @@ export default function Login() {
         />
       )}
 
-      <div className={LOGIN_ROLE_TOGGLE}>
-        <Button
-          text="Employee"
-          className="bg-linear-to-r from-blue-600 to-cyan-500 py-3 text-white shadow-lg shadow-blue-500/20 cursor-pointer"
-        />
+      <StaggerGroup className="flex w-full max-w-5xl flex-col items-center">
+        <MotionNav className="w-full max-w-md">
+          <div className={LOGIN_ROLE_TOGGLE}>
+            <Button
+              text="Employee"
+              className="bg-linear-to-r from-blue-600 to-cyan-500 py-3 text-white shadow-lg shadow-blue-500/20 cursor-pointer"
+            />
 
-        <Button
-          text="Admin"
-          onClick={() => navigate("/admin-login", { replace: true })}
-          className="bg-slate-800/80 py-3 text-slate-300 hover:bg-slate-700 cursor-pointer"
-        />
-      </div>
+            <Button
+              text="Admin"
+              onClick={() => navigate("/admin-login", { replace: true })}
+              className="bg-slate-800/80 py-3 text-slate-300 hover:bg-slate-700 cursor-pointer"
+            />
+          </div>
+        </MotionNav>
 
-      <div className={`${LOGIN_OUTER_SHELL} lg:grid-cols-[270px_1fr]`}>
-        <section className={`${LOGIN_INNER_PANEL} p-4 text-center`}>
+        <div className={`${LOGIN_OUTER_SHELL} lg:grid-cols-[270px_1fr] mt-6`}>
+          <MotionCard className={`${LOGIN_INNER_PANEL} p-4 text-center`}>
           <p className="text-lg font-semibold text-slate-100">Selected User</p>
 
           <div className="login-face-frame relative mx-auto mt-5 flex h-36 w-36 items-center justify-center rounded-full border border-cyan-300/30 bg-slate-950/70 shadow-xl shadow-cyan-500/10">
@@ -161,9 +170,9 @@ export default function Login() {
           </div>
           <h1 className="mt-4 text-3xl font-bold text-white">Attendance</h1>
           <p className={LOGIN_SUBTITLE}>Smart Face Recognition System</p>
-        </section>
+          </MotionCard>
 
-        <section className={`${LOGIN_INNER_PANEL} flex flex-col justify-center p-5`}>
+          <MotionCard className={`${LOGIN_INNER_PANEL} flex flex-col justify-center p-5`}>
           <form
             className="space-y-5"
             onSubmit={(e) => {
@@ -245,12 +254,14 @@ export default function Login() {
               </div>
             )}
 
-            <Button
-              text={loading ? "Verifying..." : "Login"}
-              type="submit"
-              disabled={loading}
-              className={LOGIN_SUBMIT_BUTTON}
-            />
+            <MotionButton>
+              <Button
+                text={loading ? "Verifying..." : "Login"}
+                type="submit"
+                disabled={loading}
+                className={LOGIN_SUBMIT_BUTTON}
+              />
+            </MotionButton>
           </form>
 
           <div className="mt-5 flex flex-wrap items-center justify-center gap-2 text-center">
@@ -263,8 +274,9 @@ export default function Login() {
               Register Here
             </Link>
           </div>
-        </section>
-      </div>
+          </MotionCard>
+        </div>
+      </StaggerGroup>
     </div>
   );
 }

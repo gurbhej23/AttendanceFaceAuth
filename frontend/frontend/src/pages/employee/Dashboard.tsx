@@ -24,12 +24,22 @@ import {
   TriangleAlert,
   User,
   UserRoundPen,
+  Users,
   X,
 } from "lucide-react";
 import WelcomeCard from "../../components/dashboard/WelcomeCard";
 import StatusCard from "../../components/dashboard/StatusCards";
 import AttendanceTable from "../../components/dashboard/AttendanceTable";
+import HRPanel from "../../components/dashboard/HRPanel";
+import DashboardExtras, {
+  fetchDashboardExtras,
+  type DashboardExtrasData,
+} from "../../components/dashboard/DashboardExtras";
 import DashboardDatePicker from "../../components/common/DashboardDatePicker";
+import { enqueueMarkPresent, flushOfflineQueue } from "../../utils/offlineQueue";
+import InstallPwaButton from "../../components/common/InstallPwaButton";
+import PortalModal from "../../components/common/PortalModal";
+import EmptyState from "../../components/common/EmptyState";
 
 interface AttendanceRecord {
   employee_id: string;
@@ -182,6 +192,12 @@ export default function Dashboard() {
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [showLeavesModal, setShowLeavesModal] = useState(false);
   const [showReasonModal, setShowReasonModal] = useState(false);
+  const [showRegularizationModal, setShowRegularizationModal] = useState(false);
+  const [workMode, setWorkMode] = useState<"office" | "wfh">("office");
+  const [dashboardExtras, setDashboardExtras] = useState<DashboardExtrasData | null>(null);
+  const [regDate, setRegDate] = useState(getLocalDate());
+  const [regStatus, setRegStatus] = useState("present");
+  const [regReason, setRegReason] = useState("");
   const [viewReason, setViewReason] = useState<string | null>(null);
 
   const [absentReason, setAbsentReason] = useState("");
@@ -378,6 +394,37 @@ export default function Dashboard() {
     navigate,
   ]);
 
+  useEffect(() => {
+    if (!employeeId) return;
+    void fetchDashboardExtras(employeeId).then(setDashboardExtras);
+    const onOnline = () => {
+      void flushOfflineQueue((body) =>
+        API.post("/attendance/mark-present/", body),
+      ).then((n) => {
+        if (n > 0) fetchRecords();
+      });
+    };
+    window.addEventListener("online", onOnline);
+    void onOnline();
+    return () => window.removeEventListener("online", onOnline);
+  }, [employeeId, fetchRecords]);
+
+  useEffect(() => {
+    if (!employeeId || todayStatus === "present" || todayStatus === "late") return;
+    const hour = new Date().getHours();
+    if (hour >= 10) return;
+    const key = `att_reminder_${employeeId}_${today}`;
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, "1");
+    if (Notification.permission === "granted") {
+      new Notification("Mark attendance", {
+        body: "You have not marked attendance today.",
+      });
+    } else if (Notification.permission !== "denied") {
+      void Notification.requestPermission();
+    }
+  }, [employeeId, today, todayStatus]);
+
   // ── Handlers ──────────────────────────────────────────────────────────
   const handleLogout = () => {
     clearAuthSession();
@@ -403,16 +450,24 @@ export default function Dashboard() {
       const location = await getCurrentLocation();
       const res = await API.post("/attendance/mark-present/", {
         employee_id: employeeId,
+        work_mode: workMode,
         ...location,
       });
       showSuccess(res.data.message || "✅ Marked as present");
       setShowAttendancePrompt(false);
-      // Show late alert if applicable
       if (res.data.is_late && res.data.minutes_late > 0) {
         setLateAlert({ show: true, minutesLate: res.data.minutes_late });
       }
       fetchRecords();
     } catch (err: unknown) {
+      if (!navigator.onLine) {
+        enqueueMarkPresent({
+          employee_id: employeeId as string,
+          work_mode: workMode,
+        });
+        showSuccess("Saved offline — will sync when back online");
+        return;
+      }
       showError(getApiError(err, "Failed to mark present"));
     }
   };
@@ -497,6 +552,27 @@ export default function Dashboard() {
     }
   };
 
+  const requestRegularization = async () => {
+    if (!requireEmployeeId()) return;
+    if (!regReason.trim()) {
+      showError("Please enter a reason");
+      return;
+    }
+    try {
+      const res = await API.post("/attendance/hr/regularization/request/", {
+        employee_id: employeeId,
+        date: regDate,
+        requested_status: regStatus,
+        reason: regReason,
+      });
+      setShowRegularizationModal(false);
+      setRegReason("");
+      showSuccess(res.data.message || "Request submitted");
+    } catch (err: unknown) {
+      showError(getApiError(err, "Failed to submit request"));
+    }
+  };
+
   const now = new Date();
   const monthLabel = now.toLocaleString("en-IN", {
     month: "long",
@@ -504,6 +580,12 @@ export default function Dashboard() {
   });
   const sidebarItems = useMemo(
     () => [
+      {
+        icon: <Users size={18} />,
+        label: "Team",
+        onClick: () => navigate("/team"),
+        active: location.pathname === "/team",
+      },
       {
         icon: <UserRoundPen size={18} />,
         label: "Profile",
@@ -601,7 +683,7 @@ export default function Dashboard() {
       <MobileMenuButton onClick={() => setShowMenu(true)} />
 
       <div
-        className={`mx-auto max-w-8xl pb-12 pt-12 sm:pb-28 sm:pt-5 lg:ml-22 lg:pb-12 lg:pt-0 transition-all duration-500 ease-out ${anyModalOpen || showWelcomePrompt ? "blur-sm pointer-events-none select-none" : ""}`}
+        className={` mx-auto max-w-8xl pt-12 sm:pt-5 lg:ml-22 lg:pt-0 transition-all duration-500 ease-out ${anyModalOpen || showWelcomePrompt ? "blur-sm pointer-events-none select-none" : ""}`}
       >
         <WelcomeCard
           employeeName={employeeName}
@@ -609,6 +691,19 @@ export default function Dashboard() {
           employeeDepartment={employeeDepartment}
           employeeDesignation={employeeDesignation}
           profileImg={profileImg}
+        />
+
+        <div className="mb-3 flex justify-end">
+          <InstallPwaButton />
+        </div>
+
+        <DashboardExtras data={dashboardExtras} />
+
+        <HRPanel
+          employeeId={employeeId || ""}
+          workMode={workMode}
+          onWorkModeChange={setWorkMode}
+          onRegularization={() => setShowRegularizationModal(true)}
         />
 
         {/* TOP CARDS */}
@@ -635,65 +730,67 @@ export default function Dashboard() {
         />
 
         {monthlySummary && (
-          <div className="dash-fade-up dash-fade-up-delay-5 pt-5 pb-4">
-            <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h3 className="text-lg font-bold text-white">
-                  Monthly Summary
-                </h3>
-                <p className="text-sm font-medium dash-welcome-muted text-slate-300">{monthLabel}</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 lg:w-full lg:max-w-425">
-              {[
-                {
-                  label: "Present Days",
-                  value: monthlySummary.present_count,
-                  color: "text-green-500",
-                  bg: "bg-green-500/10 border-green-500/20",
-                },
-                {
-                  label: "Late Arrivals",
-                  value: monthlySummary.late_count,
-                  color: "text-yellow-500",
-                  bg: "bg-yellow-500/10 border-yellow-500/20",
-                },
-                {
-                  label: "Absent Days",
-                  value: monthlySummary.absent_count,
-                  color: "text-red-500",
-                  bg: "bg-red-500/10 border-red-500/20",
-                },
-                {
-                  label: "Half Days",
-                  value: monthlySummary.half_day_count,
-                  color: "text-orange-500",
-                  bg: "bg-orange-500/10 border-orange-500/20",
-                },
-                {
-                  label: "Leave Days",
-                  value: monthlySummary.leave_count,
-                  color: "text-purple-500",
-                  bg: "bg-purple-500/10 border-purple-500/20",
-                },
-                {
-                  label: "Total Hours",
-                  value: monthlySummary.total_working_hours,
-                  color: "text-blue-500",
-                  bg: "bg-blue-500/10 border-blue-500/20",
-                },
-              ].map(({ label, value, color, bg }, index) => (
-                <div
-                  key={label}
-                  className={`dash-metric-card dash-fade-up border p-4 ${bg}`}
-                  style={{
-                    animationDelay: `${380 + Math.min(index, 5) * 50}ms`,
-                  }}
-                >
-                  <p className="dash-metric-label text-xs font-semibold text-slate-300">{label}</p>
-                  <p className={`dash-metric-value mt-1 text-2xl font-bold ${color}`}>{value}</p>
+          <div className="dash-table-panel dash-fade-up dash-fade-up-delay-4 overflow-hidden border border-white/10 bg-white/5 shadow-2xl backdrop-blur-xl mt-5 pt-5 px-4">
+            <div className="dash-monthly-summary dash-fade-up dash-fade-up-delay-5 pt-3 pb-4">
+              <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-2">
+                  <h3 className="text-3xl font-bold text-white">
+                    Monthly Summary
+                  </h3>
+                  <p className="text-sm font-medium dash-welcome-muted text-slate-300">{monthLabel}</p>
                 </div>
-              ))}
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 lg:w-full lg:max-w-425">
+                {[
+                  {
+                    label: "Present Days",
+                    value: monthlySummary.present_count,
+                    color: "text-green-500",
+                    bg: "bg-green-500/10 border-green-500/20",
+                  },
+                  {
+                    label: "Late Arrivals",
+                    value: monthlySummary.late_count,
+                    color: "text-yellow-500",
+                    bg: "bg-yellow-500/10 border-yellow-500/20",
+                  },
+                  {
+                    label: "Absent Days",
+                    value: monthlySummary.absent_count,
+                    color: "text-red-500",
+                    bg: "bg-red-500/10 border-red-500/20",
+                  },
+                  {
+                    label: "Half Days",
+                    value: monthlySummary.half_day_count,
+                    color: "text-orange-500",
+                    bg: "bg-orange-500/10 border-orange-500/20",
+                  },
+                  {
+                    label: "Leave Days",
+                    value: monthlySummary.leave_count,
+                    color: "text-purple-500",
+                    bg: "bg-purple-500/10 border-purple-500/20",
+                  },
+                  {
+                    label: "Total Hours",
+                    value: monthlySummary.total_working_hours,
+                    color: "text-blue-500",
+                    bg: "bg-blue-500/10 border-blue-500/20",
+                  },
+                ].map(({ label, value, color, bg }, index) => (
+                  <div
+                    key={label}
+                    className={`dash-metric-card dash-fade-up border p-4 ${bg}`}
+                    style={{
+                      animationDelay: `${380 + Math.min(index, 5) * 50}ms`,
+                    }}
+                  >
+                    <p className="dash-metric-label text-xs font-semibold text-slate-300">{label}</p>
+                    <p className={`dash-metric-value mt-1 text-2xl font-bold ${color}`}>{value}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -706,9 +803,8 @@ export default function Dashboard() {
       />
 
       {/* ── WELCOME MODAL ── */}
-      {showWelcomePrompt && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-99 p-5">
-          <div className="bg-[#111827] border border-white/10 rounded-4xl p-8 w-full max-w-lg shadow-2xl text-center">
+      <PortalModal open={showWelcomePrompt} cardClassName="max-w-lg">
+          <div className="dash-modal-card w-full rounded-4xl border border-white/10 bg-[#111827] p-8 text-center shadow-2xl">
             <div className="w-20 h-20 rounded-3xl bg-linear-to-br from-blue-500 to-cyan-400 flex items-center justify-center text-4xl mx-auto mb-5">
               👋
             </div>
@@ -742,13 +838,17 @@ export default function Dashboard() {
               />
             </div>
           </div>
-        </div>
-      )}
+        </PortalModal>
 
       {/* ── ABSENT MODAL ── */}
-      {showAbsentModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-99 p-5">
-          <div className="bg-[#111827] border border-white/10 rounded-4xl p-8 w-full max-w-md shadow-2xl">
+      <PortalModal
+        open={showAbsentModal}
+        onClose={() => {
+          setShowAbsentModal(false);
+          setAbsentReason("");
+        }}
+      >
+          <div className="dash-modal-card w-full rounded-4xl border border-white/10 bg-[#111827] p-8 shadow-2xl">
             <div className="w-16 h-16 rounded-3xl bg-red-500/20 flex items-center justify-center text-3xl mx-auto mb-5">
               🤒
             </div>
@@ -780,13 +880,18 @@ export default function Dashboard() {
               />
             </div>
           </div>
-        </div>
-      )}
+        </PortalModal>
 
       {/* ── HALF DAY MODAL ── */}
-      {showHalfDayModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-99 p-5">
-          <div className="bg-[#111827] border border-white/10 rounded-4xl p-8 w-full max-w-md shadow-2xl">
+      <PortalModal
+        open={showHalfDayModal}
+          onClose={() => {
+            setShowHalfDayModal(false);
+            setHalfDayReason("");
+            setHalfDayUntil("");
+          }}
+        >
+          <div className="dash-modal-card w-full rounded-4xl border border-white/10 bg-[#111827] p-8 shadow-2xl">
             <div className="w-16 h-16 rounded-3xl bg-orange-500/20 flex items-center justify-center text-3xl mx-auto mb-5">
               🌗
             </div>
@@ -829,13 +934,11 @@ export default function Dashboard() {
               />
             </div>
           </div>
-        </div>
-      )}
+        </PortalModal>
 
       {/* ── LEAVE REQUEST MODAL ── */}
-      {showLeaveModal && (
-        <div className="dash-modal-overlay fixed inset-0 z-99 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md sm:p-6">
-          <div className="dash-modal-card w-full max-w-md rounded-4xl border border-white/10 bg-[#111827] p-6 shadow-2xl sm:p-7">
+      <PortalModal open={showLeaveModal} onClose={() => setShowLeaveModal(false)}>
+          <div className="dash-modal-card w-full rounded-4xl border border-white/10 bg-[#111827] p-6 shadow-2xl sm:p-7">
             <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-3xl bg-purple-500/20 text-2xl">
               🏖️
             </div>
@@ -883,11 +986,10 @@ export default function Dashboard() {
                 <button
                   key={v}
                   onClick={() => setLeaveType(v)}
-                  className={`flex cursor-pointer flex-col items-center gap-1 rounded-2xl border py-2.5 text-sm font-semibold transition ${
-                    leaveType === v
-                      ? "border-purple-500 bg-purple-600 text-white"
-                      : "dash-leave-type-inactive border-slate-700 bg-slate-800 text-slate-400 hover:border-purple-500"
-                  }`}
+                  className={`flex cursor-pointer flex-col items-center gap-1 rounded-2xl border py-2.5 text-sm font-semibold transition ${leaveType === v
+                    ? "border-purple-500 bg-purple-600 text-white"
+                    : "dash-leave-type-inactive border-slate-700 bg-slate-800 text-slate-400 hover:border-purple-500"
+                    }`}
                 >
                   <span>{e}</span>
                   {l}
@@ -920,13 +1022,15 @@ export default function Dashboard() {
               />
             </div>
           </div>
-        </div>
-      )}
+        </PortalModal>
 
       {/* ── MY LEAVE REQUESTS MODAL ── */}
-      {showLeavesModal && (
-        <div className="dash-modal-overlay fixed inset-0 z-99 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md sm:p-6">
-          <div className="dash-modal-card w-full max-w-lg rounded-4xl border border-white/10 bg-[#111827] p-6 shadow-2xl sm:p-8">
+      <PortalModal
+        open={showLeavesModal}
+        onClose={() => setShowLeavesModal(false)}
+        cardClassName="max-w-lg"
+      >
+          <div className="dash-modal-card w-full rounded-4xl border border-white/10 bg-[#111827] p-6 shadow-2xl sm:p-8">
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-purple-500/20 text-3xl">
               🏖️
             </div>
@@ -935,9 +1039,10 @@ export default function Dashboard() {
             </h2>
 
             {myLeaveRequests.length === 0 ? (
-              <p className="py-6 text-center text-slate-500">
-                No leave requests yet
-              </p>
+              <EmptyState
+                icon={<span className="text-2xl">🏖️</span>}
+                title="No leave requests yet"
+              />
             ) : (
               <div className="max-h-72 space-y-3 overflow-y-auto pr-1">
                 {myLeaveRequests.map((r, i) => (
@@ -974,13 +1079,68 @@ export default function Dashboard() {
               className="dash-modal-cancel-btn mt-6 w-full cursor-pointer rounded-2xl border border-slate-600 bg-slate-700 py-3 font-semibold text-white transition hover:bg-slate-600"
             />
           </div>
-        </div>
-      )}
+        </PortalModal>
+
+      {/* ── REGULARIZATION MODAL ── */}
+      <PortalModal
+        open={showRegularizationModal}
+        onClose={() => setShowRegularizationModal(false)}
+      >
+          <div className="dash-modal-card w-full rounded-4xl border border-white/10 bg-[#111827] p-8 shadow-2xl">
+            <h2 className="mb-2 text-center text-2xl font-bold text-white">
+              Request Regularization
+            </h2>
+            <p className="mb-5 text-center text-sm text-slate-400">
+              Ask admin to correct your attendance for a past date
+            </p>
+            <label className="mb-2 block text-sm text-slate-400">Date</label>
+            <DashboardDatePicker
+              value={regDate}
+              max={getLocalDate()}
+              onChange={setRegDate}
+              className="mb-4 w-full"
+            />
+            <label className="mb-2 block text-sm text-slate-400">Requested status</label>
+            <select
+              value={regStatus}
+              onChange={(e) => setRegStatus(e.target.value)}
+              className="mb-4 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white"
+            >
+              <option value="present">Present</option>
+              <option value="late">Late</option>
+              <option value="half_day">Half Day</option>
+            </select>
+            <label className="mb-2 block text-sm text-slate-400">Reason</label>
+            <Input
+              value={regReason}
+              onChange={(e) => setRegReason(e.target.value)}
+              placeholder="Explain why this needs to be corrected"
+              className="mb-5 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white"
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                text="Cancel"
+                onClick={() => setShowRegularizationModal(false)}
+                className="rounded-2xl bg-slate-700 py-3 font-semibold text-white cursor-pointer"
+              />
+              <Button
+                text="Submit"
+                onClick={requestRegularization}
+                className="rounded-2xl bg-blue-600 py-3 font-semibold text-white cursor-pointer"
+              />
+            </div>
+          </div>
+        </PortalModal>
 
       {/* ── REASON MODAL ── */}
-      {showReasonModal && viewReason && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-99 p-5">
-          <div className="bg-[#111827] border border-white/10 rounded-4xl p-8 w-full max-w-md shadow-2xl">
+      <PortalModal
+        open={showReasonModal && Boolean(viewReason)}
+          onClose={() => {
+            setShowReasonModal(false);
+            setViewReason(null);
+          }}
+        >
+          <div className="dash-modal-card w-full rounded-4xl border border-white/10 bg-[#111827] p-8 shadow-2xl">
             <div className="w-16 h-16 rounded-3xl bg-blue-500/20 flex items-center justify-center text-3xl mx-auto mb-5">
               📝
             </div>
@@ -1001,8 +1161,7 @@ export default function Dashboard() {
               className="w-full mt-6 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-2xl font-semibold transition cursor-pointer"
             />
           </div>
-        </div>
-      )}
+        </PortalModal>
     </div>
   );
 }

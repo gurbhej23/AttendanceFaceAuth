@@ -10,6 +10,8 @@ import {
   X,
 } from "lucide-react";
 import Button from "./Button";
+import EmptyState from "./EmptyState";
+import PortalModal from "./PortalModal";
 import type {
   DashboardNotification,
   NotificationType,
@@ -81,19 +83,11 @@ export default function NotificationPanel({
     return () => document.removeEventListener("mousedown", onDocClick);
   }, [openMenuId]);
 
-  if (!open) return null;
-
   return (
-    <div className="notification-panel-overlay fixed inset-0 z-[70] flex items-start justify-center bg-black/60 p-4 pt-16 backdrop-blur-sm sm:justify-center sm:pt-20 sm:pr-6">
-      <button
-        type="button"
-        className="absolute inset-0 cursor-default"
-        aria-label="Close notifications"
-        onClick={onClose}
-      />
+    <PortalModal open={open} onClose={onClose} cardClassName="max-w-md">
       <div
         ref={menuRef}
-        className="notification-panel relative z-10 w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-slate-950 shadow-2xl"
+        className="notification-panel dash-modal-card w-full overflow-hidden rounded-3xl border border-white/10 bg-[#111827] shadow-2xl"
       >
         <div className="notification-panel-header flex items-center justify-between border-b border-white/10 px-5 py-4">
           <div className="flex items-center gap-2.5">
@@ -127,17 +121,11 @@ export default function NotificationPanel({
 
         <div className="notification-panel-body max-h-[min(70vh,420px)] overflow-y-auto p-3">
           {notifications.length === 0 ? (
-            <div className="py-12 text-center">
-              <span className="notification-panel-empty-icon mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl border border-white/10 bg-white/[0.03]">
-                <Bell size={28} className="text-slate-600" />
-              </span>
-              <p className="text-sm font-medium text-slate-400">
-                No notifications yet
-              </p>
-              <p className="mt-1 text-xs text-slate-500">
-                Messages and leave updates will appear here.
-              </p>
-            </div>
+            <EmptyState
+              icon={<Bell size={28} className="text-slate-600" />}
+              title="No notifications yet"
+              description="Messages and leave updates will appear here."
+            />
           ) : (
             <ul className="space-y-2">
               {notifications.map((item) => {
@@ -251,6 +239,6 @@ export default function NotificationPanel({
           </div>
         )}
       </div>
-    </div>
+    </PortalModal>
   );
 }
