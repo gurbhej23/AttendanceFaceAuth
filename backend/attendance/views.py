@@ -32,6 +32,7 @@ from attendance.hr_utils import (
     apply_leave_balance,
     leave_days_between,
     get_or_create_leave_balance,
+    get_shift_for_employee,
 )
 
 IST = pytz.timezone("Asia/Kolkata")
@@ -713,6 +714,7 @@ def attendance_report(request):
         records = []
         for r in query:
             employee = Employee.objects(employee_id=r.employee_id).first()
+            shift = get_shift_for_employee(employee) if employee else None
             records.append(
                 {
                     "employee_id": r.employee_id,
@@ -725,6 +727,8 @@ def attendance_report(request):
                     "minutes_late": getattr(r, "minutes_late", 0) or 0,
                     "reason": getattr(r, "reason", None) or "--",
                     "half_day_until": getattr(r, "half_day_until", None) or "--",
+                    "shift_code": shift.code if shift else "",
+                    "shift_name": shift.name if shift else "--",
                     "profile_img": resolve_employee_profile_url(employee) if employee else "",
                     "cv_file": media_url(employee.cv_file if employee else ""),
                     **location_payload(r),

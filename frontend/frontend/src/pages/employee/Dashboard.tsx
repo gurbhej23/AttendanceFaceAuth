@@ -36,7 +36,10 @@ import DashboardExtras, {
   type DashboardExtrasData,
 } from "../../components/dashboard/DashboardExtras";
 import DashboardDatePicker from "../../components/common/DashboardDatePicker";
-import { enqueueMarkPresent, flushOfflineQueue } from "../../utils/offlineQueue";
+import {
+  enqueueMarkPresent,
+  flushOfflineQueue,
+} from "../../utils/offlineQueue";
 import InstallPwaButton from "../../components/common/InstallPwaButton";
 import PortalModal from "../../components/common/PortalModal";
 import EmptyState from "../../components/common/EmptyState";
@@ -50,6 +53,8 @@ interface AttendanceRecord {
   check_out: string;
   duration: string;
   status: string;
+  shift_code?: string;
+  shift_name?: string;
   minutes_late?: number;
   reason?: string;
   half_day_until?: string;
@@ -104,7 +109,9 @@ const getLateAlertState = (
 const isLateAlertDismissed = (employeeId: string, date: string) => {
   if (!employeeId) return false;
   try {
-    return localStorage.getItem(getLateAlertDismissedKey(employeeId, date)) === "1";
+    return (
+      localStorage.getItem(getLateAlertDismissedKey(employeeId, date)) === "1"
+    );
   } catch {
     return false;
   }
@@ -127,9 +134,9 @@ const getApiError = (err: unknown, fallback: string): string => {
 const getStatusBadgeClass = (s: string) => {
   switch (s) {
     case "present":
-      return "  text-green-500";
+      return "text-green-500";
     case "late":
-      return "bg-yellow-500/20 text-yellow-300";
+      return "text-yellow-600";
     case "absent":
       return "bg-red-500/20 text-red-500";
     case "half_day":
@@ -158,9 +165,9 @@ const getStatusCardStyle = (s: string) => {
       };
     case "late":
       return {
-        bg: "from-yellow-500/20 to-yellow-500/10",
+        bg: "from-yellow-600/20 to-yellow-600/10",
         border: "border-yellow-500/20",
-        text: "text-yellow-400",
+        text: "text-yellow-500",
         icon: <TriangleAlert color="#febd1e" />,
       };
     case "absent":
@@ -236,7 +243,8 @@ export default function Dashboard() {
   const [showReasonModal, setShowReasonModal] = useState(false);
   const [showRegularizationModal, setShowRegularizationModal] = useState(false);
   const [workMode, setWorkMode] = useState<"office" | "wfh">("office");
-  const [dashboardExtras, setDashboardExtras] = useState<DashboardExtrasData | null>(null);
+  const [dashboardExtras, setDashboardExtras] =
+    useState<DashboardExtrasData | null>(null);
   const [regDate, setRegDate] = useState(getLocalDate());
   const [regStatus, setRegStatus] = useState("present");
   const [regReason, setRegReason] = useState("");
@@ -368,7 +376,8 @@ export default function Dashboard() {
       setRecords(enrichedRows);
       if (selectedDate === today) {
         const todayRecordForAlert = enrichedRows.find(
-          (record) => record.date === today && record.employee_id === employeeId,
+          (record) =>
+            record.date === today && record.employee_id === employeeId,
         );
         setLateAlert(getLateAlertState(employeeId, today, todayRecordForAlert));
       }
@@ -474,7 +483,8 @@ export default function Dashboard() {
   }, [employeeId, fetchRecords]);
 
   useEffect(() => {
-    if (!employeeId || todayStatus === "present" || todayStatus === "late") return;
+    if (!employeeId || todayStatus === "present" || todayStatus === "late")
+      return;
     const hour = new Date().getHours();
     if (hour >= 10) return;
     const key = `att_reminder_${employeeId}_${today}`;
@@ -809,7 +819,9 @@ export default function Dashboard() {
                   <h3 className="text-3xl font-bold text-white">
                     Monthly Summary
                   </h3>
-                  <p className="text-sm font-medium dash-welcome-muted text-slate-300">{monthLabel}</p>
+                  <p className="text-sm font-medium dash-welcome-muted text-slate-300">
+                    {monthLabel}
+                  </p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 lg:w-full lg:max-w-425">
@@ -858,8 +870,14 @@ export default function Dashboard() {
                       animationDelay: `${380 + Math.min(index, 5) * 50}ms`,
                     }}
                   >
-                    <p className="dash-metric-label text-xs font-semibold text-slate-300">{label}</p>
-                    <p className={`dash-metric-value mt-1 text-2xl font-bold ${color}`}>{value}</p>
+                    <p className="dash-metric-label text-xs font-semibold text-slate-300">
+                      {label}
+                    </p>
+                    <p
+                      className={`dash-metric-value mt-1 text-2xl font-bold ${color}`}
+                    >
+                      {value}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -876,43 +894,41 @@ export default function Dashboard() {
 
       {/* ── WELCOME MODAL ── */}
       <PortalModal open={showWelcomePrompt} cardClassName="max-w-lg">
-          <div className="dash-modal-card w-full rounded-4xl border border-white/10 bg-[#111827] p-8 text-center shadow-2xl">
-            <div className="w-20 h-20 rounded-3xl bg-linear-to-br from-blue-500 to-cyan-400 flex items-center justify-center text-4xl mx-auto mb-5">
-              👋
-            </div>
-            <p className="text-slate-400 text-sm mb-2">Welcome back</p>
-            <h2 className="text-2xl sm:text-3xl text-white font-bold mb-3">
-              {employeeName}
-            </h2>
-            <p className="text-slate-400 mb-4">
-              Mark your attendance for today
-            </p>
-            <div className="grid grid-cols-2 gap-3">
-              <Button
-                text="✅ Present"
-                onClick={markPresent}
-                loading={markingAttendance}
-                disabled={markingAttendance}
-                className="bg-green-600 hover:bg-green-700 text-white py-4 rounded-2xl font-semibold transition cursor-pointer"
-              />
-              <Button
-                text="❌ Absent"
-                onClick={() => setShowAbsentModal(true)}
-                className="bg-red-600 hover:bg-red-700 text-white py-4 rounded-2xl font-semibold transition cursor-pointer"
-              />
-              <Button
-                text="🌗 Half Day"
-                onClick={() => setShowHalfDayModal(true)}
-                className="bg-orange-600 hover:bg-orange-700 text-white py-4 rounded-2xl font-semibold transition cursor-pointer"
-              />
-              <Button
-                text="🏖️ Request Leave"
-                onClick={() => setShowLeaveModal(true)}
-                className="bg-purple-600 hover:bg-purple-700 text-white py-4 rounded-2xl font-semibold transition cursor-pointer"
-              />
-            </div>
+        <div className="dash-modal-card w-full rounded-4xl border border-white/10 bg-[#111827] p-8 text-center shadow-2xl">
+          <div className="w-20 h-20 rounded-3xl bg-linear-to-br from-blue-500 to-cyan-400 flex items-center justify-center text-4xl mx-auto mb-5">
+            👋
           </div>
-        </PortalModal>
+          <p className="text-slate-400 text-sm mb-2">Welcome back</p>
+          <h2 className="text-2xl sm:text-3xl text-white font-bold mb-3">
+            {employeeName}
+          </h2>
+          <p className="text-slate-400 mb-4">Mark your attendance for today</p>
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              text="✅ Present"
+              onClick={markPresent}
+              loading={markingAttendance}
+              disabled={markingAttendance}
+              className="bg-green-600 hover:bg-green-700 text-white py-4 rounded-2xl font-semibold transition cursor-pointer"
+            />
+            <Button
+              text="❌ Absent"
+              onClick={() => setShowAbsentModal(true)}
+              className="bg-red-600 hover:bg-red-700 text-white py-4 rounded-2xl font-semibold transition cursor-pointer"
+            />
+            <Button
+              text="🌗 Half Day"
+              onClick={() => setShowHalfDayModal(true)}
+              className="bg-orange-600 hover:bg-orange-700 text-white py-4 rounded-2xl font-semibold transition cursor-pointer"
+            />
+            <Button
+              text="🏖️ Request Leave"
+              onClick={() => setShowLeaveModal(true)}
+              className="bg-purple-600 hover:bg-purple-700 text-white py-4 rounded-2xl font-semibold transition cursor-pointer"
+            />
+          </div>
+        </div>
+      </PortalModal>
 
       {/* ── ABSENT MODAL ── */}
       <PortalModal
@@ -922,181 +938,185 @@ export default function Dashboard() {
           setAbsentReason("");
         }}
       >
-          <div className="dash-modal-card w-full rounded-4xl border border-white/10 bg-[#111827] p-8 shadow-2xl">
-            <div className="w-16 h-16 rounded-3xl bg-red-500/20 flex items-center justify-center text-3xl mx-auto mb-5">
-              🤒
-            </div>
-            <h2 className="text-2xl text-white font-bold text-center mb-2">
-              Reason for Absence
-            </h2>
-            <p className="text-slate-400 text-center text-sm mb-6">
-              Please provide a reason before submitting
-            </p>
-            <textarea
-              value={absentReason}
-              onChange={(e) => setAbsentReason(e.target.value)}
-              placeholder="Enter reason..."
-              className="w-full h-32 p-4 rounded-2xl bg-slate-900/70 text-white border border-slate-700 focus:border-red-500 outline-none resize-none"
-            />
-            <div className="flex gap-3 mt-6">
-              <Button
-                text="Cancel"
-                onClick={() => {
-                  setShowAbsentModal(false);
-                  setAbsentReason("");
-                }}
-                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-2xl font-semibold transition cursor-pointer"
-              />
-              <Button
-                text="Submit"
-                onClick={markAbsent}
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 rounded-2xl font-semibold transition cursor-pointer"
-              />
-            </div>
+        <div className="dash-modal-card w-full rounded-4xl border border-white/10 bg-[#111827] p-8 shadow-2xl">
+          <div className="w-16 h-16 rounded-3xl bg-red-500/20 flex items-center justify-center text-3xl mx-auto mb-5">
+            🤒
           </div>
-        </PortalModal>
+          <h2 className="text-2xl text-white font-bold text-center mb-2">
+            Reason for Absence
+          </h2>
+          <p className="text-slate-400 text-center text-sm mb-6">
+            Please provide a reason before submitting
+          </p>
+          <textarea
+            value={absentReason}
+            onChange={(e) => setAbsentReason(e.target.value)}
+            placeholder="Enter reason..."
+            className="w-full h-32 p-4 rounded-2xl bg-slate-900/70 text-white border border-slate-700 focus:border-red-500 outline-none resize-none"
+          />
+          <div className="flex gap-3 mt-6">
+            <Button
+              text="Cancel"
+              onClick={() => {
+                setShowAbsentModal(false);
+                setAbsentReason("");
+              }}
+              className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-2xl font-semibold transition cursor-pointer"
+            />
+            <Button
+              text="Submit"
+              onClick={markAbsent}
+              className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 rounded-2xl font-semibold transition cursor-pointer"
+            />
+          </div>
+        </div>
+      </PortalModal>
 
       {/* ── HALF DAY MODAL ── */}
       <PortalModal
         open={showHalfDayModal}
-          onClose={() => {
-            setShowHalfDayModal(false);
-            setHalfDayReason("");
-            setHalfDayUntil("");
-          }}
-        >
-          <div className="dash-modal-card w-full rounded-4xl border border-white/10 bg-[#111827] p-8 shadow-2xl">
-            <div className="w-16 h-16 rounded-3xl bg-orange-500/20 flex items-center justify-center text-3xl mx-auto mb-5">
-              🌗
-            </div>
-            <h2 className="text-2xl text-white font-bold text-center mb-2">
-              Half Day Details
-            </h2>
-            <p className="text-slate-400 text-center text-sm mb-6">
-              Enter your half day time and reason
-            </p>
-            <label className="text-slate-400 text-sm mb-2 block">
-              Half day until
-            </label>
-            <Input
-              type="time"
-              value={halfDayUntil}
-              onChange={(e) => setHalfDayUntil(e.target.value)}
-              className="w-full p-4 rounded-2xl bg-slate-900/70 text-white border border-slate-700 focus:border-orange-500 outline-none mb-4"
-            />
-            <label className="text-slate-400 text-sm mb-2 block">Reason</label>
-            <textarea
-              value={halfDayReason}
-              onChange={(e) => setHalfDayReason(e.target.value)}
-              placeholder="Enter reason..."
-              className="w-full h-28 p-4 rounded-2xl bg-slate-900/70 text-white border border-slate-700 focus:border-orange-500 outline-none resize-none"
-            />
-            <div className="flex gap-3 mt-6">
-              <Button
-                text="Cancel"
-                onClick={() => {
-                  setShowHalfDayModal(false);
-                  setHalfDayReason("");
-                  setHalfDayUntil("");
-                }}
-                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-2xl font-semibold transition cursor-pointer"
-              />
-              <Button
-                text="Submit"
-                onClick={markHalfDay}
-                className="flex-1 bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-2xl font-semibold transition cursor-pointer"
-              />
-            </div>
+        onClose={() => {
+          setShowHalfDayModal(false);
+          setHalfDayReason("");
+          setHalfDayUntil("");
+        }}
+      >
+        <div className="dash-modal-card w-full rounded-4xl border border-white/10 bg-[#111827] p-8 shadow-2xl">
+          <div className="w-16 h-16 rounded-3xl bg-orange-500/20 flex items-center justify-center text-3xl mx-auto mb-5">
+            🌗
           </div>
-        </PortalModal>
+          <h2 className="text-2xl text-white font-bold text-center mb-2">
+            Half Day Details
+          </h2>
+          <p className="text-slate-400 text-center text-sm mb-6">
+            Enter your half day time and reason
+          </p>
+          <label className="text-slate-400 text-sm mb-2 block">
+            Half day until
+          </label>
+          <Input
+            type="time"
+            value={halfDayUntil}
+            onChange={(e) => setHalfDayUntil(e.target.value)}
+            className="w-full p-4 rounded-2xl bg-slate-900/70 text-white border border-slate-700 focus:border-orange-500 outline-none mb-4"
+          />
+          <label className="text-slate-400 text-sm mb-2 block">Reason</label>
+          <textarea
+            value={halfDayReason}
+            onChange={(e) => setHalfDayReason(e.target.value)}
+            placeholder="Enter reason..."
+            className="w-full h-28 p-4 rounded-2xl bg-slate-900/70 text-white border border-slate-700 focus:border-orange-500 outline-none resize-none"
+          />
+          <div className="flex gap-3 mt-6">
+            <Button
+              text="Cancel"
+              onClick={() => {
+                setShowHalfDayModal(false);
+                setHalfDayReason("");
+                setHalfDayUntil("");
+              }}
+              className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-2xl font-semibold transition cursor-pointer"
+            />
+            <Button
+              text="Submit"
+              onClick={markHalfDay}
+              className="flex-1 bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-2xl font-semibold transition cursor-pointer"
+            />
+          </div>
+        </div>
+      </PortalModal>
 
       {/* ── LEAVE REQUEST MODAL ── */}
-      <PortalModal open={showLeaveModal} onClose={() => setShowLeaveModal(false)}>
-          <div className="dash-modal-card w-full rounded-4xl border border-white/10 bg-[#111827] p-6 shadow-2xl sm:p-7">
-            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-3xl bg-purple-500/20 text-2xl">
-              🏖️
-            </div>
-            <h2 className="mb-1 text-center text-2xl font-bold text-white">
-              Request Leave
-            </h2>
-            <p className="mb-5 text-center text-sm text-slate-400">
-              Leave will be sent for admin approval
-            </p>
+      <PortalModal
+        open={showLeaveModal}
+        onClose={() => setShowLeaveModal(false)}
+      >
+        <div className="dash-modal-card w-full rounded-4xl border border-white/10 bg-[#111827] p-6 shadow-2xl sm:p-7">
+          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-3xl bg-purple-500/20 text-2xl">
+            🏖️
+          </div>
+          <h2 className="mb-1 text-center text-2xl font-bold text-white">
+            Request Leave
+          </h2>
+          <p className="mb-5 text-center text-sm text-slate-400">
+            Leave will be sent for admin approval
+          </p>
 
-            <label className="mb-2 block text-sm text-slate-400">
-              Leave Start Date
-            </label>
-            <DashboardDatePicker
-              value={leaveDate}
-              min={today}
-              onChange={(ymd) => {
-                setLeaveDate(ymd);
-                if (leaveEndDate < ymd) setLeaveEndDate(ymd);
-              }}
-              placeholder="Select start date"
-              className="mb-4 w-full"
-            />
+          <label className="mb-2 block text-sm text-slate-400">
+            Leave Start Date
+          </label>
+          <DashboardDatePicker
+            value={leaveDate}
+            min={today}
+            onChange={(ymd) => {
+              setLeaveDate(ymd);
+              if (leaveEndDate < ymd) setLeaveEndDate(ymd);
+            }}
+            placeholder="Select start date"
+            className="mb-4 w-full"
+          />
 
-            <label className="mb-2 block text-sm text-slate-400">
-              Leave End Date
-            </label>
-            <DashboardDatePicker
-              value={leaveEndDate}
-              min={leaveDate}
-              onChange={setLeaveEndDate}
-              placeholder="Select end date"
-              className="mb-4 w-full"
-            />
+          <label className="mb-2 block text-sm text-slate-400">
+            Leave End Date
+          </label>
+          <DashboardDatePicker
+            value={leaveEndDate}
+            min={leaveDate}
+            onChange={setLeaveEndDate}
+            placeholder="Select end date"
+            className="mb-4 w-full"
+          />
 
-            <label className="mb-2 block text-sm text-slate-400">
-              Leave Type
-            </label>
-            <div className="mb-4 grid grid-cols-3 gap-2">
-              {[
-                { v: "casual", l: "Casual", e: "😊" },
-                { v: "sick", l: "Sick", e: "🤒" },
-                { v: "emergency", l: "Emergency", e: "🚨" },
-              ].map(({ v, l, e }) => (
-                <button
-                  key={v}
-                  onClick={() => setLeaveType(v)}
-                  className={`flex cursor-pointer flex-col items-center gap-1 rounded-2xl border py-2.5 text-sm font-semibold transition ${leaveType === v
+          <label className="mb-2 block text-sm text-slate-400">
+            Leave Type
+          </label>
+          <div className="mb-4 grid grid-cols-3 gap-2">
+            {[
+              { v: "casual", l: "Casual", e: "😊" },
+              { v: "sick", l: "Sick", e: "🤒" },
+              { v: "emergency", l: "Emergency", e: "🚨" },
+            ].map(({ v, l, e }) => (
+              <button
+                key={v}
+                onClick={() => setLeaveType(v)}
+                className={`flex cursor-pointer flex-col items-center gap-1 rounded-2xl border py-2.5 text-sm font-semibold transition ${
+                  leaveType === v
                     ? "border-purple-500 bg-purple-600 text-white"
                     : "dash-leave-type-inactive border-slate-700 bg-slate-800 text-slate-400 hover:border-purple-500"
-                    }`}
-                >
-                  <span>{e}</span>
-                  {l}
-                </button>
-              ))}
-            </div>
-
-            <label className="mb-2 block text-sm text-slate-400">Reason</label>
-            <textarea
-              value={leaveReason}
-              onChange={(e) => setLeaveReason(e.target.value)}
-              placeholder="Enter reason for leave..."
-              className="dash-modal-field h-24 w-full resize-none rounded-2xl border border-slate-700 bg-slate-900/70 p-4 text-white outline-none focus:border-purple-500"
-            />
-
-            <div className="mt-5 flex gap-3">
-              <Button
-                text="Cancel"
-                onClick={() => {
-                  setShowLeaveModal(false);
-                  setLeaveReason("");
-                  setLeaveType("casual");
-                }}
-                className="dash-modal-cancel-btn flex-1 cursor-pointer rounded-2xl border border-slate-600 bg-slate-700 py-3 font-semibold text-white transition hover:bg-slate-600"
-              />
-              <Button
-                text="Submit Request"
-                onClick={requestLeave}
-                className="flex-1 cursor-pointer rounded-2xl bg-purple-600 py-3 font-semibold text-white transition hover:bg-purple-700"
-              />
-            </div>
+                }`}
+              >
+                <span>{e}</span>
+                {l}
+              </button>
+            ))}
           </div>
-        </PortalModal>
+
+          <label className="mb-2 block text-sm text-slate-400">Reason</label>
+          <textarea
+            value={leaveReason}
+            onChange={(e) => setLeaveReason(e.target.value)}
+            placeholder="Enter reason for leave..."
+            className="dash-modal-field h-24 w-full resize-none rounded-2xl border border-slate-700 bg-slate-900/70 p-4 text-white outline-none focus:border-purple-500"
+          />
+
+          <div className="mt-5 flex gap-3">
+            <Button
+              text="Cancel"
+              onClick={() => {
+                setShowLeaveModal(false);
+                setLeaveReason("");
+                setLeaveType("casual");
+              }}
+              className="dash-modal-cancel-btn flex-1 cursor-pointer rounded-2xl border border-slate-600 bg-slate-700 py-3 font-semibold text-white transition hover:bg-slate-600"
+            />
+            <Button
+              text="Submit Request"
+              onClick={requestLeave}
+              className="flex-1 cursor-pointer rounded-2xl bg-purple-600 py-3 font-semibold text-white transition hover:bg-purple-700"
+            />
+          </div>
+        </div>
+      </PortalModal>
 
       {/* ── MY LEAVE REQUESTS MODAL ── */}
       <PortalModal
@@ -1104,138 +1124,140 @@ export default function Dashboard() {
         onClose={() => setShowLeavesModal(false)}
         cardClassName="max-w-lg"
       >
-          <div className="dash-modal-card w-full rounded-4xl border border-white/10 bg-[#111827] p-6 shadow-2xl sm:p-8">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-purple-500/20 text-3xl">
-              🏖️
-            </div>
-            <h2 className="mb-6 text-center text-2xl font-bold text-white">
-              My Leave Requests
-            </h2>
-
-            {myLeaveRequests.length === 0 ? (
-              <EmptyState
-                icon={<span className="text-2xl">🏖️</span>}
-                title="No leave requests yet"
-              />
-            ) : (
-              <div className="max-h-72 space-y-3 overflow-y-auto pr-1">
-                {myLeaveRequests.map((r, i) => (
-                  <div
-                    key={i}
-                    className="dash-leave-item flex items-start justify-between gap-3 rounded-2xl border border-slate-700 bg-slate-800 p-4"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-white font-medium text-sm">
-                          {r.date}
-                        </span>
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${leaveStatusBadge(r.status)}`}
-                        >
-                          {leaveStatusLabel(r.status)}
-                        </span>
-                        <span className="px-2 py-0.5 rounded-full text-xs bg-purple-500/20 text-purple-300 capitalize">
-                          {r.leave_type}
-                        </span>
-                      </div>
-                      <p className="text-slate-400 text-sm wrap-break-words">
-                        {r.reason}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <Button
-              text="Close"
-              onClick={() => setShowLeavesModal(false)}
-              className="dash-modal-cancel-btn mt-6 w-full cursor-pointer rounded-2xl border border-slate-600 bg-slate-700 py-3 font-semibold text-white transition hover:bg-slate-600"
-            />
+        <div className="dash-modal-card w-full rounded-4xl border border-white/10 bg-[#111827] p-6 shadow-2xl sm:p-8">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-purple-500/20 text-3xl">
+            🏖️
           </div>
-        </PortalModal>
+          <h2 className="mb-6 text-center text-2xl font-bold text-white">
+            My Leave Requests
+          </h2>
+
+          {myLeaveRequests.length === 0 ? (
+            <EmptyState
+              icon={<span className="text-2xl">🏖️</span>}
+              title="No leave requests yet"
+            />
+          ) : (
+            <div className="max-h-72 space-y-3 overflow-y-auto pr-1">
+              {myLeaveRequests.map((r, i) => (
+                <div
+                  key={i}
+                  className="dash-leave-item flex items-start justify-between gap-3 rounded-2xl border border-slate-700 bg-slate-800 p-4"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-white font-medium text-sm">
+                        {r.date}
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${leaveStatusBadge(r.status)}`}
+                      >
+                        {leaveStatusLabel(r.status)}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-xs bg-purple-500/20 text-purple-300 capitalize">
+                        {r.leave_type}
+                      </span>
+                    </div>
+                    <p className="text-slate-400 text-sm wrap-break-words">
+                      {r.reason}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <Button
+            text="Close"
+            onClick={() => setShowLeavesModal(false)}
+            className="dash-modal-cancel-btn mt-6 w-full cursor-pointer rounded-2xl border border-slate-600 bg-slate-700 py-3 font-semibold text-white transition hover:bg-slate-600"
+          />
+        </div>
+      </PortalModal>
 
       {/* ── REGULARIZATION MODAL ── */}
       <PortalModal
         open={showRegularizationModal}
         onClose={() => setShowRegularizationModal(false)}
       >
-          <div className="dash-modal-card w-full rounded-4xl border border-white/10 bg-[#111827] p-8 shadow-2xl">
-            <h2 className="mb-2 text-center text-2xl font-bold text-white">
-              Request Regularization
-            </h2>
-            <p className="mb-5 text-center text-sm text-slate-400">
-              Ask admin to correct your attendance for a past date
-            </p>
-            <label className="mb-2 block text-sm text-slate-400">Date</label>
-            <DashboardDatePicker
-              value={regDate}
-              max={getLocalDate()}
-              onChange={setRegDate}
-              className="mb-4 w-full"
+        <div className="dash-modal-card w-full rounded-4xl border border-white/10 bg-[#111827] p-8 shadow-2xl">
+          <h2 className="mb-2 text-center text-2xl font-bold text-white">
+            Request Regularization
+          </h2>
+          <p className="mb-5 text-center text-sm text-slate-400">
+            Ask admin to correct your attendance for a past date
+          </p>
+          <label className="mb-2 block text-sm text-slate-400">Date</label>
+          <DashboardDatePicker
+            value={regDate}
+            max={getLocalDate()}
+            onChange={setRegDate}
+            className="mb-4 w-full"
+          />
+          <label className="mb-2 block text-sm text-slate-400">
+            Requested status
+          </label>
+          <select
+            value={regStatus}
+            onChange={(e) => setRegStatus(e.target.value)}
+            className="mb-4 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white"
+          >
+            <option value="present">Present</option>
+            <option value="late">Late</option>
+            <option value="half_day">Half Day</option>
+          </select>
+          <label className="mb-2 block text-sm text-slate-400">Reason</label>
+          <Input
+            value={regReason}
+            onChange={(e) => setRegReason(e.target.value)}
+            placeholder="Explain why this needs to be corrected"
+            className="mb-5 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white"
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              text="Cancel"
+              onClick={() => setShowRegularizationModal(false)}
+              className="rounded-2xl bg-slate-700 py-3 font-semibold text-white cursor-pointer"
             />
-            <label className="mb-2 block text-sm text-slate-400">Requested status</label>
-            <select
-              value={regStatus}
-              onChange={(e) => setRegStatus(e.target.value)}
-              className="mb-4 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white"
-            >
-              <option value="present">Present</option>
-              <option value="late">Late</option>
-              <option value="half_day">Half Day</option>
-            </select>
-            <label className="mb-2 block text-sm text-slate-400">Reason</label>
-            <Input
-              value={regReason}
-              onChange={(e) => setRegReason(e.target.value)}
-              placeholder="Explain why this needs to be corrected"
-              className="mb-5 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white"
+            <Button
+              text="Submit"
+              onClick={requestRegularization}
+              className="rounded-2xl bg-blue-600 py-3 font-semibold text-white cursor-pointer"
             />
-            <div className="grid grid-cols-2 gap-3">
-              <Button
-                text="Cancel"
-                onClick={() => setShowRegularizationModal(false)}
-                className="rounded-2xl bg-slate-700 py-3 font-semibold text-white cursor-pointer"
-              />
-              <Button
-                text="Submit"
-                onClick={requestRegularization}
-                className="rounded-2xl bg-blue-600 py-3 font-semibold text-white cursor-pointer"
-              />
-            </div>
           </div>
-        </PortalModal>
+        </div>
+      </PortalModal>
 
       {/* ── REASON MODAL ── */}
       <PortalModal
         open={showReasonModal && Boolean(viewReason)}
-          onClose={() => {
-            setShowReasonModal(false);
-            setViewReason(null);
-          }}
-        >
-          <div className="dash-modal-card w-full rounded-4xl border border-white/10 bg-[#111827] p-8 shadow-2xl">
-            <div className="w-16 h-16 rounded-3xl bg-blue-500/20 flex items-center justify-center text-3xl mx-auto mb-5">
-              📝
-            </div>
-            <h2 className="text-2xl text-white font-bold text-center mb-4">
-              Full Reason
-            </h2>
-            <div className="bg-slate-900/70 border border-slate-700 rounded-2xl p-4">
-              <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap wrap-break-words">
-                {viewReason}
-              </p>
-            </div>
-            <Button
-              text="Close"
-              onClick={() => {
-                setShowReasonModal(false);
-                setViewReason(null);
-              }}
-              className="w-full mt-6 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-2xl font-semibold transition cursor-pointer"
-            />
+        onClose={() => {
+          setShowReasonModal(false);
+          setViewReason(null);
+        }}
+      >
+        <div className="dash-modal-card w-full rounded-4xl border border-white/10 bg-[#111827] p-8 shadow-2xl">
+          <div className="w-16 h-16 rounded-3xl bg-blue-500/20 flex items-center justify-center text-3xl mx-auto mb-5">
+            📝
           </div>
-        </PortalModal>
+          <h2 className="text-2xl text-white font-bold text-center mb-4">
+            Full Reason
+          </h2>
+          <div className="bg-slate-900/70 border border-slate-700 rounded-2xl p-4">
+            <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap wrap-break-words">
+              {viewReason}
+            </p>
+          </div>
+          <Button
+            text="Close"
+            onClick={() => {
+              setShowReasonModal(false);
+              setViewReason(null);
+            }}
+            className="w-full mt-6 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-2xl font-semibold transition cursor-pointer"
+          />
+        </div>
+      </PortalModal>
     </div>
   );
 }

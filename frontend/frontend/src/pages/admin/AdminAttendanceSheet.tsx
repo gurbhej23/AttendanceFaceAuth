@@ -662,7 +662,7 @@ export default function AdminAttendanceSheet() {
                       max={today}
                       onChange={setSelectedDate}
                       compact
-                      className="min-w-0 flex-1 sm:min-w-[280px]"
+                      className="min-w-0 flex-1 sm:min-w-70"
                     />
                   </div>
                 )}
@@ -864,7 +864,7 @@ export default function AdminAttendanceSheet() {
                                     <img
                                       src={getMediaUrl(record.profile_img)}
                                       alt={record.employee_name}
-                                      className="h-17 w-14 object-center"
+                                      className="h-14 w-14 object-center"
                                     />
                                   ) : (
                                     <div className="flex h-full w-full items-center justify-center bg-blue-600 font-bold text-white">

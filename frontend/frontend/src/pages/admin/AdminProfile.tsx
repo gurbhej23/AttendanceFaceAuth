@@ -17,6 +17,7 @@ import ProfilePhotoCropModal from "../../components/common/ProfilePhotoCropModal
 import ProfileAvatarImg from "../../components/common/ProfileAvatarImg";
 import SearchableSelect from "../../components/auth/SearchableSelect";
 import CvDropZone from "../../components/auth/CvDropZone";
+import DashboardDatePicker from "../../components/common/DashboardDatePicker";
 import { getMediaUrl } from "../../utils/chatHelpers";
 import {
   isAppLockEnabled,
@@ -39,10 +40,17 @@ interface EmployeeProfile {
   designation: string;
   profile_img: string;
   cv_file: string;
+  date_of_birth?: string;
+  join_date?: string;
 }
 
 const fieldClass =
   "profile-field mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 p-3 text-white outline-none";
+
+const getLocalDate = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 
 const getError = (err: unknown, fallback: string) => {
   const e = err as { response?: { data?: { error?: string } } };
@@ -57,6 +65,8 @@ export default function AdminProfile() {
   const [phone, setPhone] = useState("");
   const [department, setDepartment] = useState("IT");
   const [designation, setDesignation] = useState("Software Engineer");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [joinDate, setJoinDate] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -108,6 +118,8 @@ export default function AdminProfile() {
       setPhone(data.phone || "");
       setDepartment(data.department || "IT");
       setDesignation(data.designation || "Software Engineer");
+      setDateOfBirth(data.date_of_birth || "");
+      setJoinDate(data.join_date || "");
     } catch (err) {
       showToast(getError(err, "Could not load profile"), false);
     } finally {
@@ -132,6 +144,8 @@ export default function AdminProfile() {
         phone,
         department,
         designation,
+        date_of_birth: dateOfBirth,
+        join_date: joinDate,
         current_password: "",
         new_password: "",
         cv_file: cvFile,
@@ -312,7 +326,7 @@ export default function AdminProfile() {
 
         <div className="grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)]">
           <section className="profile-card flex flex-col rounded-3xl border border-slate-800/80 bg-slate-900/80 p-6 shadow-xl backdrop-blur-sm">
-            <label className="group relative mx-auto mb-5 block h-32 w-32 cursor-pointer">
+            <label className="group relative mx-auto mb-5 block h-35 w-35 cursor-pointer">
               <div
                 onClick={(e) => {
                   e.preventDefault();
@@ -324,7 +338,7 @@ export default function AdminProfile() {
                   <ProfileAvatarImg
                     src={getMediaUrl(profile.profile_img)}
                     alt={profile.name}
-                    className="transition duration-300 group-hover:scale-105"
+                    className="transition duration-300 group-hover:scale-105 h-35 w-35"
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-blue-600 to-cyan-500 text-4xl font-bold">
@@ -353,7 +367,7 @@ export default function AdminProfile() {
             <h2 className="text-center text-xl font-bold">{profile?.name}</h2>
             <p className="text-center text-sm text-slate-400">{profile?.employee_id}</p>
 
-            <div className="mt-6 flex-1 space-y-3 text-sm">
+            <div className="mt-6 space-y-3 text-sm">
               <div className="profile-info-tile rounded-2xl border border-slate-800 bg-slate-950/80 p-3.5">
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
                   Email
@@ -540,6 +554,26 @@ export default function AdminProfile() {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     className={fieldClass}
+                  />
+                </label>
+                <label className="min-w-0 text-sm text-slate-400">
+                  Date of birth
+                  <DashboardDatePicker
+                    value={dateOfBirth}
+                    onChange={setDateOfBirth}
+                    max={getLocalDate()}
+                    placeholder="Select date of birth"
+                    className="profile-field mt-2 w-full"
+                  />
+                </label>
+                <label className="min-w-0 text-sm text-slate-400">
+                  Join date
+                  <DashboardDatePicker
+                    value={joinDate}
+                    onChange={setJoinDate}
+                    max={getLocalDate()}
+                    placeholder="Select join date"
+                    className="profile-field mt-2 w-full"
                   />
                 </label>
                 <div className="min-w-0">

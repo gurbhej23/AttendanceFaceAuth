@@ -752,7 +752,7 @@ export default function MessagingDrawer() {
               <ProfileAvatarImg
                 src={profileImg}
                 alt={employeeName}
-                className="h-14 w-14 object-center rounded-full "
+                className="h-14 w-14 rounded-full "
               />
             ) : (
               <div className="grid h-10 w-10 place-items-center rounded-full bg-cyan-700 text-xs font-bold text-white">

@@ -33,10 +33,6 @@ API.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (isPublicEndpoint(config.url)) return config;
 
   const employeeId = localStorage.getItem("employee_id");
-
-  // The backend's EmployeeAccessPermission authorizes by employee_id.
-  // Sending the custom SimpleJWT token here can make DRF reject the request
-  // before that permission runs, because the token is not tied to a Django user.
   delete config.headers.Authorization;
 
   if (!employeeId || employeeId === "undefined") return config;
@@ -51,11 +47,19 @@ API.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   }
 
   if (!config.data) {
-    config.data = { employee_id: employeeId };
+    const method = (config.method || "get").toLowerCase();
+    if (method !== "get" && method !== "delete") {
+      // Only append if your backend strictly requires it as a JSON body
+      config.data = { employee_id: employeeId };
+    }
     return config;
   }
 
-  if (isPlainObject(config.data) && !config.data.employee_id && !config.data.employeeId) {
+  if (
+    isPlainObject(config.data) &&
+    !config.data.employee_id &&
+    !config.data.employeeId
+  ) {
     config.data = { ...config.data, employee_id: employeeId };
   }
 

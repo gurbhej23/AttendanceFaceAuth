@@ -13,7 +13,6 @@ interface AttendanceTableProps {
   getStatusBadgeClass: (status: string) => string;
   getMediaUrl: (path?: string | null) => string;
   selfEmployeeId?: string | null;
-  /** Resolved profile URL for the logged-in employee (same as header). */
   selfProfileImg?: string;
 }
 
@@ -28,6 +27,8 @@ export default function AttendanceTable({
   selfProfileImg,
 }: AttendanceTableProps) {
   const navigate = useNavigate();
+  const formatShiftName = (value?: string) =>
+    (value || "--").replace(/\s*shift\s*$/i, "").trim() || "--";
 
   return (
     <div className="dash-table-panel dash-fade-up dash-fade-up-delay-4 overflow-hidden border border-white/10 bg-white/5 shadow-2xl backdrop-blur-xl">
@@ -67,6 +68,7 @@ export default function AttendanceTable({
               "Check Out",
               "Duration",
               "Status",
+              "Shift",
               "Reason",
               "Date",
               "CV",
@@ -79,11 +81,12 @@ export default function AttendanceTable({
               const isSelf = Boolean(
                 selfEmployeeId && record.employee_id === selfEmployeeId,
               );
-              const avatarSrc = isSelf && selfProfileImg
-                ? selfProfileImg
-                : record.profile_img
-                  ? getMediaUrl(record.profile_img)
-                  : "";
+              const avatarSrc =
+                isSelf && selfProfileImg
+                  ? selfProfileImg
+                  : record.profile_img
+                    ? getMediaUrl(record.profile_img)
+                    : "";
 
               return (
                 <tr
@@ -93,7 +96,7 @@ export default function AttendanceTable({
                     animationDelay: `${Math.min(idx, 12) * 35}ms`,
                   }}
                 >
-                  <td className="px-4 py-4">
+                  <td className="px-2 py-3">
                     <div className="mx-auto h-14 w-14 overflow-hidden border border-white/15 bg-slate-800 shadow-sm rounded-full">
                       {avatarSrc ? (
                         <button
@@ -114,17 +117,19 @@ export default function AttendanceTable({
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-4 text-left">
-                    <p className="font-semibold text-white flex justify-center text-[17px]">
+                  <td className="text-slate-300 text-[17px] font-medium">
+                    <p className="font-semibold flex justify-center ">
                       {record.employee_name}
                     </p>
                   </td>
-                  <td className="text-sm font-medium text-slate-500">
+                  <td className="text-sm font-medium text-slate-300">
                     {record.employee_id}
                   </td>
-                  <td className="px-4 py-4">
+                  <td className="">
                     {checkInEmpty ? (
-                      <span className={`font-mono text-[17px] ${DASH_CELL_EMPTY}`}>
+                      <span
+                        className={`font-mono text-[17px] ${DASH_CELL_EMPTY}`}
+                      >
                         {record.check_in || "--"}
                       </span>
                     ) : (
@@ -133,9 +138,11 @@ export default function AttendanceTable({
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-4">
+                  <td className="">
                     {checkOutEmpty ? (
-                      <span className={`font-mono text-[17px] ${DASH_CELL_EMPTY}`}>
+                      <span
+                        className={`font-mono text-[17px] ${DASH_CELL_EMPTY}`}
+                      >
                         {record.check_out || "--"}
                       </span>
                     ) : (
@@ -144,7 +151,7 @@ export default function AttendanceTable({
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-4">
+                  <td className="">
                     <span
                       className={
                         durationEmpty
@@ -155,15 +162,29 @@ export default function AttendanceTable({
                       {record.duration || "--"}
                     </span>
                   </td>
-                  <td className="px-4 py-4">
+                  <td className="">
                     <span
-                      className={`rounded-full px-3 py-1 text-[15px] font-semibold capitalize ${getStatusBadgeClass(record.status)} ${record.status === "not_marked" ? "status-not-marked-pulse" : ""
-                        }`}
+                      className={`rounded-full px-3 py-1 text-[15px] font-bold capitalize text-amber-700 ${getStatusBadgeClass(record.status)} ${
+                        record.status === "not_marked"
+                          ? "status-not-marked-pulse"
+                          : ""
+                      }`}
                     >
                       {record.status.replace("_", " ")}
                     </span>
                   </td>
-                  <td className="px-4 py-4">
+                  <td className="">
+                    {record.shift_name && record.shift_name !== "--" ? (
+                      <span className="inline-flex whitespace-nowrap text-[15px] font-bold text-cyan-700">
+                        {formatShiftName(record.shift_name)}
+                      </span>
+                    ) : (
+                      <span className={`text-[15px] ${DASH_CELL_EMPTY}`}>
+                        --
+                      </span>
+                    )}
+                  </td>
+                  <td className="">
                     {record.reason && record.reason !== "--" ? (
                       <button
                         onClick={() => {
@@ -175,13 +196,13 @@ export default function AttendanceTable({
                         {record.reason}
                       </button>
                     ) : (
-                      <span className={`text-[15px] ${DASH_CELL_EMPTY}`}>--</span>
+                      <span className={`text-[15px] ${DASH_CELL_EMPTY}`}>
+                        --
+                      </span>
                     )}
                   </td>
-                  <td className="px-4 py-4 font-medium text-slate-400">
-                    {record.date}
-                  </td>
-                  <td className="px-5 py-4">
+                  <td className="font-medium text-slate-400">{record.date}</td>
+                  <td className="px-4">
                     {record.cv_file ? (
                       <a
                         href={getMediaUrl(record.cv_file)}
@@ -192,7 +213,9 @@ export default function AttendanceTable({
                         View CV
                       </a>
                     ) : (
-                      <span className={`text-[15px] ${DASH_CELL_EMPTY}`}>--</span>
+                      <span className={`text-[15px] ${DASH_CELL_EMPTY}`}>
+                        --
+                      </span>
                     )}
                   </td>
                 </tr>

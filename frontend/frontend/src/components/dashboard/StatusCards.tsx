@@ -67,8 +67,8 @@ export default function StatusCard({
           <h2
             className={`dash-metric-value text-base font-bold capitalize leading-tight sm:text-xl md:text-2xl ${
               isNotMarked
-                ? "text-slate-300 status-not-marked-pulse"
-                : "text-white"
+                ? "text-slate-200 status-not-marked-pulse"
+                : "text-yellow-500"
             }`}
           >
             {todayStatus || "Not Marked"}

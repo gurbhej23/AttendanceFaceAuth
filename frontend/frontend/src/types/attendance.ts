@@ -6,6 +6,8 @@ export interface AttendanceRecord {
   check_out: string;
   duration: string;
   status: string;
+  shift_code?: string;
+  shift_name?: string;
   minutes_late?: number;
   reason?: string;
   half_day_until?: string;

@@ -1,9 +1,13 @@
 const ROWS = 5;
-const COLS = 10;
+const COLS = 11;
 
 export default function EmployeeAttendanceTableSkeleton() {
   return (
-    <div className="overflow-x-auto" aria-busy="true" aria-label="Loading attendance">
+    <div
+      className="overflow-x-auto"
+      aria-busy="true"
+      aria-label="Loading attendance"
+    >
       <table className="dash-data-table w-full text-left text-white">
         <thead className="dash-data-table-head border-b border-white/10 bg-slate-800/40 text-xs uppercase tracking-wider text-slate-500">
           <tr className="text-center">
@@ -35,6 +39,9 @@ export default function EmployeeAttendanceTableSkeleton() {
               </td>
               <td className="px-4 py-4">
                 <div className="mx-auto h-4 w-14 skeleton-shimmer rounded" />
+              </td>
+              <td className="px-4 py-4">
+                <div className="mx-auto h-7 w-20 skeleton-shimmer rounded-full" />
               </td>
               <td className="px-4 py-4">
                 <div className="mx-auto h-7 w-20 skeleton-shimmer rounded-full" />

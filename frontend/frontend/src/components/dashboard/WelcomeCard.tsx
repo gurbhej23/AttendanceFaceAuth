@@ -41,12 +41,12 @@ function WelcomeCard({
           <button
             type="button"
             onClick={() => navigate("/profile")}
-            className="dash-squircle relative h-12 w-12 shrink-0 overflow-hidden border border-white/15 bg-slate-800 shadow-md transition hover:border-blue-400/40 active:scale-[0.98] sm:h-20 sm:w-20 sm:shadow-lg md:h-24 md:w-24"
+            className="relative h-12 w-12 shrink-0 overflow-hidden border border-white/15 bg-slate-800 shadow-md transition hover:border-blue-400/40 active:scale-[0.98] sm:h-20 sm:w-20 sm:shadow-lg md:h-24 md:w-24 md:rounded-full"
             title="View profile"
           >
             {profileImg ? (
               <motion.div
-                className="h-24 w-24 will-change-transform"
+                className="h-24 w-24 will-change-transform rounded-full"
                 variants={imageReveal}
                 initial="hidden"
                 animate="visible"
@@ -54,7 +54,7 @@ function WelcomeCard({
                 <ProfileAvatarImg
                   src={profileImg}
                   alt={employeeName || "Employee"}
-                  className="h-24 w-24"
+                  className="h-12 w-12 md:h-24 md:w-24 rounded-full"
                 />
               </motion.div>
             ) : (
