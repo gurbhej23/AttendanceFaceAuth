@@ -1,5 +1,6 @@
 import base64
 import binascii
+import logging
 import os
 import random
 import string
@@ -29,7 +30,11 @@ from .models import (
 )
 from .face_utils import extract_and_save_embedding, verify_face_match
 from .pin_utils import hash_attendance_pin, validate_attendance_pin
+from .serializers import AdminLoginSerializer, EmployeeLoginSerializer
+from .services import authenticate_employee, build_employee_login_payload
 from attendance.models import AttendanceRecord
+
+logger = logging.getLogger(__name__)
 
 IST = pytz.timezone("Asia/Kolkata")
 CV_DIR = settings.MEDIA_ROOT / "cv_files"
@@ -72,12 +77,12 @@ def send_email(
 
     if not api_key:
         msg = "SENDGRID_API_KEY not set in settings/env"
-        print(f"[Email] ❌ {msg}")
+        logger.warning("Email send skipped: %s", msg)
         return False, msg
 
     if not from_email:
         msg = "SENDGRID_FROM_EMAIL not set in settings/env"
-        print(f"[Email] ❌ {msg}")
+        logger.warning("Email send skipped: %s", msg)
         return False, msg
 
     try:
@@ -96,14 +101,11 @@ def send_email(
         response = sg.send(mail)
         success = response.status_code in (200, 201, 202)
 
-        print(
-            f"[Email] {'✅' if success else '❌'} to={to} status={response.status_code}"
-        )
+        logger.info("Email send status to=%s success=%s status=%s", to, success, response.status_code)
         return success, "" if success else f"SendGrid returned {response.status_code}"
 
     except Exception as e:
-        print(f"[Email] ❌ Exception: {e}")
-        traceback.print_exc()
+        logger.exception("Email send failed: %s", e)
         return False, str(e)
 
 
@@ -741,7 +743,7 @@ def register_employee(request):
             html=credentials_html(name, employee_id, raw_password),
         )
 
-        print(f"Employee registered: {employee_id} | email sent: {email_ok}")
+        logger.info("Employee registered: %s | email sent: %s", employee_id, email_ok)
 
         response_data: dict = {
             "success": True,
@@ -774,43 +776,34 @@ def register_employee(request):
 @api_view(["POST"])
 def login_employee(request):
     try:
-        employee_id = request.data.get("employee_id", "").strip()
-        password = request.data.get("password", "").strip()
+        serializer = EmployeeLoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-        if not employee_id or not password:
+        employee, error = authenticate_employee(
+            serializer.validated_data["employee_id"],
+            serializer.validated_data["password"],
+        )
+        if error:
             return Response(
-                {"success": False, "error": "Employee ID and password are required"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        employee = Employee.objects(employee_id=employee_id, is_active=True).first()
-        if not employee:
-            return Response(
-                {"success": False, "error": "Employee not found or account inactive"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        if not check_password(password, employee.password):
-            return Response(
-                {"success": False, "error": "Invalid password"},
-                status=status.HTTP_401_UNAUTHORIZED,
+                {"success": False, "error": error},
+                status=status.HTTP_401_UNAUTHORIZED if error == "Invalid password" else status.HTTP_404_NOT_FOUND,
             )
 
         token = create_access_token(employee)
-        print(f"Login success: {employee_id}")
+        logger.info("Login success: %s", employee.employee_id)
 
         return Response(
             {
                 "success": True,
                 "message": f"Welcome back, {employee.name}",
                 "access": token,
-                "attendance_marked_today": employee_attendance_marked_today(employee_id),
+                "attendance_marked_today": employee_attendance_marked_today(employee.employee_id),
                 **employee_payload(employee),
             }
         )
 
     except Exception as e:
-        traceback.print_exc()
+        logger.exception("Login failed: %s", e)
         return Response(
             {"success": False, "error": str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -823,39 +816,27 @@ def login_employee(request):
 @api_view(["POST"])
 def admin_login(request):
     try:
-        employee_id = request.data.get("employee_id", "").strip()
-        password = request.data.get("password", "").strip()
+        serializer = AdminLoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-        if not employee_id or not password:
+        employee, error = authenticate_employee(
+            serializer.validated_data["employee_id"],
+            serializer.validated_data["password"],
+            allowed_roles={"admin", "hr"},
+        )
+        if error:
+            if error == "Access denied. Required role not met.":
+                return Response(
+                    {"success": False, "error": "Access denied. Admin or HR role required."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
             return Response(
-                {"success": False, "error": "Employee ID and password are required"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        employee = Employee.objects(employee_id=employee_id, is_active=True).first()
-        if not employee:
-            return Response(
-                {"success": False, "error": "Account not found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        if employee.role not in ("admin", "hr"):
-            return Response(
-                {
-                    "success": False,
-                    "error": "Access denied. Admin or HR role required.",
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        if not check_password(password, employee.password):
-            return Response(
-                {"success": False, "error": "Invalid password"},
-                status=status.HTTP_401_UNAUTHORIZED,
+                {"success": False, "error": error},
+                status=status.HTTP_401_UNAUTHORIZED if error == "Invalid password" else status.HTTP_404_NOT_FOUND,
             )
 
         token = create_access_token(employee)
-        print(f"Admin login success: {employee_id}")
+        logger.info("Admin login success: %s", employee.employee_id)
 
         return Response(
             {
@@ -867,7 +848,7 @@ def admin_login(request):
         )
 
     except Exception as e:
-        traceback.print_exc()
+        logger.exception("Admin login failed: %s", e)
         return Response(
             {"success": False, "error": str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,

@@ -79,6 +79,46 @@ const getLocalDate = () => {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 };
 
+const getLateAlertDismissedKey = (employeeId: string, date: string) =>
+  `late_alert_dismissed_${employeeId}_${date}`;
+
+const getLateAlertState = (
+  employeeId: string | null,
+  date: string,
+  record: AttendanceRecord | undefined,
+) => {
+  if (!employeeId || !record) {
+    return { show: false, minutesLate: 0 };
+  }
+
+  const mins = record.minutes_late ?? 0;
+  const isLateToday = record.status === "late" || mins > 0;
+
+  if (!isLateToday || isLateAlertDismissed(employeeId, date)) {
+    return { show: false, minutesLate: 0 };
+  }
+
+  return { show: true, minutesLate: mins };
+};
+
+const isLateAlertDismissed = (employeeId: string, date: string) => {
+  if (!employeeId) return false;
+  try {
+    return localStorage.getItem(getLateAlertDismissedKey(employeeId, date)) === "1";
+  } catch {
+    return false;
+  }
+};
+
+const setLateAlertDismissed = (employeeId: string, date: string) => {
+  if (!employeeId) return;
+  try {
+    localStorage.setItem(getLateAlertDismissedKey(employeeId, date), "1");
+  } catch {
+    // silent
+  }
+};
+
 const getApiError = (err: unknown, fallback: string): string => {
   const e = err as { response?: { data?: { error?: string } } };
   return e?.response?.data?.error || fallback;
@@ -223,6 +263,7 @@ export default function Dashboard() {
   const [employeeDepartment, setEmployeeDepartment] = useState("");
   const [employeeDesignation, setEmployeeDesignation] = useState("");
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [markingAttendance, setMarkingAttendance] = useState(false);
 
   // Late alert state
   const [lateAlert, setLateAlert] = useState<{
@@ -293,18 +334,12 @@ export default function Dashboard() {
     !todayRecord &&
     !anyModalOpen;
 
-  useEffect(() => {
-    if (
-      selectedDate === today &&
-      todayRecord &&
-      (todayRecord.status === "late" || (todayRecord.minutes_late ?? 0) > 0)
-    ) {
-      const mins = todayRecord.minutes_late ?? 0;
-      if (mins > 0) {
-        setLateAlert({ show: true, minutesLate: mins });
-      }
+  const dismissLateAlert = useCallback(() => {
+    setLateAlert({ show: false, minutesLate: 0 });
+    if (employeeId) {
+      setLateAlertDismissed(employeeId, today);
     }
-  }, [todayRecord, today, selectedDate]);
+  }, [employeeId, today]);
 
   // ── Auto-dismiss alerts ───────────────────────────────────────────────
   const showSuccess = useCallback((msg: string) => {
@@ -325,18 +360,23 @@ export default function Dashboard() {
         params: { date: selectedDate, employee_id: employeeId },
       });
       const rows = (response.data.records || []) as AttendanceRecord[];
-      setRecords(
-        rows.map((record) =>
-          record.employee_id === employeeId && storedProfilePath
-            ? { ...record, profile_img: storedProfilePath }
-            : record,
-        ),
+      const enrichedRows = rows.map((record) =>
+        record.employee_id === employeeId && storedProfilePath
+          ? { ...record, profile_img: storedProfilePath }
+          : record,
       );
+      setRecords(enrichedRows);
+      if (selectedDate === today) {
+        const todayRecordForAlert = enrichedRows.find(
+          (record) => record.date === today && record.employee_id === employeeId,
+        );
+        setLateAlert(getLateAlertState(employeeId, today, todayRecordForAlert));
+      }
       setLoading(false);
     } catch {
       setLoading(false);
     }
-  }, [employeeId, selectedDate, storedProfilePath]);
+  }, [employeeId, selectedDate, storedProfilePath, today]);
 
   // ── Fetch monthly summary ─────────────────────────────────────────────
   const fetchMonthlySummary = useCallback(async () => {
@@ -393,12 +433,21 @@ export default function Dashboard() {
       navigate("/", { replace: true });
       return;
     }
-    fetchRecords();
-    fetchMonthlySummary();
-    fetchLeaveRequests();
-    fetchProfile();
-    const interval = setInterval(fetchRecords, 5000);
-    return () => clearInterval(interval);
+
+    const loadDashboardData = async () => {
+      await Promise.all([
+        fetchRecords(),
+        fetchMonthlySummary(),
+        fetchLeaveRequests(),
+        fetchProfile(),
+      ]);
+    };
+
+    void loadDashboardData();
+    const interval = window.setInterval(() => {
+      void fetchRecords();
+    }, 5000);
+    return () => window.clearInterval(interval);
   }, [
     selectedDate,
     employeeId,
@@ -460,7 +509,8 @@ export default function Dashboard() {
   };
 
   const markPresent = async () => {
-    if (!requireEmployeeId()) return;
+    if (!requireEmployeeId() || markingAttendance) return;
+    setMarkingAttendance(true);
     try {
       const location = await getCurrentLocation();
       const res = await API.post("/attendance/mark-present/", {
@@ -472,6 +522,8 @@ export default function Dashboard() {
       setShowAttendancePrompt(false);
       if (res.data.is_late && res.data.minutes_late > 0) {
         setLateAlert({ show: true, minutesLate: res.data.minutes_late });
+      } else {
+        setLateAlert({ show: false, minutesLate: 0 });
       }
       fetchRecords();
     } catch (err: unknown) {
@@ -484,6 +536,8 @@ export default function Dashboard() {
         return;
       }
       showError(getApiError(err, "Failed to mark present"));
+    } finally {
+      setMarkingAttendance(false);
     }
   };
 
@@ -643,7 +697,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] px-4 py-5 sm:px-5 lg:px-5">
       {/* LATE ALERT BANNER */}
       {lateAlert.show && (
-        <div className="fixed top-0 left-0 right-0 z-99 bg-yellow-500/95 text-slate-900 px-6 py-3 flex items-center justify-between shadow-xl">
+        <div className="fixed top-5 left-0 right-0 z-99 bg-yellow-500/95 text-slate-900 px-6 py-3 flex items-center justify-between shadow-xl w-150 mx-auto">
           <div className="flex items-center gap-3">
             <span className="text-2xl">⚠️</span>
             <div>
@@ -659,7 +713,7 @@ export default function Dashboard() {
           </div>
           <Button
             text="✕ "
-            onClick={() => setLateAlert({ show: false, minutesLate: 0 })}
+            onClick={dismissLateAlert}
             className="text-slate-900 font-bold text-xl hover:opacity-70 cursor-pointer"
           />
         </div>
@@ -667,12 +721,12 @@ export default function Dashboard() {
 
       {/* SUCCESS / ERROR TOASTS */}
       {successMessage && (
-        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-99 bg-green-500/15 border border-green-500/30 text-green-500 px-5 py-4 rounded-2xl text-center font-medium shadow-lg">
+        <div className="fixed top-5 left-1/2 z-260 -translate-x-1/2 bg-green-500/15 border border-green-500/30 text-green-500 px-5 py-4 rounded-2xl text-center font-medium shadow-lg">
           {successMessage}
         </div>
       )}
       {errorMessage && (
-        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-99 bg-red-500/15 border border-red-500/30 text-red-500 px-5 py-4 rounded-2xl text-center font-medium shadow-lg">
+        <div className="fixed top-5 left-1/2 z-260 -translate-x-1/2 bg-red-500/15 border border-red-500/30 text-red-500 px-5 py-4 rounded-2xl text-center font-medium shadow-lg">
           {errorMessage}
         </div>
       )}
@@ -837,6 +891,8 @@ export default function Dashboard() {
               <Button
                 text="✅ Present"
                 onClick={markPresent}
+                loading={markingAttendance}
+                disabled={markingAttendance}
                 className="bg-green-600 hover:bg-green-700 text-white py-4 rounded-2xl font-semibold transition cursor-pointer"
               />
               <Button

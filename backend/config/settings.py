@@ -1,12 +1,15 @@
+import os
 from pathlib import Path
+
 import mongoengine as me
 from dotenv import load_dotenv
-import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 _IS_RENDER = os.getenv("RENDER", "").lower() in ("1", "true", "yes")
+_ENVIRONMENT = os.getenv("DJANGO_ENV", "development").strip().lower()
+_DEBUG_FLAG = os.getenv("DEBUG", "").strip().lower()
 
 me.connect(
     db="attendance_system",
@@ -19,8 +22,13 @@ me.connect(
     socketTimeoutMS=int(os.getenv("MONGO_SOCKET_TIMEOUT_MS", "10000")),
 )
 
-SECRET_KEY = "django-insecure-9hkbfp9ssh4%(k5ae=s88se+^q81_-=e#vee!c1#uk(qh#gfhy"
-DEBUG = True
+SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-9hkbfp9ssh4%(k5ae=s88se+^q81_-=e#vee!c1#uk(qh#gfhy")
+if _DEBUG_FLAG in ("1", "true", "yes", "on"):
+    DEBUG = True
+elif _DEBUG_FLAG in ("0", "false", "no", "off"):
+    DEBUG = False
+else:
+    DEBUG = _ENVIRONMENT != "production"
 
 ALLOWED_HOSTS = [
     "127.0.0.1",
@@ -131,6 +139,21 @@ if _extra_cors:
 
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_ALL_ORIGINS = False
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CSRF_TRUSTED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
+    if origin.strip()
+]
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_SSL_REDIRECT = _IS_RENDER or os.getenv("SECURE_SSL_REDIRECT", "false").lower() in ("1", "true", "yes")
+SESSION_COOKIE_SECURE = _IS_RENDER or os.getenv("SESSION_COOKIE_SECURE", "false").lower() in ("1", "true", "yes")
+CSRF_COOKIE_SECURE = _IS_RENDER or os.getenv("CSRF_COOKIE_SECURE", "false").lower() in ("1", "true", "yes")
+SECURE_HSTS_SECONDS = int(os.getenv("SECURE_HSTS_SECONDS", "31536000" if _IS_RENDER else "0"))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = "DENY"
 
 CORS_ALLOW_METHODS = ["DELETE", "GET", "OPTIONS", "PATCH", "POST", "PUT"]
 CORS_ALLOW_HEADERS = [
@@ -160,7 +183,7 @@ REST_FRAMEWORK = {
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.AllowAny",
+        "employees.permissions.EmployeeAccessPermission",
     ],
 }
  
@@ -176,7 +199,6 @@ USE_TZ = True
 
 # Render reverse proxy (required for HTTPS + WebSocket behind load balancer)
 USE_X_FORWARDED_HOST = True
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # WebSocket Origin validation — set CHANNEL_ALLOWED_ORIGINS on Render if needed.
 _ws_origins = os.getenv("CHANNEL_ALLOWED_ORIGINS", "").strip()
@@ -189,6 +211,15 @@ CHANNEL_ALLOWED_ORIGINS = [
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {"class": "logging.StreamHandler"},
+    },
+    "root": {"handlers": ["console"], "level": "INFO"},
+}
 _media_root = os.getenv("MEDIA_ROOT", "").strip()
 MEDIA_ROOT = Path(_media_root) if _media_root else BASE_DIR / "media"
 MEDIA_ROOT.mkdir(parents=True, exist_ok=True)

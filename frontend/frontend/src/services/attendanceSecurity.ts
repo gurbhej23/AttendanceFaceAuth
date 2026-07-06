@@ -4,26 +4,31 @@ export interface AttendanceLocation {
 }
 
 export const getCurrentLocation = (): Promise<AttendanceLocation> =>
-  new Promise((resolve) => {
-    if (!navigator.geolocation) {
-      resolve({});
-      return;
-    }
+  Promise.race([
+    new Promise<AttendanceLocation>((resolve) => {
+      if (!navigator.geolocation) {
+        resolve({});
+        return;
+      }
 
-    navigator.geolocation.getCurrentPosition(
-      (position) =>
-        resolve({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        }),
-      () => resolve({}),
-      {
-        enableHighAccuracy: true,
-        timeout: 8000,
-        maximumAge: 30000,
-      },
-    );
-  });
+      navigator.geolocation.getCurrentPosition(
+        (position) =>
+          resolve({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          }),
+        () => resolve({}),
+        {
+          enableHighAccuracy: true,
+          timeout: 5000,
+          maximumAge: 30000,
+        },
+      );
+    }),
+    new Promise<AttendanceLocation>((resolve) => {
+      window.setTimeout(() => resolve({}), 5000);
+    }),
+  ]);
 
 export const livenessPrompts = [
   "Blink once, then keep your face steady",

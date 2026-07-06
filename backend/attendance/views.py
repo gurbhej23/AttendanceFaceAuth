@@ -1545,21 +1545,22 @@ def mark_present(request):
         now = current_ist()
         today = now.strftime("%Y-%m-%d")
 
-        holiday = is_holiday(today, employee.department)
-        if holiday:
-            return Response(
-                {"success": False, "error": f"Today is a holiday: {holiday.name}"},
-                status=400,
-            )
-
         if is_before_shift_start(employee, now):
             return Response(
                 {"success": False, "error": shift_start_message(employee)}, status=403
             )
 
         existing = AttendanceRecord.objects(employee_id=employee_id, date=today).first()
-        if existing:
+        if existing and existing.status in ("present", "late") and existing.check_in_time:
             return Response({"success": True, "message": "⚠️ Already marked for today"})
+        if existing and existing.status not in ("absent",):
+            return Response(
+                {
+                    "success": False,
+                    "error": f"Attendance already marked as {existing.status} for today",
+                },
+                status=400,
+            )
 
         work_mode = get_work_mode(employee, request.data.get("work_mode", ""))
         location = parse_location_for_mode(request.data, work_mode)
@@ -1568,20 +1569,33 @@ def mark_present(request):
 
         att_status, minutes_late = compute_late_status(employee, now)
 
-        record = AttendanceRecord(
-            employee_id=employee_id,
-            employee_name=employee.name,
-            date=today,
-            check_in_time=now,
-            status=att_status,
-            minutes_late=minutes_late,
-            work_mode=work_mode,
-            check_in_latitude=location["latitude"],
-            check_in_longitude=location["longitude"],
-            location_status=location["status"],
-            location_distance_meters=location["distance"],
-        )
-        record.save()
+        if existing and existing.status == "absent":
+            existing.check_in_time = now
+            existing.status = att_status
+            existing.minutes_late = minutes_late
+            existing.work_mode = work_mode
+            existing.check_in_latitude = location["latitude"]
+            existing.check_in_longitude = location["longitude"]
+            existing.location_status = location["status"]
+            existing.location_distance_meters = location["distance"]
+            existing.reason = ""
+            existing.save()
+            record = existing
+        else:
+            record = AttendanceRecord(
+                employee_id=employee_id,
+                employee_name=employee.name,
+                date=today,
+                check_in_time=now,
+                status=att_status,
+                minutes_late=minutes_late,
+                work_mode=work_mode,
+                check_in_latitude=location["latitude"],
+                check_in_longitude=location["longitude"],
+                location_status=location["status"],
+                location_distance_meters=location["distance"],
+            )
+            record.save()
 
         msg = "Marked as present"
         if work_mode in ("wfh", "remote"):

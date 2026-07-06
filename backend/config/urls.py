@@ -4,6 +4,8 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
+from healthcheck import healthcheck
+
 
 def api_root(_request):
     return JsonResponse(
@@ -20,6 +22,7 @@ def api_root(_request):
 
 urlpatterns = [
     path("", api_root, name="api-root"),
+    path("health/", healthcheck, name="healthcheck"),
     path("admin/", admin.site.urls),
     path("api/employees/", include("employees.urls")),
     path("api/attendance/", include("attendance.urls")),

@@ -1,6 +1,9 @@
+import logging
 import os
 
 from django.apps import AppConfig
+
+logger = logging.getLogger(__name__)
 
 
 def _should_preload_face_model() -> bool:
@@ -38,4 +41,4 @@ class EmployeesConfig(AppConfig):
 
             ensure_facenet_loaded()
         except Exception as exc:
-            print(f"[Face] Model preload skipped or failed: {exc}")
+            logger.warning("Face model preload skipped or failed: %s", exc)

@@ -1,3 +1,4 @@
+import { lazy, Suspense, type ReactNode } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 
@@ -16,16 +17,17 @@ import AdminAttendanceSheet from "./pages/admin/AdminAttendanceSheet";
 import AdminLogin from "./pages/admin/AdminLogin";
 import ForgotPassword from "./pages/auth/ForgotPassword";
 import Profile from "./pages/employee/Profile";
-import AdminEmployees from "./pages/admin/AdminEmployees";
-import AdminCreateEmployee from "./pages/admin/AdminCreateEmployee";
-import AdminAnalytics from "./pages/admin/AdminAnalytics";
-import AdminProfile from "./pages/admin/AdminProfile";
-import AdminHR from "./pages/admin/AdminHR";
-import TeamDirectory from "./pages/TeamDirectory";
+
+const AdminEmployees = lazy(() => import("./pages/admin/AdminEmployees"));
+const AdminCreateEmployee = lazy(() => import("./pages/admin/AdminCreateEmployee"));
+const AdminAnalytics = lazy(() => import("./pages/admin/AdminAnalytics"));
+const AdminProfile = lazy(() => import("./pages/admin/AdminProfile"));
+const AdminHR = lazy(() => import("./pages/admin/AdminHR"));
+const TeamDirectory = lazy(() => import("./pages/TeamDirectory"));
 
 const SIDEBAR_ROUTES = ["/dashboard", "/attendance-sheet"];
 
-function withPageTransition(element: React.ReactNode) {
+function withPageTransition(element: ReactNode) {
   return <AnimatedPage>{element}</AnimatedPage>;
 }
 
@@ -42,6 +44,10 @@ function AppThemeToggle() {
 
 function App() {
   const location = useLocation();
+
+  const renderLazyRoute = (element: ReactNode) => (
+    <Suspense fallback={<div className="p-4 text-center">Loading…</div>}>{element}</Suspense>
+  );
 
   return (
     <>
@@ -71,22 +77,22 @@ function App() {
           <Route path="/profile" element={withPageTransition(<Profile />)} />
           <Route
             path="/admin-employees"
-            element={withPageTransition(<AdminEmployees />)}
+            element={withPageTransition(renderLazyRoute(<AdminEmployees />))}
           />
           <Route
             path="/admin-create-employee"
-            element={withPageTransition(<AdminCreateEmployee />)}
+            element={withPageTransition(renderLazyRoute(<AdminCreateEmployee />))}
           />
           <Route
             path="/admin-analytics"
-            element={withPageTransition(<AdminAnalytics />)}
+            element={withPageTransition(renderLazyRoute(<AdminAnalytics />))}
           />
           <Route
             path="/admin-profile"
-            element={withPageTransition(<AdminProfile />)}
+            element={withPageTransition(renderLazyRoute(<AdminProfile />))}
           />
-          <Route path="/admin-hr" element={withPageTransition(<AdminHR />)} />
-          <Route path="/team" element={withPageTransition(<TeamDirectory />)} />
+          <Route path="/admin-hr" element={withPageTransition(renderLazyRoute(<AdminHR />))} />
+          <Route path="/team" element={withPageTransition(renderLazyRoute(<TeamDirectory />))} />
         </Routes>
       </AnimatePresence>
       <MessagingDrawer />
