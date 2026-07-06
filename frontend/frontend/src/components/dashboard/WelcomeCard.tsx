@@ -46,7 +46,7 @@ function WelcomeCard({
           >
             {profileImg ? (
               <motion.div
-                className="h-full w-full will-change-transform"
+                className="h-24 w-24 will-change-transform"
                 variants={imageReveal}
                 initial="hidden"
                 animate="visible"
@@ -54,7 +54,7 @@ function WelcomeCard({
                 <ProfileAvatarImg
                   src={profileImg}
                   alt={employeeName || "Employee"}
-                  className="h-full w-full"
+                  className="h-24 w-24"
                 />
               </motion.div>
             ) : (
@@ -68,7 +68,7 @@ function WelcomeCard({
             <p className="text-xs font-medium dash-welcome-muted text-slate-300 sm:text-sm">
               {getGreeting()},
             </p>
-            <h1 className="mt-0.5 break-words text-lg font-bold leading-snug text-white sm:text-2xl md:text-3xl">
+            <h1 className="mt-0.5 wrap-break-words text-lg font-bold leading-snug text-white sm:text-2xl md:text-3xl">
               {employeeName || "Employee"}
             </h1>
             {metaLine && (

@@ -5,3 +5,7 @@ backend/.env
 # Python cache files
 __pycache__/
 *.py[cod]
+
+# Frontend caches
+frontend/frontend/.vite-cache/
+frontend/frontend/node_modules/.vite/

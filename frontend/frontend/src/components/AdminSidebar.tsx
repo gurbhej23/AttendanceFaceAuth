@@ -41,7 +41,7 @@ function ProfileAvatar({
       className={`${SQUIRCLE} overflow-hidden rounded-2xl border border-white/10 bg-slate-800`}
     >
       {profileImg ? (
-        <ProfileAvatarImg src={profileImg} alt={adminName} className="h-full w-full" />
+        <ProfileAvatarImg src={profileImg} alt={adminName} className="h-12 w-12" />
       ) : (
         <div className="grid h-full w-full place-items-center bg-blue-600 text-sm font-bold text-white">
           {adminName.charAt(0)}
@@ -53,7 +53,7 @@ function ProfileAvatar({
 
 function NavIcon({ children }: { children: React.ReactNode }) {
   return (
-    <span className="pointer-events-none flex h-[18px] w-[18px] items-center justify-center [&>svg]:h-[18px] [&>svg]:w-[18px] [&>svg]:shrink-0">
+    <span className="pointer-events-none flex h-4.5 w-4.5 items-center justify-center [&>svg]:h-4.5 [&>svg]:w-4.5 [&>svg]:shrink-0">
       {children}
     </span>
   );
@@ -61,7 +61,7 @@ function NavIcon({ children }: { children: React.ReactNode }) {
 
 function NavBadge({ count }: { count: number }) {
   return (
-    <span className="notification-badge-pulse sidebar-nav-badge absolute -right-1.5 -top-1.5 z-10 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-slate-950">
+    <span className="notification-badge-pulse sidebar-nav-badge absolute -right-1.5 -top-1.5 z-10 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-slate-950">
       {count > 99 ? "99+" : count}
     </span>
   );
@@ -219,7 +219,7 @@ export default function AdminSidebar({
       </AnimatePresence>
 
       <aside
-        className={`${railShell} group/sidebar z-app-sidebar fixed bottom-4 left-3 top-4 hidden w-[72px] rounded-[28px] border border-white/10 bg-slate-950 shadow-2xl backdrop-blur-xl transition-[width] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] hover:w-64 lg:flex`}
+        className={`${railShell} group/sidebar z-app-sidebar fixed bottom-4 left-3 top-4 hidden w-18 rounded-[28px] border border-white/10 bg-slate-950 shadow-2xl backdrop-blur-xl transition-[width] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] hover:w-64 lg:flex`}
       >
         <div className="sidebar-rail-top flex w-full shrink-0 items-center gap-2 p-3">
           <ProfileAvatar adminName={adminName} profileImg={profileImg} />
