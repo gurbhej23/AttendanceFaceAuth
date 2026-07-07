@@ -16,7 +16,11 @@ import { dispatchNotificationAction } from "../../utils/notificationActions";
 import { clearAuthSession } from "../../utils/auth";
 import { getMediaUrl } from "../../utils/chatHelpers";
 import { getApiBaseUrl } from "../../config/backend";
-import { DASH_CELL_EMPTY, isEmptyCellValue } from "../../utils/dashboardUi";
+import {
+  DASH_CELL_EMPTY,
+  getAttendanceStatusLabel,
+  isEmptyCellValue,
+} from "../../utils/dashboardUi";
 import axios from "axios";
 import {
   AlertTriangle,
@@ -140,11 +144,7 @@ const statusClass = (status: string) => {
   }
 };
 
-const statusLabel = (status: string) =>
-  status
-    .split("_")
-    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
-    .join(" ");
+const statusLabel = getAttendanceStatusLabel;
 
 const leaveTypeBadge = (t: string) => {
   switch (t) {
@@ -924,7 +924,7 @@ export default function AdminAttendanceSheet() {
                               </td>
                               <td className="px-5 py-4">
                                 <span
-                                  className={`flex justify-center rounded-full px-3 py-1 text-sm font-medium text-[16px] ${statusClass(record.status)}`}
+                                  className={`flex justify-center rounded-full px-3 py-1 text-sm font-extrabold text-[16px] ${statusClass(record.status)}`}
                                 >
                                   {statusLabel(record.status)}
                                 </span>
@@ -1203,7 +1203,7 @@ export default function AdminAttendanceSheet() {
                                 {/* Status badge */}
                                 <td className="px-5 py-4">
                                   <span
-                                    className={`px-3 py-3 rounded-full font-semibold ${statusClass(record.status)}`}
+                                    className={`px-3 py-3 rounded-full font-extrabold ${statusClass(record.status)}`}
                                   >
                                     {statusLabel(record.status)}
                                   </span>
@@ -1415,9 +1415,9 @@ export default function AdminAttendanceSheet() {
                               </td>
                               <td className="px-5 py-4">
                                 <span
-                                  className={`rounded-full px-3 py-1 font-semibold capitalize ${statusClass(record.status)}`}
+                                  className={`rounded-full px-3 py-1 font-extrabold ${statusClass(record.status)}`}
                                 >
-                                  {record.status}
+                                  {statusLabel(record.status)}
                                 </span>
                               </td>
                               {regFilter === "pending" && (

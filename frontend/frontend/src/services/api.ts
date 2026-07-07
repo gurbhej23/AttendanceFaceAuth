@@ -48,8 +48,7 @@ API.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 
   if (!config.data) {
     const method = (config.method || "get").toLowerCase();
-    if (method !== "get" && method !== "delete") {
-      // Only append if your backend strictly requires it as a JSON body
+    if (method !== "get" && method !== "delete") { 
       config.data = { employee_id: employeeId };
     }
     return config;

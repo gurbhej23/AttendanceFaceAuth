@@ -1,9 +1,10 @@
 import type { AttendanceRecord } from "../../types/attendance";
-import DashboardDatePicker from "../common/DashboardDatePicker";
 import {
-  MotionStaggerItem,
-  StaggerGroup,
-} from "../motion/MotionPrimitives";
+  getAttendanceStatusLabel,
+  getAttendanceStatusTextClass,
+} from "../../utils/dashboardUi";
+import DashboardDatePicker from "../common/DashboardDatePicker";
+import { MotionStaggerItem, StaggerGroup } from "../motion/MotionPrimitives";
 
 interface StatusProps {
   selectedDate: string;
@@ -43,6 +44,9 @@ export default function StatusCard({
       : "0h 00m";
   const workingHoursMuted = !hasDuration;
   const isNotMarked = !todayStatus;
+  const statusTextClass = isNotMarked
+    ? "text-slate-200 status-not-marked-pulse"
+    : getAttendanceStatusTextClass(todayStatus);
 
   return (
     <StaggerGroup className="mb-3 grid grid-cols-2 gap-2 sm:mb-4 sm:gap-3 xl:grid-cols-3 xl:gap-5">
@@ -62,16 +66,16 @@ export default function StatusCard({
       <MotionStaggerItem
         className={`${metricCard} bg-linear-to-br ${cardStyle.bg} ${cardStyle.border}`}
       >
-        <p className={`dash-metric-label font-semibold ${cardStyle.text} text-xs sm:text-sm`}>Today's Status</p>
+        <p
+          className={`dash-metric-label font-semibold ${cardStyle.text} text-xs sm:text-sm`}
+        >
+          Today's Status
+        </p>
         <div className="flex items-end justify-between gap-2">
           <h2
-            className={`dash-metric-value text-base font-bold capitalize leading-tight sm:text-xl md:text-2xl ${
-              isNotMarked
-                ? "text-slate-200 status-not-marked-pulse"
-                : "text-yellow-500"
-            }`}
+            className={`dash-metric-value text-base font-extrabold leading-tight sm:text-xl md:text-2xl ${statusTextClass}`}
           >
-            {todayStatus || "Not Marked"}
+            {getAttendanceStatusLabel(todayStatus)}
           </h2>
           <div className="dash-metric-icon dash-squircle flex h-9 w-9 shrink-0 items-center justify-center border border-white/10 text-lg sm:h-11 sm:w-11 sm:text-xl">
             {cardStyle.icon}
@@ -82,7 +86,9 @@ export default function StatusCard({
       <MotionStaggerItem
         className={`${metricCard} border-blue-500/20 bg-linear-to-br from-blue-500/20 to-cyan-500/10`}
       >
-        <p className="dash-metric-label text-xs font-semibold text-blue-300 sm:text-sm">Working Hours</p>
+        <p className="dash-metric-label text-xs font-semibold text-blue-300 sm:text-sm">
+          Working Hours
+        </p>
         <div className="flex items-end justify-between gap-2">
           <h2
             className={`dash-metric-value text-base font-bold leading-tight sm:text-xl md:text-2xl ${

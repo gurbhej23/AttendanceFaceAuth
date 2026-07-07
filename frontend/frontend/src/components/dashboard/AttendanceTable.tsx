@@ -1,6 +1,10 @@
 import { useNavigate } from "react-router-dom";
 import type { AttendanceRecord } from "../../types/attendance";
-import { DASH_CELL_EMPTY, isEmptyCellValue } from "../../utils/dashboardUi";
+import {
+  DASH_CELL_EMPTY,
+  getAttendanceStatusLabel,
+  isEmptyCellValue,
+} from "../../utils/dashboardUi";
 import Table from "../common/Table";
 import ProfileAvatarImg from "../common/ProfileAvatarImg";
 import EmployeeAttendanceTableSkeleton from "./EmployeeAttendanceTableSkeleton";
@@ -164,16 +168,16 @@ export default function AttendanceTable({
                   </td>
                   <td className="">
                     <span
-                      className={`rounded-full px-3 py-1 text-[15px] font-bold capitalize text-amber-700 ${getStatusBadgeClass(record.status)} ${
+                      className={`rounded-full px-3 py-1 text-[15px] font-extrabold text-amber-700 ${getStatusBadgeClass(record.status)} ${
                         record.status === "not_marked"
                           ? "status-not-marked-pulse"
                           : ""
                       }`}
                     >
-                      {record.status.replace("_", " ")}
+                      {getAttendanceStatusLabel(record.status)}
                     </span>
                   </td>
-                  <td className="">
+                  <td className="px-4 py-4">
                     {record.shift_name && record.shift_name !== "--" ? (
                       <span className="inline-flex whitespace-nowrap text-[15px] font-bold text-cyan-700">
                         {formatShiftName(record.shift_name)}
@@ -184,7 +188,7 @@ export default function AttendanceTable({
                       </span>
                     )}
                   </td>
-                  <td className="">
+                  <td className="flex justify-center py-8">
                     {record.reason && record.reason !== "--" ? (
                       <button
                         onClick={() => {
