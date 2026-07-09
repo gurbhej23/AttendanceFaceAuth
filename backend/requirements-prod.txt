@@ -27,3 +27,4 @@ numpy==2.2.5
 Pillow==11.3.0
 deepface==0.0.99
 tensorflow==2.21.0
+tf-keras==2.21.0

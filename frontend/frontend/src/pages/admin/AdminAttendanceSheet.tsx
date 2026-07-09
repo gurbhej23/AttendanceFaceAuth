@@ -1185,12 +1185,12 @@ export default function AdminAttendanceSheet() {
                                 </td>
 
                                 {/* Reason */}
-                                <td className="px-5 py-4 max-w-50">
+                                <td className="px-5 py-4 max-w-50 flex justify-center">
                                   {record.reason && record.reason !== "--" ? (
                                     <Button
                                       text={record.reason}
                                       onClick={() => setViewReason(record.reason)}
-                                      className="text-slate-400 truncate block w-full hover:text-blue-400 underline underline-offset-2 transition cursor-pointer text-sm text-left"
+                                      className="text-slate-400 truncate block w-full hover:text-blue-400 underline underline-offset-2 transition cursor-pointer text-sm"
                                       title={record.reason}
                                     />
                                   ) : (

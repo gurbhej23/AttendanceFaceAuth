@@ -180,3 +180,6 @@ yarg==0.1.10
 yarl==1.20.0
 zope.interface==8.3
 sendgrid==6.11.0
+
+cloudinary==1.41.0
+django-cloudinary-storage==0.3.0

@@ -20,7 +20,7 @@ DEFAULT_SHIFTS = [
     {
         "code": "morning",
         "name": "Morning Shift",
-        "start_hour": 9,
+        "start_hour": 10,
         "start_minute": 0,
         "end_hour": 18,
         "end_minute": 0,
