@@ -212,6 +212,8 @@ def chat_datetime_iso(value) -> str:
     return value.astimezone(pytz.UTC).isoformat()
 
 
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from .media_utils import clear_message_attachments, media_url
 
 
@@ -234,9 +236,9 @@ def save_base64_cv(data_url: str, original_name: str = "") -> str:
         raise ValueError("Invalid PDF file") from exc
     if not file_bytes.startswith(b"%PDF-"):
         raise ValueError("Invalid PDF file")
-    filename = f"cv_{uuid.uuid4().hex}{extension}"
-    (CV_DIR / filename).write_bytes(file_bytes)
-    return f"media/cv_files/{filename}"
+    filename = f"cv_files/cv_{uuid.uuid4().hex}{extension}"
+    path = default_storage.save(filename, ContentFile(file_bytes))
+    return str(path)
 
 
 def save_base64_profile_image(data_url: str) -> str:
@@ -250,9 +252,9 @@ def save_base64_profile_image(data_url: str) -> str:
             extension = ".png"
         elif "webp" in header:
             extension = ".webp"
-    filename = f"profile_{uuid.uuid4().hex}{extension}"
-    (PROFILE_DIR / filename).write_bytes(base64.b64decode(raw_data))
-    return f"media/profile_images/{filename}"
+    filename = f"profile_images/profile_{uuid.uuid4().hex}{extension}"
+    path = default_storage.save(filename, ContentFile(base64.b64decode(raw_data)))
+    return str(path)
 
 
 def save_base64_group_image(data_url: str) -> str:
@@ -266,9 +268,9 @@ def save_base64_group_image(data_url: str) -> str:
             extension = ".png"
         elif "webp" in header:
             extension = ".webp"
-    filename = f"group_{uuid.uuid4().hex}{extension}"
-    (GROUP_IMG_DIR / filename).write_bytes(base64.b64decode(raw_data))
-    return f"media/group_images/{filename}"
+    filename = f"group_images/group_{uuid.uuid4().hex}{extension}"
+    path = default_storage.save(filename, ContentFile(base64.b64decode(raw_data)))
+    return str(path)
 
 
 def save_base64_chat_attachment(data_url: str, filename_hint: str = "") -> dict:
@@ -288,11 +290,11 @@ def save_base64_chat_attachment(data_url: str, filename_hint: str = "") -> dict:
         elif "pdf" in header:
             extension, mime = ".pdf", "application/pdf"
     safe_name = (filename_hint or "file").replace(" ", "_")[:80]
-    stored = f"attach_{uuid.uuid4().hex}{extension}"
-    (CHAT_ATTACH_DIR / stored).write_bytes(base64.b64decode(raw_data))
+    stored_name = f"chat_attachments/attach_{uuid.uuid4().hex}{extension}"
+    path = default_storage.save(stored_name, ContentFile(base64.b64decode(raw_data)))
     return {
-        "url": f"media/chat_attachments/{stored}",
-        "name": safe_name or stored,
+        "url": str(path),
+        "name": safe_name or Path(path).name,
         "mime": mime,
     }
 

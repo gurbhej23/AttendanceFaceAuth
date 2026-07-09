@@ -3,6 +3,8 @@ from pathlib import Path
 from django.conf import settings
 
 
+from django.core.files.storage import default_storage
+
 def normalize_media_path(path: str) -> str:
     """Turn stored profile paths into a browser-safe /media/... URL path."""
     if not path:
@@ -10,19 +12,17 @@ def normalize_media_path(path: str) -> str:
     normalized = path.replace("\\", "/")
     if normalized.startswith(("http://", "https://")):
         return normalized
+    # Remove prefix if it exists to get the real storage path
     media_marker = "/media/"
     idx = normalized.lower().find(media_marker)
     if idx >= 0:
-        return normalized[idx:]
-    if normalized.startswith("/media/"):
-        return normalized
+        return normalized[idx + len(media_marker):]
     if normalized.startswith("media/"):
-        return f"/{normalized}"
-    return f"{settings.MEDIA_URL}{normalized.lstrip('/')}"
-
+        return normalized[len("media/"):]
+    return normalized
 
 def media_url(path: str) -> str:
-    """Return a browser-loadable /media/... path."""
+    """Return a browser-loadable path using default_storage."""
     if not path:
         return ""
     normalized = normalize_media_path(path)
@@ -30,16 +30,10 @@ def media_url(path: str) -> str:
         return ""
     if normalized.startswith(("http://", "https://")):
         return normalized
-    if normalized.startswith("/media/"):
-        rel = normalized[len("/media/") :]
-        if (settings.MEDIA_ROOT / rel).exists():
-            return normalized
-        # Return the path even when the file is missing so clients can still try.
-        return normalized
-    rel = normalized.lstrip("/")
-    if (settings.MEDIA_ROOT / rel).exists():
-        return normalized
-    return normalized
+    try:
+        return default_storage.url(normalized)
+    except Exception:
+        return f"{settings.MEDIA_URL}{normalized}"
 
 
 def resolve_employee_profile_url(employee) -> str:
