@@ -4,9 +4,11 @@ export const THEME_STORAGE_KEY = "app_theme";
 
 export function getStoredTheme(): Theme {
   try {
-    return localStorage.getItem(THEME_STORAGE_KEY) === "dark" ? "dark" : "light";
+    const val = localStorage.getItem(THEME_STORAGE_KEY);
+    if (val === "light") return "light";
+    return "dark";
   } catch {
-    return "light";
+    return "dark";
   }
 }
 

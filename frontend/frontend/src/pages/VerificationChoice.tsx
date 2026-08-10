@@ -72,7 +72,7 @@ export default function VerificationChoice() {
           {hasPin && (
             <button
               type="button"
-              onClick={() => navigate("/verify-pin", { replace: true })}
+              onClick={() => navigate("/verify-pin")}
               className="flex items-center gap-4 rounded-3xl border border-amber-500/30 bg-amber-600/15 p-5 text-left transition hover:border-amber-400 hover:bg-amber-600/25 cursor-pointer"
             >
               <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-amber-600 text-white">
@@ -90,7 +90,7 @@ export default function VerificationChoice() {
           {hasFace && (
             <button
               type="button"
-              onClick={() => navigate("/verify-face", { replace: true })}
+              onClick={() => navigate("/verify-face")}
               className="flex items-center gap-4 rounded-3xl border border-cyan-500/30 bg-cyan-600/15 p-5 text-left transition hover:border-cyan-400 hover:bg-cyan-600/25 cursor-pointer"
             >
               <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-cyan-600 text-white">
@@ -107,7 +107,7 @@ export default function VerificationChoice() {
 
           <button
             type="button"
-            onClick={() => navigate("/verify-otp", { replace: true })}
+            onClick={() => navigate("/verify-otp")}
             className="flex items-center gap-4 rounded-3xl border border-violet-500/30 bg-violet-600/15 p-5 text-left transition hover:border-violet-400 hover:bg-violet-600/25 cursor-pointer"
           >
             <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-violet-600 text-white">

@@ -106,7 +106,7 @@ export default function PinVerification() {
       <div className="relative w-full max-w-md rounded-[36px] border border-white/15 bg-white/8 p-8 shadow-2xl backdrop-blur-2xl">
         <button
           type="button"
-          onClick={() => navigate("/verify-choice", { replace: true })}
+          onClick={() => navigate(-1)}
           className="mb-4 flex items-center gap-2 text-sm text-slate-400 hover:text-white cursor-pointer"
         >
           <ArrowLeft size={16} />

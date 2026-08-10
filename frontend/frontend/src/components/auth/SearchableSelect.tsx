@@ -10,9 +10,9 @@ import { createPortal } from "react-dom";
 import { Check, ChevronDown, Search } from "lucide-react";
 
 interface Props {
-  label: string;
+  label?: string;
   value: string;
-  options: string[];
+  options: readonly string[];
   onChange: (value: string) => void;
   placeholder?: string;
   icon?: React.ReactNode;

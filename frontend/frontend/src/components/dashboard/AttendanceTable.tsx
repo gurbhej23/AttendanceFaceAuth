@@ -35,7 +35,7 @@ export default function AttendanceTable({
     (value || "--").replace(/\s*shift\s*$/i, "").trim() || "--";
 
   return (
-    <div className="dash-table-panel dash-fade-up dash-fade-up-delay-4 overflow-hidden border border-white/10 bg-white/5 shadow-2xl backdrop-blur-xl">
+    <div className="dash-table-panel dash-fade-up dash-fade-up-delay-4 overflow-hidden border border-white/15 bg-transparent shadow-2xl backdrop-blur-xl rounded-3xl">
       <div className="flex flex-col gap-4 border-b border-white/10 p-6 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-2xl font-bold text-white sm:text-3xl">

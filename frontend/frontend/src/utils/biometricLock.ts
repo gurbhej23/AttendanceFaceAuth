@@ -74,7 +74,9 @@ function getRpId() {
   return window.location.hostname;
 }
 
-export async function registerBiometricCredential(): Promise<boolean> {
+export async function registerBiometricCredential(
+  username?: string,
+): Promise<boolean> {
   if (!window.PublicKeyCredential) return false;
 
   const existingId = localStorage.getItem(CREDENTIAL_ID_KEY);
@@ -91,7 +93,7 @@ export async function registerBiometricCredential(): Promise<boolean> {
     const challenge = new Uint8Array(32);
     crypto.getRandomValues(challenge);
     const userId = new TextEncoder().encode(
-      localStorage.getItem("employee_id") || "user",
+      username || localStorage.getItem("employee_id") || "user",
     );
     const credential = (await navigator.credentials.create({
       publicKey: {
@@ -99,7 +101,8 @@ export async function registerBiometricCredential(): Promise<boolean> {
         rp: { name: "Attendance System", id: getRpId() },
         user: {
           id: userId,
-          name: localStorage.getItem("employee_email") || "user@local",
+          name:
+            username || localStorage.getItem("employee_email") || "user@local",
           displayName: localStorage.getItem("employee_name") || "User",
         },
         pubKeyCredParams: [{ alg: -7, type: "public-key" }],

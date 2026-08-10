@@ -110,7 +110,7 @@ export default function HRPanel({
   return (
     <StaggerGroup className="mb-3 grid gap-3 sm:mb-4 lg:grid-cols-3">
       {/* Shift & work mode */}
-      <MotionStaggerItem className="dash-shell-panel rounded-2xl border border-white/10 bg-white/5 p-4 shadow-lg backdrop-blur-xl">
+      <MotionStaggerItem className="dash-shell-panel rounded-2xl border border-white/15 bg-transparent p-4 shadow-lg backdrop-blur-xl">
         <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-300">
           <Briefcase className="h-4 w-4 text-blue-400" />
           Shift &amp; Location
@@ -163,7 +163,7 @@ export default function HRPanel({
       </MotionStaggerItem>
 
       {/* Leave balance */}
-      <MotionStaggerItem className="dash-shell-panel rounded-2xl border border-white/10 bg-white/5 p-4 shadow-lg backdrop-blur-xl">
+      <MotionStaggerItem className="dash-shell-panel rounded-2xl border border-white/15 bg-transparent p-4 shadow-lg backdrop-blur-xl">
         <div className="mb-1 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-300">
             <Wallet className="h-4 w-4 text-purple-400" />
@@ -203,7 +203,7 @@ export default function HRPanel({
       </MotionStaggerItem>
 
       {/* Break & regularization */}
-      <MotionStaggerItem className="dash-shell-panel rounded-2xl border border-white/10 bg-white/5 p-4 shadow-lg backdrop-blur-xl">
+      <MotionStaggerItem className="dash-shell-panel rounded-2xl border border-white/15 bg-transparent p-4 shadow-lg backdrop-blur-xl">
         <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-300">
           <Coffee className="h-4 w-4 text-amber-400" />
           Break &amp; Fixes

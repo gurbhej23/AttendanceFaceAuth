@@ -1,12 +1,12 @@
 import type React from "react";
 import { motion } from "framer-motion";
 
-interface ButtonProps {
+export interface ButtonProps {
   text?: React.ReactNode;
   children?: React.ReactNode;
   onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   className?: string;
-  type?: "button" | "submit";
+  type?: "button" | "submit" | "reset";
   disabled?: boolean;
   title?: string;
   badgeCount?: number;
@@ -14,6 +14,7 @@ interface ButtonProps {
   loading?: boolean;
   /** Skip default rounded-2xl / font-semibold for icon-only or link-style buttons */
   unstyled?: boolean;
+  variant?: string;
 }
 
 export default function Button({
@@ -28,6 +29,8 @@ export default function Button({
   "aria-label": ariaLabel,
   loading = false,
   unstyled = false,
+  variant,
+  ...props
 }: ButtonProps) {
   const content = children ?? text;
   const isDisabled = disabled || loading;
@@ -47,6 +50,7 @@ export default function Button({
       whileTap={isDisabled ? undefined : { scale: 0.97 }}
       transition={{ duration: 0.12 }}
       className={`${baseClass} ${badgeCount != null && badgeCount > 0 ? "relative" : ""} ${className}`.trim()}
+      {...props}
     >
       {loading ? (
         <span className="inline-flex items-center justify-center gap-2">

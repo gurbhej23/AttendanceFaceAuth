@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@variant dark (&:where(.dark, .dark *));
+
 :root {
   --scrollbar-track: #0b0f19;
   --scrollbar-thumb: #1e293b;
@@ -833,3 +835,8 @@ textarea {
     max-height: 44vh;
   }
 }
+
+
+
+
+

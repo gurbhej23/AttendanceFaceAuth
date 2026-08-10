@@ -32,12 +32,12 @@ function WelcomeCard({
     .join(" • ");
 
   return (
-    <div className="dash-shell-panel relative mb-3 overflow-hidden border border-white/10 bg-white/5 shadow-xl backdrop-blur-xl dash-fade-up sm:mb-4 sm:shadow-2xl">
+    <div className="dash-shell-panel relative mb-3 overflow-hidden border border-white/15 bg-transparent shadow-xl backdrop-blur-xl dash-fade-up sm:mb-4 sm:shadow-2xl rounded-3xl">
       <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-blue-500/10 blur-3xl sm:h-40 sm:w-40" />
       <div className="pointer-events-none absolute -bottom-10 left-1/3 h-24 w-24 rounded-full bg-cyan-500/10 blur-3xl sm:h-32 sm:w-32" />
 
-      <div className="relative px-4 py-3.5 sm:px-6 sm:py-5">
-        <div className="flex items-center gap-3 sm:items-start sm:gap-4">
+      <div className="relative px-4 py-3.5 sm:px-6 sm:py-5 flex items-center justify-between">
+        <div className="flex items-center gap-3 sm:items-start sm:gap-4 flex-1 min-w-0">
           <button
             type="button"
             onClick={() => navigate("/profile")}

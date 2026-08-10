@@ -4,32 +4,37 @@ interface InputProps {
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   placeholder?: string;
   max?: string;
-  className?: string 
+  className?: string;
   min?: string;
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
-  accept?: string
+  accept?: string;
 }
 
 export default function Input({
-  type,
+  type = "text",
   value,
   onChange,
   placeholder,
   max,
   min,
-  className,
+  className = "",
   onKeyDown,
-  accept
+  accept,
 }: InputProps) {
+  const baseStyle =
+    "w-full rounded-2xl border border-slate-700/80 bg-slate-900/60 px-4 py-3 text-white placeholder:text-slate-500 outline-none transition-all focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 light:bg-slate-100 light:text-slate-900 light:border-slate-300";
+
+  const finalClass = className ? `${baseStyle} ${className}` : baseStyle;
+
   return (
     <input
       type={type}
       value={value}
       max={max}
       min={min}
-      className = {className}
+      className={finalClass}
       onChange={onChange}
-      placeholder={placeholder} 
+      placeholder={placeholder}
       onKeyDown={onKeyDown}
       accept={accept}
     />

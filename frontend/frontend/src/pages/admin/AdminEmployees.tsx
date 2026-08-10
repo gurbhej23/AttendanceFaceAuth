@@ -94,13 +94,13 @@ export default function AdminEmployees() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 px-4 py-6 text-white">
+    <div className="admin-page-bg min-h-screen bg-slate-950 px-4 py-6 text-slate-900 dark:text-white transition-colors duration-300">
       {toast && (
         <div
           className={`fixed top-5 left-1/2 z-50 -translate-x-1/2 rounded-2xl border px-5 py-3 text-sm font-semibold shadow-xl ${
             toast.ok
-              ? "border-green-500/30 bg-green-500/15 text-green-300"
-              : "border-red-500/30 bg-red-500/15 text-red-300"
+              ? "border-green-500/30 bg-green-500/15 text-green-700 dark:text-green-300"
+              : "border-red-500/30 bg-red-500/15 text-red-700 dark:text-red-300"
           }`}
         >
           {toast.msg}
@@ -110,14 +110,14 @@ export default function AdminEmployees() {
       <div className="mx-auto max-w-7xl">
         <header className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-sm text-blue-300">Admin workspace</p>
-            <h1 className="text-3xl font-bold">Employee Management</h1>
+            <p className="admin-subheading text-sm text-blue-600 dark:text-blue-300 font-semibold">Admin workspace</p>
+            <h1 className="admin-heading-title text-3xl font-extrabold text-slate-900 dark:text-white">Employee Management</h1>
           </div>
           <div className="flex md:flex-wrap justify-center gap-3">
             <Button
               onClick={() => navigate("/attendance-sheet")}
               text="Attendance sheet"
-              className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm hover:bg-slate-800"
+              className="sheet-btn-secondary rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2 text-sm text-slate-900 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 shadow-sm"
             />
             <Button
               onClick={() => {
@@ -125,7 +125,7 @@ export default function AdminEmployees() {
                 navigate("/", { replace: true });
               }}
               text="Logout"
-              className="rounded-xl bg-red-600 px-4 py-2 text-sm hover:bg-red-700"
+              className="rounded-xl bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 shadow-md shadow-red-500/20"
             />
           </div>
         </header>
@@ -137,30 +137,30 @@ export default function AdminEmployees() {
             ["HR / Admin", stats.staff],
           ].map(([label, value]) => (
             <div
-              key={label}
-              className="flex flex-row md:flex-col md:items-center gap-3 rounded-3xl border border-slate-800 bg-slate-900 p-3"
+              key={String(label)}
+              className="admin-card flex flex-row md:flex-col md:items-center gap-3 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-lg backdrop-blur-xl transition-all"
             >
-              <p className="text-sm text-slate-400">{label}</p>
-              <p className="mt-2 text-3xl font-bold">{value}</p>
+              <p className="sheet-stat-label text-sm text-slate-500 dark:text-slate-400 font-semibold">{label}</p>
+              <p className="mt-1 text-3xl font-black text-slate-900 dark:text-white">{value}</p>
             </div>
           ))}
         </div>
 
-        <section className="rounded-3xl border border-slate-800 bg-slate-900">
-          <div className="grid gap-3 border-b border-slate-800 p-5 lg:grid-cols-[1fr_160px_160px]">
+        <section className="admin-card rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl backdrop-blur-xl">
+          <div className="grid gap-3 border-b border-slate-200 dark:border-slate-800 p-5 lg:grid-cols-[1fr_160px_160px]">
             <Input
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search name, ID, email, department, job role..."
-              className="rounded-2xl border border-slate-700 bg-slate-950 p-3 outline-none focus:border-blue-500"
+              className="sheet-input-box rounded-2xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 p-3 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 outline-none focus:border-blue-500"
             />
             <select
               value={status}
               onChange={(e) =>
                 setStatus(e.target.value as "active" | "inactive" | "all")
               }
-              className="rounded-2xl border border-slate-700 bg-slate-950 p-3 outline-none focus:border-blue-500"
+              className="sheet-input-box rounded-2xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 p-3 text-slate-900 dark:text-white outline-none focus:border-blue-500"
             >
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
@@ -169,7 +169,7 @@ export default function AdminEmployees() {
             <select
               value={role}
               onChange={(e) => setRole(e.target.value)}
-              className="rounded-2xl border border-slate-700 bg-slate-950 p-3 outline-none focus:border-blue-500"
+              className="sheet-input-box rounded-2xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 p-3 text-slate-900 dark:text-white outline-none focus:border-blue-500"
             >
               <option value="all">All access</option>
               <option value="employee">Employee</option>

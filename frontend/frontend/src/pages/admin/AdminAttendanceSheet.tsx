@@ -1,551 +1,239 @@
-// src/pages/AdminAttendanceSheet.tsx
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import API from "../../services/api";
-import Button from "../../components/common/Button";
-import EmptyState from "../../components/common/EmptyState";
-import AdminSidebar from "../../components/AdminSidebar";
-import MobileMenuButton from "../../components/common/MobileMenuButton";
-import NotificationPanel from "../../components/common/NotificationPanel";
-import LogOutModal from "../../components/modal/LogOutModal";
+import { motion, type Variants } from "framer-motion";
 import {
-  useDashboardNotifications,
-  type DashboardNotification,
-} from "../../hooks/useDashboardNotifications";
-import { dispatchNotificationAction } from "../../utils/notificationActions";
-import { clearAuthSession } from "../../utils/auth";
-import { getMediaUrl } from "../../utils/chatHelpers";
-import { getApiBaseUrl } from "../../config/backend";
-import {
-  DASH_CELL_EMPTY,
-  getAttendanceStatusLabel,
-  isEmptyCellValue,
-} from "../../utils/dashboardUi";
-import axios from "axios";
-import {
-  AlertTriangle,
-  Bell,
-  CalendarDays,
   Calendar,
   ChartNoAxesCombined,
-  Check,
-  CheckCircle2,
-  ClipboardList,
-  Clock,
   Download,
-  FileText,
   IdCardLanyard,
-  List,
-  PenLine,
-  Stethoscope,
   User,
-  Users,
-  X,
+  Search,
+  RefreshCw,
+  CheckCircle2,
+  Clock,
   XCircle,
+  Users,
+  AlertCircle,
+  Filter,
 } from "lucide-react";
+import API from "../../services/api";
+import AdminSidebar from "../../components/AdminSidebar";
+import AttendanceTable from "../../components/dashboard/AttendanceTable";
+import ReasonModal from "../../components/modal/ReasonModal";
+import Button from "../../components/common/Button";
 import Input from "../../components/common/Input";
-import DashboardDatePicker from "../../components/common/DashboardDatePicker";
-import AttendanceTableSkeleton from "../../components/admin/AttendanceTableSkeleton";
-import DashboardExtras, {
-  fetchDashboardExtras,
-  type DashboardExtrasData,
-} from "../../components/dashboard/DashboardExtras";
+import MobileMenuButton from "../../components/common/MobileMenuButton";
+import AnimatedBackground from "../../components/motion/AnimatedBackground";
+import ThreeDCardContainer from "../../components/motion/ThreeDCardContainer";
+import type { AttendanceRecord } from "../../types/attendance";
+import { getMediaUrl } from "../../utils/chatHelpers";
+import { isAdminOrHR } from "../../utils/auth";
+import { getAttendanceStatusLabel } from "../../utils/dashboardUi";
 
-interface SheetRecord {
-  employee_id: string;
-  employee_name: string;
-  email: string;
-  department: string;
-  designation: string;
-  date: string;
-  status: string;
-  check_in: string;
-  check_out: string;
-  duration: string;
-  reason: string;
-  half_day_until: string;
-  minutes_late: number;
-  location_status?: string;
-  location_distance_meters?: number;
-  location_maps_url?: string;
-  profile_img?: string;
-  cv_file?: string;
-}
-
-interface SheetResponse {
-  sheet_name: string;
-  date: string;
-  total_employees: number;
-  present_count: number;
-  absent_count: number;
-  half_day_count: number;
-  not_marked_count: number;
-  leave_count: number;
-  late_count: number;
-  records: SheetRecord[];
-}
-
-interface LeaveRequest {
-  id: string;
-  employee_id: string;
-  employee_name: string;
-  department: string;
-  designation: string;
-  profile_img?: string;
-  date: string;
-  status: string;
-  reason: string;
-  leave_type: string;
-}
-
-interface RegularizationRequest {
-  id: string;
-  employee_id: string;
-  employee_name: string;
-  date: string;
-  requested_status: string;
-  requested_check_in: string;
-  requested_check_out: string;
-  reason: string;
-  status: string;
-}
-
-type StatusFilter = "all" | "present" | "absent" | "half_day";
-type ActiveTab = "attendance" | "leaves" | "regularization";
-type RegFilter = "pending" | "approved" | "rejected" | "all";
-
-const getLocalDate = () => {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-};
-
-const statusClass = (status: string) => {
-  switch (status) {
+const getStatusBadgeClass = (status: string): string => {
+  const normalized = (status || "").toLowerCase().trim().replace(/[- ]/g, "_");
+  switch (normalized) {
     case "present":
-      return "text-green-500";
+    case "on_time":
+    case "ontime":
+      return "bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/40 shadow-xs font-semibold";
     case "late":
-      return "text-yellow-500";
-    case "half day":
-    case "half_day":
-      return "text-orange-500";
+      return "bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/40 shadow-xs font-semibold";
     case "absent":
-      return "text-red-500";
+      return "bg-rose-100 text-rose-800 border border-rose-300 dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-500/40 shadow-xs font-semibold";
+    case "half_day":
+      return "bg-indigo-100 text-indigo-800 border border-indigo-300 dark:bg-indigo-500/20 dark:text-indigo-300 dark:border-indigo-500/40 shadow-xs font-semibold";
     case "leave":
     case "leave_approved":
-      return "text-purple-500";
-    case "leave_pending":
-      return "text-slate-500";
-    case "leave_rejected":
-      return "text-red-500";
+      return "bg-purple-100 text-purple-800 border border-purple-300 dark:bg-purple-500/20 dark:text-purple-300 dark:border-purple-500/40 shadow-xs font-semibold";
     case "not_marked":
-      return "text-slate-400 status-not-marked-pulse";
+      return "bg-slate-200 text-slate-700 border border-slate-300 dark:bg-slate-800/80 dark:text-slate-400 dark:border-slate-700/60 font-semibold";
     default:
-      return "text-slate-500";
+      return "bg-slate-200 text-slate-700 border border-slate-300 dark:bg-slate-700/50 dark:text-slate-300 dark:border-slate-600/30";
   }
 };
 
-const statusLabel = getAttendanceStatusLabel;
-
-const leaveTypeBadge = (t: string) => {
-  switch (t) {
-    case "sick":
-      return "text-red-500 border border-red-500/25";
-    case "emergency":
-      return "text-orange-500 border border-orange-500/25";
-    default:
-      return " text-blue-500 border border-blue-500/25";
-  }
-};
-
-const leaveTypeLabel = (t: string) => {
-  const type = t || "casual";
-  return type.charAt(0).toUpperCase() + type.slice(1);
-};
-
-const getGreeting = () => {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  return "Good evening";
-};
-
-const formatDisplayDate = (dateStr: string) => {
-  const date = new Date(`${dateStr}T12:00:00`);
-  if (Number.isNaN(date.getTime())) return dateStr;
-  return date.toLocaleDateString("en-IN", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+const card3dVariants: Variants = {
+  hidden: { opacity: 0, y: 30, rotateX: -10, scale: 0.95 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    rotateX: 0,
+    scale: 1,
+    transition: {
+      delay: i * 0.07,
+      duration: 0.55,
+      ease: [0.25, 1, 0.5, 1] as const,
+    },
+  }),
 };
 
 export default function AdminAttendanceSheet() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // ── Tab state ──────────────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState<ActiveTab>("attendance");
+  const todayStr = useMemo(() => new Date().toISOString().split("T")[0], []);
+  const [selectedDate, setSelectedDate] = useState(todayStr);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [deptFilter, setDeptFilter] = useState("all");
 
-  // ── Attendance sheet state ─────────────────────────────────────────────
-  const [selectedDate, setSelectedDate] = useState(getLocalDate());
-  const [sheet, setSheet] = useState<SheetResponse | null>(null);
+  const [records, setRecords] = useState<AttendanceRecord[]>([]);
+  const [departmentsList, setDepartmentsList] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [errorMsg, setErrorMsg] = useState("");
+
   const [viewReason, setViewReason] = useState<string | null>(null);
+  const [showReasonModal, setShowReasonModal] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
-  // ── Leave requests state ───────────────────────────────────────────────
-  const [leaveRecords, setLeaveRecords] = useState<LeaveRequest[]>([]);
-  const [leaveLoading, setLeaveLoading] = useState(false);
-  const [leaveFilter, setLeaveFilter] = useState<
-    "leave_pending" | "leave_approved" | "leave_rejected" | "all"
-  >("leave_pending");
-  const [leaveSearch, setLeaveSearch] = useState("");
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
-  const [pendingCount, setPendingCount] = useState(0);
-
-  const [regRecords, setRegRecords] = useState<RegularizationRequest[]>([]);
-  const [regLoading, setRegLoading] = useState(false);
-  const [regFilter, setRegFilter] = useState<RegFilter>("pending");
-  const [regSearch, setRegSearch] = useState("");
-  const [regPendingCount, setRegPendingCount] = useState(0);
-
-  const [showMenu, setShowMenu] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [dashboardExtras, setDashboardExtras] = useState<DashboardExtrasData | null>(null);
-
-  const today = getLocalDate();
-  const adminId = localStorage.getItem("employee_id") || "";
   const adminName = localStorage.getItem("employee_name") || "Admin";
-  const adminRoleRaw = localStorage.getItem("role") || "admin";
-  const adminRole = adminRoleRaw.toUpperCase();
-  const isHr = adminRoleRaw === "hr";
-  const dashboardTitle = isHr ? "HR Dashboard" : "Admin Dashboard";
-  const adminProfileImg = getMediaUrl(localStorage.getItem("profile_img"));
-
-  const {
-    notifications,
-    unreadCount,
-    markAllRead,
-    markOneRead,
-    deleteOne,
-    refreshNotifications,
-  } = useDashboardNotifications(
-    adminId,
-    adminRoleRaw === "hr" ? "hr" : "admin",
-  );
+  const adminRole = localStorage.getItem("role") || "Administrator";
+  const adminProfileImg = localStorage.getItem("profile_img") || undefined;
 
   useEffect(() => {
-    if (!adminId) return;
-    void fetchDashboardExtras(adminId).then(setDashboardExtras);
-  }, [adminId]);
-
-  const handleNotificationSelect = useCallback(
-    (item: DashboardNotification) => {
-      markOneRead(item.id);
-      if (item.type === "leave_request") {
-        setActiveTab("leaves");
-      } else if (item.group_id) {
-        dispatchNotificationAction({
-          type: "open_chat",
-          chat: { type: "group", id: item.group_id },
-        });
-      } else if (item.contact_id) {
-        dispatchNotificationAction({
-          type: "open_chat",
-          chat: { type: "direct", id: item.contact_id },
-        });
-      }
-    },
-    [markOneRead],
-  );
-
-  useEffect(() => {
-    if (showNotifications) {
-      void refreshNotifications();
+    if (!isAdminOrHR()) {
+      navigate("/", { replace: true });
     }
-  }, [refreshNotifications, showNotifications]);
+  }, [navigate]);
 
-  // ── Toast helper ───────────────────────────────────────────────────────
-  const showToast = (msg: string, ok: boolean) => {
-    setToast({ msg, ok });
-    setTimeout(() => setToast(null), 3500);
-  };
+  const fetchAttendance = useCallback(async () => {
+    setLoading(true);
+    setErrorMsg("");
+    try {
+      let data: AttendanceRecord[] = [];
+      let depts: string[] = [];
 
-  // ── Fetch attendance sheet ─────────────────────────────────────────────
-  useEffect(() => {
-    const fetchSheet = async () => {
       try {
-        setLoading(true);
-        setError("");
         const response = await API.get("/attendance/admin-sheet/", {
           params: { date: selectedDate },
         });
-        setSheet(response.data);
-      } catch (err: unknown) {
-        if (axios.isAxiosError(err)) {
-          setError(
-            err.response?.data?.error || "Failed to load attendance sheet",
-          );
-        } else {
-          setError("Failed to load attendance sheet");
+        if (response.data) {
+          data = response.data.records || response.data || [];
+          if (Array.isArray(response.data.departments)) {
+            depts = response.data.departments;
+          }
         }
-      } finally {
-        setLoading(false);
+      } catch {
+        const response = await API.get("/attendance/mark-report/", {
+          params: { date: selectedDate },
+        });
+        data = response.data.records || response.data || [];
       }
-    };
-    fetchSheet();
+
+      setRecords(Array.isArray(data) ? data : []);
+
+      if (depts.length > 0) {
+        setDepartmentsList(depts);
+      } else {
+        const extractedDepts = Array.from(
+          new Set(data.map((r) => r.department).filter(Boolean)),
+        ) as string[];
+        extractedDepts.sort();
+        setDepartmentsList(extractedDepts);
+      }
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { error?: string } } };
+      setErrorMsg(e.response?.data?.error || "Failed to load employee attendance records");
+      setRecords([]);
+    } finally {
+      setLoading(false);
+    }
   }, [selectedDate]);
 
-  // ── Fetch leave requests ───────────────────────────────────────────────
-  const fetchLeaveRequests = useCallback(async () => {
-    setLeaveLoading(true);
-    try {
-      const res = await API.get("/attendance/admin-leave-requests/", {
-        params: { status: leaveFilter },
-      });
-      if (res.data.success) {
-        setLeaveRecords(res.data.records || []);
-      }
-    } catch {
-      /* silent */
-    } finally {
-      setLeaveLoading(false);
-    }
-  }, [leaveFilter]);
-
-  // Fetch pending count for badge
-  const fetchPendingCount = useCallback(async () => {
-    try {
-      const res = await API.get("/attendance/admin-leave-requests/", {
-        params: { status: "leave_pending" },
-      });
-      if (res.data.success) setPendingCount(res.data.total || 0);
-    } catch {
-      /* silent */
-    }
-  }, []);
-
   useEffect(() => {
-    fetchLeaveRequests();
-  }, [fetchLeaveRequests]);
+    fetchAttendance();
+  }, [fetchAttendance]);
 
-  useEffect(() => {
-    fetchPendingCount();
-    const interval = setInterval(fetchPendingCount, 30000);
-    return () => clearInterval(interval);
-  }, [fetchPendingCount]);
-
-  const fetchRegularizations = useCallback(async () => {
-    setRegLoading(true);
-    try {
-      const res = await API.get("/attendance/hr/regularization/admin/", {
-        params: { status: regFilter },
-      });
-      if (res.data.success) setRegRecords(res.data.records || []);
-    } catch {
-      /* silent */
-    } finally {
-      setRegLoading(false);
-    }
-  }, [regFilter]);
-
-  const fetchRegPendingCount = useCallback(async () => {
-    try {
-      const res = await API.get("/attendance/hr/regularization/admin/", {
-        params: { status: "pending" },
-      });
-      if (res.data.success) setRegPendingCount(res.data.records?.length || 0);
-    } catch {
-      /* silent */
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchRegularizations();
-  }, [fetchRegularizations]);
-
-  useEffect(() => {
-    fetchRegPendingCount();
-    const interval = setInterval(fetchRegPendingCount, 30000);
-    return () => clearInterval(interval);
-  }, [fetchRegPendingCount]);
-
-  useEffect(() => {
-    const role = localStorage.getItem("role");
-    if (!["admin", "hr"].includes(role || "")) navigate("/", { replace: true });
-  }, [navigate]);
-
-  // ── Approve / Reject leave ─────────────────────────────────────────────
-  const handleLeaveAction = async (
-    recordId: string,
-    action: "approve" | "reject",
-  ) => {
-    setActionLoading(recordId + action);
-    try {
-      const res = await API.post("/attendance/approve-leave/", {
-        record_id: recordId,
-        action,
-      });
-      if (res.data.success) {
-        showToast(res.data.message, true);
-        fetchLeaveRequests();
-        fetchPendingCount();
-      } else {
-        showToast(res.data.error || "Action failed", false);
-      }
-    } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
-        showToast(err.response?.data?.error || "Action failed", false);
-      } else {
-        showToast("Action failed", false);
-      }
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const handleRegularizationAction = async (
-    requestId: string,
-    action: "approve" | "reject",
-  ) => {
-    setActionLoading(requestId + action);
-    try {
-      const res = await API.post("/attendance/hr/regularization/resolve/", {
-        request_id: requestId,
-        action,
-      });
-      if (res.data.success) {
-        showToast(`Regularization ${action}d`, true);
-        fetchRegularizations();
-        fetchRegPendingCount();
-      } else {
-        showToast(res.data.error || "Action failed", false);
-      }
-    } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
-        showToast(err.response?.data?.error || "Action failed", false);
-      } else {
-        showToast("Action failed", false);
-      }
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  // ── Filtered attendance records ────────────────────────────────────────
   const filteredRecords = useMemo(() => {
-    const records = sheet?.records || [];
-    const search = searchTerm.trim().toLowerCase();
-    return records.filter((record) => {
+    return records.filter((r) => {
+      const matchesSearch =
+        !searchQuery ||
+        (r.employee_name && r.employee_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (r.employee_id && r.employee_id.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (r.department && r.department.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (r.designation && r.designation.toLowerCase().includes(searchQuery.toLowerCase()));
+
+      const normalizedStatus = (r.status || "").toLowerCase().trim().replace(/[- ]/g, "_");
       const matchesStatus =
         statusFilter === "all" ||
-        (statusFilter === "present" &&
-          ["present", "late"].includes(record.status)) ||
-        (statusFilter === "half_day" &&
-          ["half_day", "half day"].includes(record.status)) ||
-        (statusFilter === "absent" &&
-          ["absent", "leave"].includes(record.status)) ||
-        record.status === statusFilter;
+        normalizedStatus === statusFilter.toLowerCase().replace(/[- ]/g, "_");
 
-      const matchesSearch =
-        !search ||
-        [
-          record.employee_name,
-          record.employee_id,
-          record.email,
-          record.department,
-          record.designation,
-          record.status,
-          record.reason,
-        ]
-          .join(" ")
-          .toLowerCase()
-          .includes(search);
+      const matchesDept =
+        deptFilter === "all" ||
+        (r.department && r.department.toLowerCase() === deptFilter.toLowerCase());
 
-      return matchesStatus && matchesSearch;
+      return matchesSearch && matchesStatus && matchesDept;
     });
-  }, [sheet, searchTerm, statusFilter]);
+  }, [records, searchQuery, statusFilter, deptFilter]);
 
-  // ── Filtered leave records ─────────────────────────────────────────────
-  const filteredLeaves = useMemo(() => {
-    const search = leaveSearch.trim().toLowerCase();
-    if (!search) return leaveRecords;
-    return leaveRecords.filter((r) =>
-      [
-        r.employee_name,
-        r.employee_id,
-        r.department,
-        r.date,
-        r.leave_type,
-        r.reason,
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(search),
-    );
-  }, [leaveRecords, leaveSearch]);
+  const stats = useMemo(() => {
+    const total = records.length;
+    let present = 0;
+    let late = 0;
+    let absent = 0;
+    let halfDay = 0;
+    let leave = 0;
+    let notMarked = 0;
 
-  const filteredRegistrations = useMemo(() => {
-    const search = regSearch.trim().toLowerCase();
-    if (!search) return regRecords;
-    return regRecords.filter((r) =>
-      [
-        r.employee_name,
-        r.employee_id,
-        r.date,
-        r.requested_status,
-        r.reason,
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(search),
-    );
-  }, [regRecords, regSearch]);
+    records.forEach((r) => {
+      const s = (r.status || "").toLowerCase().trim().replace(/[- ]/g, "_");
+      if (s === "present" || s === "on_time" || s === "ontime") present++;
+      else if (s === "late") late++;
+      else if (s === "absent") absent++;
+      else if (s === "half_day") halfDay++;
+      else if (s === "leave" || s === "leave_approved") leave++;
+      else notMarked++;
+    });
 
-  const tableFilterKey = `${statusFilter}:${searchTerm.trim().toLowerCase()}`;
+    return { total, present, late, absent, halfDay, leave, notMarked };
+  }, [records]);
 
-  const handleLogout = () => {
-    clearAuthSession();
-    navigate("/", { replace: true });
+  const handleExportCSV = () => {
+    if (filteredRecords.length === 0) return;
+    const headers = [
+      "Employee ID",
+      "Name",
+      "Department",
+      "Designation",
+      "Check In",
+      "Check Out",
+      "Status",
+      "Duration",
+      "Date",
+    ];
+    const rows = filteredRecords.map((r) => [
+      `"${r.employee_id || ""}"`,
+      `"${r.employee_name || ""}"`,
+      `"${r.department || ""}"`,
+      `"${r.designation || ""}"`,
+      `"${r.check_in || ""}"`,
+      `"${r.check_out || ""}"`,
+      `"${getAttendanceStatusLabel(r.status)}"`,
+      `"${r.duration || ""}"`,
+      `"${r.date || selectedDate}"`,
+    ]);
+
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
+      [headers.join(","), ...rows.map((row) => row.join(","))].join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Employee_Attendance_Sheet_${selectedDate}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
-
-  const handleLogoutModal = () => {
-    setShowLogoutModal(true);
-  };
-
-  const exportCsv = useCallback(() => {
-    const baseUrl = getApiBaseUrl();
-    window.open(
-      `${baseUrl}/attendance/export-csv/?date=${selectedDate}`,
-      "_blank",
-      "noopener,noreferrer",
-    );
-  }, [selectedDate]);
 
   const sidebarItems = useMemo(
     () => [
-      {
-        icon: <Users size={18} />,
-        label: "Team",
-        onClick: () => navigate("/team"),
-        active: location.pathname === "/team",
-      },
       {
         icon: <User size={18} />,
         label: "Profile",
         onClick: () => navigate("/admin-profile"),
         active: location.pathname === "/admin-profile",
-      },
-      {
-        icon: <Bell size={18} />,
-        label: "Notifications",
-        onClick: () => setShowNotifications(true),
-        badgeCount: unreadCount,
       },
       {
         icon: <Calendar size={18} />,
@@ -563,951 +251,260 @@ export default function AdminAttendanceSheet() {
         icon: <IdCardLanyard size={18} />,
         label: "Employees",
         onClick: () => navigate("/admin-employees"),
-        active:
-          location.pathname === "/admin-employees" ||
-          location.pathname === "/admin-create-employee",
+        active: location.pathname === "/admin-employees",
       },
       {
         icon: <Download size={18} />,
-        label: "Export Report",
-        onClick: exportCsv,
+        label: "Attendance",
+        onClick: () => navigate("/attendance-sheet"),
+        active: location.pathname === "/attendance-sheet",
       },
     ],
-    [exportCsv, location.pathname, navigate, unreadCount],
+    [location.pathname, navigate],
   );
 
+  const handleLogout = () => {
+    localStorage.clear();
+    navigate("/", { replace: true });
+  };
+
+  const statCardsData = [
+    {
+      label: "Total Logged",
+      count: stats.total,
+      icon: <Users size={18} className="text-blue-600 dark:text-blue-400" />,
+      color: "text-blue-600 dark:text-blue-400",
+      bgClass: "bg-white border-blue-200 dark:bg-slate-900 dark:border-blue-500/30",
+    },
+    {
+      label: "Present",
+      count: stats.present,
+      icon: <CheckCircle2 size={18} className="text-emerald-600 dark:text-emerald-400" />,
+      color: "text-emerald-600 dark:text-emerald-400",
+      bgClass: "bg-white border-emerald-200 dark:bg-slate-900 dark:border-emerald-500/30",
+    },
+    {
+      label: "Late",
+      count: stats.late,
+      icon: <Clock size={18} className="text-amber-600 dark:text-amber-400" />,
+      color: "text-amber-600 dark:text-amber-400",
+      bgClass: "bg-white border-amber-200 dark:bg-slate-900 dark:border-amber-500/30",
+    },
+    {
+      label: "Absent",
+      count: stats.absent,
+      icon: <XCircle size={18} className="text-rose-600 dark:text-rose-400" />,
+      color: "text-rose-600 dark:text-rose-400",
+      bgClass: "bg-white border-rose-200 dark:bg-slate-900 dark:border-rose-500/30",
+    },
+    {
+      label: "Half Day",
+      count: stats.halfDay,
+      icon: <Clock size={18} className="text-indigo-600 dark:text-indigo-400" />,
+      color: "text-indigo-600 dark:text-indigo-400",
+      bgClass: "bg-white border-indigo-200 dark:bg-slate-900 dark:border-indigo-500/30",
+    },
+    {
+      label: "Leave / Pending",
+      count: stats.leave,
+      icon: <Calendar size={18} className="text-purple-600 dark:text-purple-400" />,
+      color: "text-purple-600 dark:text-purple-400",
+      bgClass: "bg-white border-purple-200 dark:bg-slate-900 dark:border-purple-500/30",
+    },
+  ];
+
   return (
-    <>
-      <div className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] px-3 py-5 pb-24 sm:px-5 lg:px-5 lg:pb-8">
-        {/* TOAST */}
-        {toast && (
-          <div
-            className={`fixed top-5 left-1/2 -translate-x-1/2 z-50 px-6 py-4 rounded-2xl text-sm font-semibold shadow-xl border transition-all ${toast.ok
-              ? "bg-green-500/15 border-green-500/30 text-green-300"
-              : "bg-red-500/15 border-red-500/30 text-red-300"
-              }`}
-          >
-            {toast.msg}
+    <div className="relative flex min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 overflow-x-hidden transition-colors duration-300">
+      <AnimatedBackground />
+
+      <AdminSidebar
+        items={sidebarItems}
+        onLogout={handleLogout}
+        mobileOpen={mobileSidebarOpen}
+        onMobileClose={() => setMobileSidebarOpen(false)}
+        adminName={adminName}
+        adminRole={adminRole}
+        profileImg={adminProfileImg}
+      />
+
+      <MobileMenuButton onClick={() => setMobileSidebarOpen(true)} />
+
+      <main className="relative z-10 flex-1 p-4 md:p-8 lg:p-10 overflow-y-auto w-full lg:ml-22">
+        {/* CENTERED HEADER SECTION */}
+        <motion.div
+          className="mx-auto max-w-4xl text-center mb-10 flex flex-col items-center justify-center pt-8 sm:pt-4"
+          initial={{ opacity: 0, y: -20, scale: 0.96 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <motion.div whileHover={{ scale: 1.05, rotateY: 5 }} whileTap={{ scale: 0.95 }}>
+              <Button
+                onClick={fetchAttendance}
+                className="flex items-center gap-2 rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-5 py-3 text-sm font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all shadow-md cursor-pointer"
+              >
+                <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+                Refresh Sheet
+              </Button>
+            </motion.div>
+            <motion.div whileHover={{ scale: 1.05, rotateY: -5 }} whileTap={{ scale: 0.95 }}>
+              <Button
+                onClick={handleExportCSV}
+                disabled={filteredRecords.length === 0}
+                className="flex items-center gap-2 rounded-2xl bg-linear-to-r from-blue-600 to-cyan-600 px-5 py-3 text-sm font-bold text-white hover:from-blue-500 hover:to-cyan-500 disabled:opacity-50 transition-all shadow-lg shadow-blue-500/25 cursor-pointer"
+              >
+                <Download size={16} />
+                Export CSV
+              </Button>
+            </motion.div>
           </div>
-        )}
+        </motion.div>
 
-        <NotificationPanel
-          open={showNotifications}
-          onClose={() => setShowNotifications(false)}
-          notifications={notifications}
-          unreadCount={unreadCount}
-          onMarkAllRead={markAllRead}
-          onMarkRead={markOneRead}
-          onDelete={deleteOne}
-          onSelect={handleNotificationSelect}
-        />
-
-        <AdminSidebar
-          items={sidebarItems}
-          onLogout={handleLogoutModal}
-          mobileOpen={showMenu}
-          onMobileClose={() => setShowMenu(false)}
-          adminName={adminName}
-          adminRole={adminRole}
-          profileImg={adminProfileImg}
-        />
-
-        <MobileMenuButton onClick={() => setShowMenu(true)} />
-
-        <div className="mx-auto max-w-400 pb-10 pt-12 transition-all duration-500 ease-out sm:pb-12 sm:pt-5 lg:ml-22 lg:pt-0">
-          <div>
-            {/* HEADER */}
-            <div className="dash-shell-panel relative mb-4 overflow-hidden border border-white/10 bg-white/5 shadow-xl backdrop-blur-xl dash-fade-up sm:mb-6 sm:shadow-2xl">
-              <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-indigo-500/10 blur-3xl sm:h-40 sm:w-40" />
-              <div className="pointer-events-none absolute -bottom-10 left-1/4 h-24 w-24 rounded-full bg-blue-500/10 blur-3xl sm:h-32 sm:w-32" />
-
-              <div className="relative flex flex-col gap-3 p-4 sm:gap-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex min-w-0 items-center gap-3 sm:items-center sm:gap-4 ">
-                  <div className="h-14 w-14 shrink-0 overflow-hidden border border-white/15 bg-slate-800 shadow-md sm:h-20 sm:w-20 sm:shadow-lg rounded-full">
-                    {adminProfileImg ? (
-                      <img
-                        src={adminProfileImg}
-                        alt={adminName}
-                        className="h-full w-full object-cover rounded-full"
-                      />
-                    ) : (
-                      <div className="grid h-full w-full place-items-center bg-linear-to-br from-indigo-600 to-blue-500 text-xl font-bold text-white sm:text-2xl">
-                        {adminName.charAt(0)}
-                      </div>
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold dash-welcome-muted text-slate-300 sm:text-sm">
-                      {getGreeting()}, {adminName}
-                    </p>
-                    <h1 className="mt-0.5 text-lg font-bold leading-snug text-white sm:text-2xl lg:text-3xl">
-                      {dashboardTitle}
-                    </h1>
-                    <p className="mt-1 line-clamp-2 text-xs font-medium leading-snug dash-welcome-muted text-slate-400 sm:text-sm">
-                      {adminRole} Portal
-                      {activeTab === "attendance"
-                        ? ` • ${formatDisplayDate(selectedDate)}`
-                        : ""}
-                    </p>
-                  </div>
-                </div>
-
-                {activeTab === "attendance" && (
-                  <div className="flex items-center gap-2.5 sm:flex-col sm:items-end sm:gap-2">
-                    <label className="shrink-0 text-xs font-medium text-slate-400 sm:uppercase sm:tracking-wide">
-                      Select date
-                    </label>
-                    <DashboardDatePicker
-                      value={selectedDate}
-                      max={today}
-                      onChange={setSelectedDate}
-                      compact
-                      className="min-w-0 flex-1 sm:min-w-70"
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            <DashboardExtras data={dashboardExtras} />
-            {/* TABS */}
-            <div className="dash-tab-shell mb-6 flex w-full flex-col gap-2 sm:inline-flex sm:w-auto sm:flex-row sm:rounded-2xl sm:border sm:border-white/10 sm:bg-slate-900/60 sm:p-1 dash-fade-up dash-fade-up-delay-1">
-              <button
-                type="button"
-                onClick={() => setActiveTab("attendance")}
-                className={`inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] sm:w-auto ${activeTab === "attendance"
-                  ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
-                  : "dash-tab-inactive border border-slate-700 bg-slate-800 text-slate-400 hover:text-white sm:border-0 sm:bg-transparent"
-                  }`}
-              >
-                <ClipboardList className="h-4 w-4" />
-                Attendance Sheet
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab("leaves")}
-                className={`relative inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] sm:w-auto ${activeTab === "leaves"
-                  ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20"
-                  : "dash-tab-inactive border border-slate-700 bg-slate-800 text-slate-400 hover:text-white sm:border-0 sm:bg-transparent"
-                  }`}
-              >
-                <CalendarDays className="h-4 w-4" />
-                Leave Requests
-                {pendingCount > 0 && (
-                  <span className="ml-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-[10px] font-bold text-white">
-                    {pendingCount > 99 ? "99+" : pendingCount}
-                  </span>
-                )}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab("regularization")}
-                className={`relative inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] sm:w-auto ${activeTab === "regularization"
-                  ? "bg-violet-600 text-white shadow-lg shadow-violet-600/20"
-                  : "dash-tab-inactive border border-slate-700 bg-slate-800 text-slate-400 hover:text-white sm:border-0 sm:bg-transparent"
-                  }`}
-              >
-                <PenLine className="h-4 w-4" />
-                Regularization
-                {regPendingCount > 0 && (
-                  <span className="ml-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-[10px] font-bold text-white">
-                    {regPendingCount > 99 ? "99+" : regPendingCount}
-                  </span>
-                )}
-              </button>
-            </div>
-
-            <div className="mb-6 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-              <span>HR settings:</span>
-              {(
-                [
-                  { tab: "holidays", label: "Holidays" },
-                  { tab: "shifts", label: "Shifts" },
-                  { tab: "roster", label: "Roster" },
-                  { tab: "overtime", label: "Overtime" },
-                  { tab: "announcements", label: "Announcements" },
-                ] as const
-              ).map(({ tab: hrTab, label }) => (
-                <button
-                  key={hrTab}
-                  type="button"
-                  onClick={() => navigate(`/admin-hr?tab=${hrTab}`)}
-                  className="rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-1 font-medium text-slate-300 transition hover:border-violet-500/50 hover:text-white cursor-pointer"
+        {/* 3D STATS CARDS GRID - CENTERED */}
+        <div className="mx-auto max-w-6xl mb-8">
+          <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 lg:grid-cols-6 justify-center">
+            {statCardsData.map((stat, idx) => (
+              <ThreeDCardContainer key={stat.label} maxDegrees={10}>
+                <motion.div
+                  custom={idx}
+                  variants={card3dVariants}
+                  initial="hidden"
+                  animate="visible"
+                  className={`relative overflow-hidden rounded-3xl border ${stat.bgClass} p-4 backdrop-blur-xl transition-all duration-300 shadow-lg flex flex-col justify-between h-full`}
                 >
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            {activeTab === "attendance" && (
-              <div key={`attendance-view-${selectedDate}-${loading ? "load" : "ready"}`}>
-                {error && (
-                  <div className="bg-red-500/20 border border-red-500 text-red-300 p-4 rounded-xl mb-5">
-                    {error}
+                  <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                      {stat.label}
+                    </span>
+                    {stat.icon}
                   </div>
-                )}
-
-                {/* Summary cards */}
-                <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
-                  {[
-                    {
-                      filter: "all",
-                      label: "Total Employees",
-                      value: sheet?.total_employees ?? 0,
-                      accent: "text-slate-300",
-                      ring: "border-slate-600/50",
-                      active: "border-slate-400 bg-slate-800/90",
-                      delay: "dash-fade-up-delay-1",
-                    },
-                    {
-                      filter: "present",
-                      label: "Present Today",
-                      value: sheet?.present_count ?? 0,
-                      accent: "text-emerald-400",
-                      ring: "border-emerald-500/30",
-                      active: "border-emerald-500 bg-emerald-500/10",
-                      delay: "dash-fade-up-delay-2",
-                    },
-                    {
-                      filter: "absent",
-                      label: "Absent Today",
-                      value: sheet?.absent_count ?? 0,
-                      accent: "text-red-400",
-                      ring: "border-red-500/30",
-                      active: "border-red-500 bg-red-500/10",
-                      delay: "dash-fade-up-delay-3",
-                    },
-                    {
-                      filter: "half_day",
-                      label: "Half Day",
-                      value: sheet?.half_day_count ?? 0,
-                      accent: "text-orange-400",
-                      ring: "border-orange-500/30",
-                      active: "border-orange-500 bg-orange-500/10",
-                      delay: "dash-fade-up-delay-4",
-                    },
-                  ].map(({ filter, label, value, accent, ring, active, delay }) => (
-                    <button
-                      key={filter}
-                      type="button"
-                      onClick={() => setStatusFilter(filter as StatusFilter)}
-                      className={`dash-metric-card dash-fade-up ${delay} border bg-slate-900/50 p-4 text-left ${ring} ${statusFilter === filter ? active : "hover:bg-slate-800/80"
-                        }`}
-                    >
-                      <p className="dash-metric-label text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        {label}
-                      </p>
-                      {loading ? (
-                        <div className="mt-3 h-9 w-16 skeleton-shimmer rounded-lg" />
-                      ) : (
-                        <p className={`dash-metric-value mt-2 text-3xl font-bold ${accent}`}>{value}</p>
-                      )}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Table */}
-                <div className="dash-table-panel overflow-hidden border border-slate-700/80 bg-slate-900/40 shadow-xl dash-fade-up dash-fade-up-delay-5">
-                  <div className="flex flex-col gap-4 border-b border-slate-700/80 p-5 md:flex-row md:items-center md:justify-between">
-                    <div>
-                      <h2 className="text-lg font-bold text-white sm:text-xl">
-                        {sheet?.sheet_name || "Attendance Sheet"}
-                      </h2>
-                      <p className="mt-1 text-sm font-medium dash-welcome-muted text-slate-400">
-                        {filteredRecords.length} employee
-                        {filteredRecords.length !== 1 ? "s" : ""} shown
-                      </p>
-                    </div>
-                    <Input
-                      type="search"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      placeholder="Search employee, ID, department..."
-                      className="w-full rounded-xl border border-slate-600 bg-slate-700 p-3 text-white outline-none transition-[border-color,box-shadow,opacity] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] focus:border-blue-500 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)] md:w-96"
-                    />
-                  </div>
-
-                  {loading ? (
-                    <AttendanceTableSkeleton />
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="dash-data-table w-full text-left text-white">
-                        <thead className="dash-data-table-head border-b border-slate-700 bg-slate-700/50 text-center text-xs uppercase tracking-wider text-slate-400">
-                          <tr>
-                            <th className="px-5 py-4">Photo</th>
-                            <th className="px-5 py-4">Employee</th>
-                            <th className="px-5 py-4">ID</th>
-                            <th className="px-5 py-4">Department</th>
-                            <th className="px-5 py-4">Check In</th>
-                            <th className="px-5 py-4">Check Out</th>
-                            <th className="px-5 py-4">Duration</th>
-                            <th className="px-5 py-4">Status</th>
-                            <th className="px-5 py-4">Location</th>
-                            <th className="px-5 py-4">Reason</th>
-                            <th className="px-5 py-4">CV</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredRecords.map((record, rowIndex) => (
-                            <tr
-                              key={`${tableFilterKey}-${record.employee_id}`}
-                              className="dash-table-row dash-row-enter border-b border-slate-700 text-center"
-                              style={{
-                                animationDelay: `${Math.min(rowIndex, 14) * 35}ms`,
-                              }}
-                            >
-                              <td className="px-5 py-4">
-                                <div className="mx-auto h-14 w-14 overflow-hidden rounded-full border border-white/10 bg-slate-700">
-                                  {record.profile_img ? (
-                                    <img
-                                      src={getMediaUrl(record.profile_img)}
-                                      alt={record.employee_name}
-                                      className="h-14 w-14 object-center"
-                                    />
-                                  ) : (
-                                    <div className="flex h-full w-full items-center justify-center bg-blue-600 font-bold text-white">
-                                      {record.employee_name?.charAt(0)}
-                                    </div>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="px-5 py-4 text-left">
-                                <p className="font-medium">
-                                  {record.employee_name}
-                                </p>
-                                <p className="text-xs text-slate-400">
-                                  {record.email}
-                                </p>
-                              </td>
-                              <td className="px-5 py-4 text-sm text-slate-300 ">
-                                {record.employee_id}
-                              </td>
-                              <td className="px-5 py-4 text-slate-300">
-                                <p className="text-sm text-slate-500 font-bold">
-                                  {record.designation}
-                                </p>
-                              </td>
-                              <td className="px-5 py-4 font-mono text-sm">
-                                {isEmptyCellValue(record.check_in) ? (
-                                  <span className={DASH_CELL_EMPTY}>
-                                    {record.check_in || "--"}
-                                  </span>
-                                ) : (
-                                  <span className="text-green-500 text-[17px]">
-                                    {record.check_in}
-                                  </span>
-                                )}
-                              </td>
-                              <td className="px-5 py-4 font-mono text-sm text-[17px]">
-                                {isEmptyCellValue(record.check_out) ? (
-                                  <span className={DASH_CELL_EMPTY}>
-                                    {record.check_out || "--"}
-                                  </span>
-                                ) : (
-                                  <span className="text-red-300 text-[17px]">
-                                    {record.check_out}
-                                  </span>
-                                )}
-                              </td>
-                              <td className="px-5 py-4 text-[17px]">
-                                <span
-                                  className={
-                                    isEmptyCellValue(record.duration)
-                                      ? `text-sm ${DASH_CELL_EMPTY}`
-                                      : "text-slate-300"
-                                  }
-                                >
-                                  {record.duration || "--"}
-                                </span>
-                              </td>
-                              <td className="px-5 py-4">
-                                <span
-                                  className={`flex justify-center rounded-full px-3 py-1 text-sm font-extrabold text-[16px] ${statusClass(record.status)}`}
-                                >
-                                  {statusLabel(record.status)}
-                                </span>
-                                {record.minutes_late > 0 && (
-                                  <p className="text-xs text-yellow-400 mt-1">
-                                    {record.minutes_late}m late
-                                  </p>
-                                )}
-                              </td>
-                              <td className="px-5 py-4">
-                                {record.location_maps_url ? (
-                                  <a
-                                    href={record.location_maps_url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="text-xs font-semibold text-cyan-300 hover:text-cyan-200"
-                                  >
-                                    {statusLabel(
-                                      record.location_status || "captured",
-                                    )}
-                                    {record.location_distance_meters
-                                      ? ` · ${Math.round(record.location_distance_meters)}m`
-                                      : ""}
-                                  </a>
-                                ) : (
-                                  <span className="text-xs text-slate-500">
-                                    {statusLabel(
-                                      record.location_status || "not captured",
-                                    )}
-                                  </span>
-                                )}
-                              </td>
-                              <td className="px-5 py-4">
-                                {record.reason && record.reason !== "--" ? (
-                                  <Button
-                                    text={record.reason}
-                                    onClick={() => setViewReason(record.reason)}
-                                    className="text-slate-400 max-w-35 truncate block hover:text-blue-400 underline underline-offset-2 transition cursor-pointer text-sm"
-                                  />
-                                ) : (
-                                  <span className={`text-sm ${DASH_CELL_EMPTY}`}>
-                                    --
-                                  </span>
-                                )}
-                              </td>
-                              <td className="px-5 py-4">
-                                {record.cv_file ? (
-                                  <a
-                                    href={getMediaUrl(record.cv_file)}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="text-xs font-semibold text-blue-400 hover:text-blue-300"
-                                  >
-                                    View CV
-                                  </a>
-                                ) : (
-                                  <span className={`text-xs ${DASH_CELL_EMPTY}`}>
-                                    --
-                                  </span>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                          {filteredRecords.length === 0 && (
-                            <tr>
-                              <td
-                                colSpan={12}
-                                className="px-5 py-8 text-center text-slate-400"
-                              >
-                                No records found
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* ═══════════════════════════════════════════════════════════════
-            LEAVE REQUESTS TAB
-        ════════════════════════════════════════════════════════════════ */}
-            {activeTab === "leaves" && (
-              <div className="pb-2">
-                {/* Leave filter tabs */}
-                <div className="mb-5 flex flex-wrap gap-2">
-                  {(
-                    [
-                      {
-                        key: "leave_pending" as const,
-                        label: "Pending",
-                        icon: <Clock className="h-3.5 w-3.5" />,
-                        activeClass: "dash-leave-chip-pending bg-amber-500/15 text-amber-200 border-amber-500/40",
-                      },
-                      {
-                        key: "leave_approved" as const,
-                        label: "Approved",
-                        icon: <CheckCircle2 className="h-3.5 w-3.5" />,
-                        activeClass: "dash-leave-chip-approved bg-emerald-500/15 text-emerald-200 border-emerald-500/40",
-                      },
-                      {
-                        key: "leave_rejected" as const,
-                        label: "Rejected",
-                        icon: <XCircle className="h-3.5 w-3.5" />,
-                        activeClass: "dash-leave-chip-rejected bg-red-500/15 text-red-200 border-red-500/40",
-                      },
-                      {
-                        key: "all" as const,
-                        label: "All",
-                        icon: <List className="h-3.5 w-3.5" />,
-                        activeClass: "dash-leave-chip-all bg-slate-500/15 text-slate-200 border-slate-500/40",
-                      },
-                    ] as const
-                  ).map(({ key, label, icon, activeClass }) => {
-                    const active = leaveFilter === key;
-                    return (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => setLeaveFilter(key)}
-                        className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition ${active
-                          ? activeClass
-                          : "dash-leave-filter-inactive border-slate-700 bg-slate-800/80 text-slate-400 hover:border-slate-600 hover:text-white"
-                          }`}
-                      >
-                        {icon}
-                        {label}
-                        {key === "leave_pending" && pendingCount > 0 && (
-                          <span className="ml-1 rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                            {pendingCount}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Search */}
-                <div className="mb-5">
-                  <Input
-                    type="search"
-                    value={leaveSearch}
-                    onChange={(e) => setLeaveSearch(e.target.value)}
-                    placeholder="Search by name, ID, department, date..."
-                    className="dash-leave-search w-full rounded-xl border border-slate-700 bg-slate-800 p-3 text-white outline-none focus:border-purple-500 md:w-96"
-                  />
-                </div>
-
-                {
-                  leaveLoading ? (
-                    <div className="bg-slate-800 border border-slate-700 rounded-3xl p-12 text-center text-slate-400">
-                      Loading leave requests...
-                    </div>
-                  ) : filteredLeaves.length === 0 ? (
-                    <EmptyState
-                      icon={<CalendarDays className="h-7 w-7 text-slate-500" />}
-                      title="No leave requests found"
-                      description={
-                        leaveFilter === "leave_pending"
-                          ? "No pending requests at this time"
-                          : "No records matching your filter"
-                      }
-                      className="dash-shell-panel border border-slate-700/80 bg-slate-900/40"
-                    />
-                  ) : (
-                    <div className="dash-table-panel overflow-hidden border border-slate-700/80 bg-slate-900/40 shadow-xl">
-                      <div className="flex items-center justify-between border-b border-slate-700/80 p-5">
-                        <h2 className="text-xl text-white font-bold">
-                          Leave Requests
-                        </h2>
-                        <span className="text-slate-400 text-sm">
-                          {filteredLeaves.length} record
-                          {filteredLeaves.length !== 1 ? "s" : ""}
-                        </span>
-                      </div>
-
-                      <div className="overflow-x-auto">
-                        <table className="dash-data-table w-full text-white">
-                          <thead className="dash-data-table-head bg-slate-700/50 border-b border-slate-700 text-xs text-slate-400 uppercase tracking-wider text-center">
-                            <tr>
-                              <th className="px-5 py-4">Employee</th>
-                              <th className="px-5 py-4">Department</th>
-                              <th className="px-5 py-4">Leave Date</th>
-                              <th className="px-5 py-4">Type</th>
-                              <th className="px-5 py-4">Reason</th>
-                              <th className="px-5 py-4">Status</th>
-                              {leaveFilter === "leave_pending" && (
-                                <th className="px-5 py-4">Actions</th>
-                              )}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {filteredLeaves.map((record) => (
-                              <tr
-                                key={record.id}
-                                className="dash-table-row border-b border-slate-700 text-center transition-colors"
-                              >
-                                {/* Employee */}
-                                <td className="px-5 py-4">
-                                  <div className="flex items-center gap-3 text-left">
-                                    <div className="h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-slate-700">
-                                      {record.profile_img ? (
-                                        <img
-                                          src={getMediaUrl(record.profile_img)}
-                                          alt={record.employee_name}
-                                          className="h-full w-full object-cover"
-                                        />
-                                      ) : (
-                                        <div className="flex h-full w-full items-center justify-center bg-purple-600 font-bold text-white text-sm">
-                                          {record.employee_name?.charAt(0)}
-                                        </div>
-                                      )}
-                                    </div>
-                                    <div>
-                                      <p className="font-semibold text-sm">
-                                        {record.employee_name}
-                                      </p>
-                                      <p className="text-xs text-slate-400">
-                                        {record.employee_id}
-                                      </p>
-                                    </div>
-                                  </div>
-                                </td>
-
-                                {/* Department */}
-                                <td className="px-5 py-4 text-slate-300">
-                                  <p className="text-sm">
-                                    {record.department || "--"}
-                                  </p>
-                                  <p className="text-xs text-slate-500">
-                                    {record.designation || ""}
-                                  </p>
-                                </td>
-
-                                {/* Leave Date */}
-                                <td className="px-5 py-4">
-                                  <span className="bg-slate-700 text-slate-200 px-3 py-1 rounded-lg font-mono text-sm">
-                                    {record.date}
-                                  </span>
-                                </td>
-
-                                {/* Type */}
-                                <td className="px-5 py-4">
-                                  <span
-                                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold capitalize ${leaveTypeBadge(record.leave_type)}`}
-                                  >
-                                    {record.leave_type === "sick" ? (
-                                      <Stethoscope className="h-3.5 w-3.5" />
-                                    ) : record.leave_type === "emergency" ? (
-                                      <AlertTriangle className="h-3.5 w-3.5" />
-                                    ) : (
-                                      <CalendarDays className="h-3.5 w-3.5" />
-                                    )}
-                                    {leaveTypeLabel(record.leave_type)}
-                                  </span>
-                                </td>
-
-                                {/* Reason */}
-                                <td className="px-5 py-4 max-w-50 flex justify-center">
-                                  {record.reason && record.reason !== "--" ? (
-                                    <Button
-                                      text={record.reason}
-                                      onClick={() => setViewReason(record.reason)}
-                                      className="text-slate-400 truncate block w-full hover:text-blue-400 underline underline-offset-2 transition cursor-pointer text-sm"
-                                      title={record.reason}
-                                    />
-                                  ) : (
-                                    <span className={`text-sm ${DASH_CELL_EMPTY}`}>
-                                      --
-                                    </span>
-                                  )}
-                                </td>
-
-                                {/* Status badge */}
-                                <td className="px-5 py-4">
-                                  <span
-                                    className={`px-3 py-3 rounded-full font-extrabold ${statusClass(record.status)}`}
-                                  >
-                                    {statusLabel(record.status)}
-                                  </span>
-                                </td>
-
-                                {/* Actions — only for pending tab */}
-                                {leaveFilter === "leave_pending" && (
-                                  <td className="px-5 py-4">
-                                    <div className="flex items-center justify-center gap-2">
-                                      <Button
-                                        text={
-                                          actionLoading === record.id + "approve" ? (
-                                            "Processing..."
-                                          ) : (
-                                            <>
-                                              <Check className="h-3.5 w-3.5" />
-                                              Approve
-                                            </>
-                                          )
-                                        }
-                                        onClick={() =>
-                                          handleLeaveAction(record.id, "approve")
-                                        }
-                                        disabled={!!actionLoading}
-                                        className="inline-flex items-center gap-1.5 bg-emerald-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
-                                      />
-                                      <Button
-                                        text={
-                                          actionLoading === record.id + "reject" ? (
-                                            "Processing..."
-                                          ) : (
-                                            <>
-                                              <X className="h-3.5 w-3.5" />
-                                              Reject
-                                            </>
-                                          )
-                                        }
-                                        onClick={() =>
-                                          handleLeaveAction(record.id, "reject")
-                                        }
-                                        disabled={!!actionLoading}
-                                        className="inline-flex items-center gap-1.5 bg-red-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-red-500 disabled:opacity-50"
-                                      />
-                                    </div>
-                                  </td>
-                                )}
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )
-                }
-              </div>
-            )}
-
-            {activeTab === "regularization" && (
-              <div className="pb-2">
-                <p className="mb-4 text-sm text-slate-400">
-                  Employees use <strong className="text-slate-300">Regularize</strong> on their
-                  dashboard to request attendance corrections (missed check-in, wrong status, etc.).
-                </p>
-
-                <div className="mb-5 flex flex-wrap gap-2">
-                  {(
-                    [
-                      {
-                        key: "pending" as const,
-                        label: "Pending",
-                        icon: <Clock className="h-3.5 w-3.5" />,
-                        activeClass:
-                          "bg-amber-500/15 text-amber-200 border-amber-500/40",
-                      },
-                      {
-                        key: "approved" as const,
-                        label: "Approved",
-                        icon: <CheckCircle2 className="h-3.5 w-3.5" />,
-                        activeClass:
-                          "bg-emerald-500/15 text-emerald-200 border-emerald-500/40",
-                      },
-                      {
-                        key: "rejected" as const,
-                        label: "Rejected",
-                        icon: <XCircle className="h-3.5 w-3.5" />,
-                        activeClass: "bg-red-500/15 text-red-200 border-red-500/40",
-                      },
-                      {
-                        key: "all" as const,
-                        label: "All",
-                        icon: <List className="h-3.5 w-3.5" />,
-                        activeClass:
-                          "bg-slate-500/15 text-slate-200 border-slate-500/40",
-                      },
-                    ] as const
-                  ).map(({ key, label, icon, activeClass }) => {
-                    const active = regFilter === key;
-                    return (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => setRegFilter(key)}
-                        className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition ${active
-                          ? activeClass
-                          : "border-slate-700 bg-slate-800/80 text-slate-400 hover:border-slate-600 hover:text-white"
-                          }`}
-                      >
-                        {icon}
-                        {label}
-                        {key === "pending" && regPendingCount > 0 && (
-                          <span className="ml-1 rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                            {regPendingCount}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="mb-5">
-                  <Input
-                    type="search"
-                    value={regSearch}
-                    onChange={(e) => setRegSearch(e.target.value)}
-                    placeholder="Search by name, ID, date, status..."
-                    className="w-full rounded-xl border border-slate-700 bg-slate-800 p-3 text-white outline-none focus:border-violet-500 md:w-96"
-                  />
-                </div>
-
-                {regLoading ? (
-                  <div className="rounded-3xl border border-slate-700 bg-slate-800 p-12 text-center text-slate-400">
-                    Loading regularization requests...
-                  </div>
-                ) : filteredRegistrations.length === 0 ? (
-                  <div className="dash-shell-panel border border-slate-700/80 bg-slate-900/40 p-12 text-center">
-                    <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl border border-slate-700 bg-slate-800 text-slate-400">
-                      <PenLine className="h-7 w-7" />
-                    </div>
-                    <p className="text-lg font-semibold text-slate-200">
-                      No regularization requests found
-                    </p>
-                    <p className="mt-1 text-sm text-slate-500">
-                      {regFilter === "pending"
-                        ? "No pending corrections at this time"
-                        : "No records matching your filter"}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="dash-table-panel overflow-hidden border border-slate-700/80 bg-slate-900/40 shadow-xl">
-                    <div className="flex items-center justify-between border-b border-slate-700/80 p-5">
-                      <h2 className="text-xl font-bold text-white">
-                        Attendance Regularization
-                      </h2>
-                      <span className="text-sm text-slate-400">
-                        {filteredRegistrations.length} record
-                        {filteredRegistrations.length !== 1 ? "s" : ""}
-                      </span>
-                    </div>
-
-                    <div className="overflow-x-auto">
-                      <table className="dash-data-table w-full text-white">
-                        <thead className="dash-data-table-head border-b border-slate-700 bg-slate-700/50 text-center text-xs uppercase tracking-wider text-slate-400">
-                          <tr>
-                            <th className="px-5 py-4">Employee</th>
-                            <th className="px-5 py-4">Date</th>
-                            <th className="px-5 py-4">Requested Status</th>
-                            <th className="px-5 py-4">Reason</th>
-                            <th className="px-5 py-4">Status</th>
-                            {regFilter === "pending" && (
-                              <th className="px-5 py-4">Actions</th>
-                            )}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredRegistrations.map((record) => (
-                            <tr
-                              key={record.id}
-                              className="dash-table-row border-b border-slate-700 text-center transition-colors"
-                            >
-                              <td className="px-5 py-4 text-left">
-                                <p className="text-sm font-semibold">
-                                  {record.employee_name}
-                                </p>
-                                <p className="text-xs text-slate-400">
-                                  {record.employee_id}
-                                </p>
-                              </td>
-                              <td className="px-5 py-4">
-                                <span className="rounded-lg bg-slate-700 px-3 py-1 font-mono text-sm text-slate-200">
-                                  {record.date}
-                                </span>
-                              </td>
-                              <td className="px-5 py-4 capitalize text-slate-300">
-                                {record.requested_status.replace(/_/g, " ")}
-                              </td>
-                              <td className="max-w-50 px-5 py-4">
-                                {record.reason ? (
-                                  <Button
-                                    text={record.reason}
-                                    onClick={() => setViewReason(record.reason)}
-                                    className="block w-full cursor-pointer truncate text-left text-sm text-slate-400 underline underline-offset-2 transition hover:text-violet-400"
-                                    title={record.reason}
-                                  />
-                                ) : (
-                                  <span className={`text-sm ${DASH_CELL_EMPTY}`}>
-                                    --
-                                  </span>
-                                )}
-                              </td>
-                              <td className="px-5 py-4">
-                                <span
-                                  className={`rounded-full px-3 py-1 font-extrabold ${statusClass(record.status)}`}
-                                >
-                                  {statusLabel(record.status)}
-                                </span>
-                              </td>
-                              {regFilter === "pending" && (
-                                <td className="px-5 py-4">
-                                  <div className="flex items-center justify-center gap-2">
-                                    <Button
-                                      text={
-                                        actionLoading === record.id + "approve"
-                                          ? "Processing..."
-                                          : (
-                                            <>
-                                              <Check className="h-3.5 w-3.5" />
-                                              Approve
-                                            </>
-                                          )
-                                      }
-                                      onClick={() =>
-                                        handleRegularizationAction(
-                                          record.id,
-                                          "approve",
-                                        )
-                                      }
-                                      disabled={!!actionLoading}
-                                      className="inline-flex items-center gap-1.5 bg-emerald-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
-                                    />
-                                    <Button
-                                      text={
-                                        actionLoading === record.id + "reject"
-                                          ? "Processing..."
-                                          : (
-                                            <>
-                                              <X className="h-3.5 w-3.5" />
-                                              Reject
-                                            </>
-                                          )
-                                      }
-                                      onClick={() =>
-                                        handleRegularizationAction(
-                                          record.id,
-                                          "reject",
-                                        )
-                                      }
-                                      disabled={!!actionLoading}
-                                      className="inline-flex items-center gap-1.5 bg-red-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-red-500 disabled:opacity-50"
-                                    />
-                                  </div>
-                                </td>
-                              )}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+                  <p className={`mt-3 text-3xl font-black ${stat.color} tracking-tight`}>
+                    {stat.count}
+                  </p>
+                </motion.div>
+              </ThreeDCardContainer>
+            ))}
           </div>
         </div>
 
-        {/* REASON MODAL */}
-        {viewReason && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-5 backdrop-blur-md">
-            <div className="w-full max-w-md rounded-3xl border border-white/10 bg-slate-900 p-8 shadow-2xl">
-              <div className="mx-auto mb-5 grid h-16 w-16 place-items-center rounded-2xl border border-blue-500/30 bg-blue-500/10 text-blue-300">
-                <FileText className="h-8 w-8" />
-              </div>
-              <h2 className="mb-4 text-center text-2xl font-bold text-white">
-                Reason Details
-              </h2>
-              <div className="rounded-2xl border border-slate-700 bg-slate-950/70 p-4">
-                <p className="text-sm leading-relaxed whitespace-pre-wrap wrap-break-words text-slate-300">
-                  {viewReason}
-                </p>
-              </div>
-              <Button
-                text="Close"
-                onClick={() => setViewReason(null)}
-                className="mt-6 w-full rounded-2xl bg-slate-700 py-3 font-semibold text-white transition hover:bg-slate-600"
+        {/* CENTERED FILTER & SEARCH CONTROLS */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="mx-auto max-w-5xl mb-8 rounded-3xl border border-slate-200 dark:border-white/15 bg-white dark:bg-slate-900/80 p-5 backdrop-blur-2xl shadow-xl flex flex-col gap-4 md:flex-row md:items-center md:justify-between"
+        >
+          <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
+            {/* Search Input */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <Input
+                type="text"
+                placeholder="Search name, ID, department, or role..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full rounded-2xl border border-slate-300 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-950/70 pl-10 pr-4 py-2.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:border-blue-500 dark:focus:border-cyan-500 transition-all"
               />
             </div>
+
+            {/* Department Filter */}
+            {departmentsList.length > 0 && (
+              <div className="flex items-center gap-2">
+                <Filter size={15} className="text-slate-400 hidden sm:block" />
+                <label className="text-xs text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider whitespace-nowrap">
+                  Dept:
+                </label>
+                <select
+                  value={deptFilter}
+                  onChange={(e) => setDeptFilter(e.target.value)}
+                  className="rounded-2xl border border-slate-300 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-950/70 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:border-blue-500 dark:focus:border-cyan-500 focus:outline-none transition-all cursor-pointer"
+                >
+                  <option value="all">All Departments</option>
+                  {departmentsList.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Status Filter */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider whitespace-nowrap">
+                Status:
+              </label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="rounded-2xl border border-slate-300 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-950/70 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:border-blue-500 dark:focus:border-cyan-500 focus:outline-none transition-all cursor-pointer"
+              >
+                <option value="all">All Statuses</option>
+                <option value="present">Present</option>
+                <option value="late">Late</option>
+                <option value="absent">Absent</option>
+                <option value="half_day">Half Day</option>
+                <option value="leave">Leave</option>
+                <option value="not_marked">Not Marked</option>
+              </select>
+            </div>
           </div>
+
+          {/* Date Picker */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider whitespace-nowrap">
+              Date:
+            </label>
+            <Input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="rounded-2xl border border-slate-300 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-950/70 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:border-blue-500 dark:focus:border-cyan-500 focus:outline-none transition-all cursor-pointer"
+            />
+          </div>
+        </motion.div>
+
+        {errorMsg && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mx-auto max-w-4xl mb-6 flex items-center gap-3 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm font-semibold text-rose-800 dark:text-rose-300 backdrop-blur-xl shadow-lg"
+          >
+            <AlertCircle size={20} className="shrink-0 text-rose-600 dark:text-rose-400" />
+            <span>{errorMsg}</span>
+          </motion.div>
         )}
 
-        <LogOutModal
-          open={showLogoutModal}
-          onClose={() => setShowLogoutModal(false)}
-          onLogout={handleLogout}
-        />
-      </div>
-    </>
+        {/* CENTERED ATTENDANCE SHEET TABLE CONTAINER */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.98, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ delay: 0.4, duration: 0.5 }}
+          className="mx-auto max-w-7xl w-full flex justify-center"
+        >
+          <div className="w-full">
+            <AttendanceTable
+              records={filteredRecords}
+              loading={loading}
+              setViewReason={setViewReason}
+              setShowReasonModal={setShowReasonModal}
+              getStatusBadgeClass={getStatusBadgeClass}
+              getMediaUrl={getMediaUrl}
+            />
+          </div>
+        </motion.div>
+
+        {showReasonModal && (
+          <ReasonModal
+            reason={viewReason}
+            onClose={() => {
+              setShowReasonModal(false);
+              setViewReason(null);
+            }}
+          />
+        )}
+      </main>
+    </div>
   );
 }

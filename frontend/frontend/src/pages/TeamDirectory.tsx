@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import API from "../services/api";
 import Input from "../components/common/Input";
 import AdminSidebar from "../components/AdminSidebar";
 import MobileMenuButton from "../components/common/MobileMenuButton";
 import ProfileAvatarImg from "../components/common/ProfileAvatarImg";
 import EmptyState from "../components/common/EmptyState";
+import AnimatedBackground from "../components/motion/AnimatedBackground";
 import { getMediaUrl } from "../utils/chatHelpers";
 import { dispatchNotificationAction } from "../utils/notificationActions";
 import { clearAuthSession } from "../utils/auth";
@@ -95,7 +97,7 @@ export default function TeamDirectory() {
         },
         {
           icon: <Users size={18} />,
-          label: "Team",
+          label: "Team Directory",
           onClick: () => navigate("/team"),
           active: location.pathname === "/team",
         },
@@ -109,6 +111,12 @@ export default function TeamDirectory() {
     }
     return [
       {
+        icon: <User size={18} />,
+        label: "Profile",
+        onClick: () => navigate("/admin-profile"),
+        active: location.pathname === "/admin-profile",
+      },
+      {
         icon: <LayoutDashboard size={18} />,
         label: "Dashboard",
         onClick: () => navigate("/attendance-sheet"),
@@ -119,12 +127,6 @@ export default function TeamDirectory() {
         label: "Team",
         onClick: () => navigate("/team"),
         active: location.pathname === "/team",
-      },
-      {
-        icon: <User size={18} />,
-        label: "Profile",
-        onClick: () => navigate("/admin-profile"),
-        active: location.pathname === "/admin-profile",
       },
       {
         icon: <Calendar size={18} />,
@@ -150,7 +152,9 @@ export default function TeamDirectory() {
   }, [isEmployee, location.pathname, navigate]);
 
   return (
-    <div className="min-h-screen bg-[var(--th-bg)] px-3 py-5 text-[var(--th-text)] lg:px-5">
+    <div className="sheet-bg-page relative min-h-screen bg-slate-950 px-3 py-5 text-slate-900 dark:text-white lg:px-5">
+      <AnimatedBackground />
+
       <AdminSidebar
         items={sidebarItems}
         onLogout={() => {
@@ -165,22 +169,22 @@ export default function TeamDirectory() {
       />
       <MobileMenuButton onClick={() => setShowMenu(true)} />
 
-      <div className="mx-auto max-w-4xl lg:ml-22">
-        <h1 className="mb-1 text-2xl font-bold">Team directory</h1>
-        <p className="mb-4 text-sm text-[var(--th-text-muted)]">
+      <div className="relative z-10 mx-auto max-w-4xl lg:ml-22">
+        <h1 className="sheet-heading-title mb-1 text-3xl font-extrabold text-slate-900 dark:text-white">Team directory</h1>
+        <p className="sheet-subheading mb-4 text-sm text-slate-600 dark:text-slate-400">
           Tap an employee to open a direct message
         </p>
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row">
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row">
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name or ID..."
-            className="flex-1 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-white"
+            className="sheet-input-box flex-1 rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-slate-900 dark:text-white"
           />
           <select
             value={dept}
             onChange={(e) => setDept(e.target.value)}
-            className="rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-white"
+            className="sheet-input-box rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-slate-900 dark:text-white"
           >
             <option value="all">All departments</option>
             {departments.map((d) => (
@@ -193,17 +197,18 @@ export default function TeamDirectory() {
 
         {grouped.map(([department, rows]) => (
           <div key={department} className="mb-6">
-            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-[var(--th-text-muted)]">
+            <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               {department}
             </h2>
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               {rows.map((m) => (
-                <button
+                <motion.button
                   key={m.employee_id}
                   type="button"
                   onClick={() => openChat(m)}
                   disabled={m.employee_id === employeeId}
-                  className="flex w-full items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-3 text-left transition hover:border-slate-600 disabled:cursor-default disabled:opacity-60 cursor-pointer"
+                  whileHover={{ scale: 1.02, rotateX: 2, rotateY: -2 }}
+                  className="team-card flex w-full items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/70 p-3.5 text-left backdrop-blur-xl shadow-md transition hover:border-blue-400/50 disabled:cursor-default disabled:opacity-60 cursor-pointer"
                 >
                   <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full">
                     {m.profile_img ? (
@@ -231,7 +236,7 @@ export default function TeamDirectory() {
                   ) : (
                     <span className="text-xs text-[var(--th-text-muted)]">You</span>
                   )}
-                </button>
+                </motion.button>
               ))}
             </div>
           </div>

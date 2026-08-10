@@ -1,35 +1,44 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { useNavigate } from "react-router-dom";
+import { useCallback, useEffect, useState, useRef, useMemo } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import Webcam from "react-webcam";
 import API, { FACE_REQUEST_TIMEOUT_MS } from "../../services/api";
 import Button from "../../components/common/Button";
 import Input from "../../components/common/Input";
 import PasswordField from "../../components/common/PasswordField";
-import { AnimatePresence } from "framer-motion";
 import Toast from "../../components/common/Toast";
 import ProfilePhotoCropModal from "../../components/common/ProfilePhotoCropModal";
 import ProfileAvatarImg from "../../components/common/ProfileAvatarImg";
-import SearchableSelect from "../../components/auth/SearchableSelect";
-import CvDropZone from "../../components/auth/CvDropZone";
-import DashboardDatePicker from "../../components/common/DashboardDatePicker";
+import AdminSidebar from "../../components/AdminSidebar";
+import MobileMenuButton from "../../components/common/MobileMenuButton";
+import LogOutModal from "../../components/modal/LogOutModal";
 import { getMediaUrl } from "../../utils/chatHelpers";
+import { clearAuthSession } from "../../utils/auth";
+import {
+  ArrowLeft,
+  Camera,
+  User,
+  Lock,
+  Shield,
+  CheckCircle2,
+  Mail,
+  Phone,
+  Building2,
+  BadgeCheck,
+  Briefcase,
+  Fingerprint,
+  Sparkles,
+  LayoutDashboard,
+  Users,
+  UserRoundPen,
+  ScanLine,
+} from "lucide-react";
 import {
   isAppLockEnabled,
   registerBiometricCredential,
   setAppLockEnabled,
 } from "../../utils/biometricLock";
-import { ArrowLeft, BriefcaseBusiness, Camera, Download, FileText, X } from "lucide-react";
-import {
-  DEPARTMENTS,
-  getJobRolesForDepartment,
-  pickDesignationForDepartment,
-} from "../../constants/departments";
+import AnimatedBackground from "../../components/motion/AnimatedBackground";
+import ThreeDCardContainer from "../../components/motion/ThreeDCardContainer";
 
 interface EmployeeProfile {
   employee_id: string;
@@ -39,18 +48,10 @@ interface EmployeeProfile {
   department: string;
   designation: string;
   profile_img: string;
-  cv_file: string;
   date_of_birth?: string;
   join_date?: string;
+  role?: string;
 }
-
-const fieldClass =
-  "profile-field mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950 p-3 text-white outline-none";
-
-const getLocalDate = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-};
 
 const getError = (err: unknown, fallback: string) => {
   const e = err as { response?: { data?: { error?: string } } };
@@ -59,20 +60,16 @@ const getError = (err: unknown, fallback: string) => {
 
 export default function Profile() {
   const navigate = useNavigate();
+  const location = useLocation();
   const webcamRef = useRef<Webcam>(null);
+
   const [profile, setProfile] = useState<EmployeeProfile | null>(null);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [department, setDepartment] = useState("IT");
-  const [designation, setDesignation] = useState("Software Engineer");
-  const [dateOfBirth, setDateOfBirth] = useState("");
-  const [joinDate, setJoinDate] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [cvFile, setCvFile] = useState("");
-  const [cvFileName, setCvFileName] = useState("");
-  const [cvReplaceMode, setCvReplaceMode] = useState(false);
+
   const [showFaceEnrollment, setShowFaceEnrollment] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
@@ -84,23 +81,54 @@ export default function Profile() {
 
   const [showImageModal, setShowImageModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"general" | "security" | "biometrics">("general");
+
+  const [showMenu, setShowMenu] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const employeeId = localStorage.getItem("employee_id") || "";
-
-  const jobRoleOptions = useMemo(
-    () => getJobRolesForDepartment(department, designation),
-    [department, designation],
-  );
-
-  const handleDepartmentChange = (next: string) => {
-    setDepartment(next);
-    setDesignation((current) => pickDesignationForDepartment(next, current));
-  };
+  const employeeName = localStorage.getItem("employee_name") || profile?.name || "Employee";
+  const profileImg = getMediaUrl(localStorage.getItem("profile_img") || profile?.profile_img);
 
   const showToast = (msg: string, ok = true) => {
     setToast({ msg, ok });
     setTimeout(() => setToast(null), 3500);
   };
+
+  const handleLogout = () => {
+    clearAuthSession();
+    navigate("/", { replace: true });
+  };
+
+  const sidebarItems = useMemo(
+    () => [
+      {
+        icon: <LayoutDashboard size={18} />,
+        label: "Dashboard",
+        onClick: () => navigate("/dashboard"),
+        active: location.pathname === "/dashboard",
+      },
+      {
+        icon: <Users size={18} />,
+        label: "Team",
+        onClick: () => navigate("/team"),
+        active: location.pathname === "/team",
+      },
+      {
+        icon: <UserRoundPen size={18} />,
+        label: "Profile",
+        onClick: () => navigate("/profile"),
+        active: location.pathname === "/profile",
+      },
+      {
+        icon: <ScanLine size={18} />,
+        label: "Check Out",
+        onClick: () => navigate("/check-out"),
+        active: location.pathname === "/check-out",
+      },
+    ],
+    [location.pathname, navigate],
+  );
 
   const loadProfile = useCallback(async () => {
     if (!employeeId) {
@@ -116,10 +144,6 @@ export default function Profile() {
       setProfile(data);
       setName(data.name || "");
       setPhone(data.phone || "");
-      setDepartment(data.department || "IT");
-      setDesignation(data.designation || "Software Engineer");
-      setDateOfBirth(data.date_of_birth || "");
-      setJoinDate(data.join_date || "");
     } catch (err) {
       showToast(getError(err, "Could not load profile"), false);
     } finally {
@@ -138,43 +162,26 @@ export default function Profile() {
     }
     try {
       setSaving(true);
-      const res = await API.post("/employees/update-profile/", {
+      await API.post("/employees/update-profile/", {
         employee_id: employeeId,
         name,
         phone,
-        department,
-        designation,
-        date_of_birth: dateOfBirth,
-        join_date: joinDate,
-        current_password: "",
-        new_password: "",
-        cv_file: cvFile,
-        cv_file_name: cvFileName,
       });
-      const data = res.data.employee as EmployeeProfile;
-      setProfile(data);
-      localStorage.setItem("employee_name", data.name);
-      localStorage.setItem("cv_file", data.cv_file || "");
-      setDepartment(data.department || "IT");
-      setDesignation(data.designation || "Software Engineer");
-      setCvFile("");
-      setCvFileName("");
-      setCvReplaceMode(false);
-      showToast(res.data.message || "Profile updated");
+      showToast("Profile updated successfully!");
+      if (profile) {
+        setProfile({ ...profile, name, phone });
+      }
+      localStorage.setItem("employee_name", name);
     } catch (err) {
-      showToast(getError(err, "Profile update failed"), false);
+      showToast(getError(err, "Failed to update profile"), false);
     } finally {
       setSaving(false);
     }
   };
 
-  const updatePassword = async () => {
-    if (!currentPassword) {
-      showToast("Current password is required", false);
-      return;
-    }
-    if (!newPassword) {
-      showToast("Enter a new password", false);
+  const changePassword = async () => {
+    if (!currentPassword || !newPassword) {
+      showToast("Please enter current and new password", false);
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -183,19 +190,17 @@ export default function Profile() {
     }
     try {
       setSaving(true);
-      const res = await API.post("/employees/update-profile/", {
+      await API.post("/employees/update-profile/", {
         employee_id: employeeId,
         name,
         phone,
-        department,
-        designation,
         current_password: currentPassword,
         new_password: newPassword,
       });
+      showToast("Password updated successfully!");
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      showToast(res.data.message || "Password updated");
     } catch (err) {
       showToast(getError(err, "Password update failed"), false);
     } finally {
@@ -203,495 +208,489 @@ export default function Profile() {
     }
   };
 
-  const fileToDataUrl = (file: File): Promise<string> =>
-    new Promise((resolve, reject) => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
       const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = () => reject(new Error("Failed to read file"));
+      reader.onloadend = () => {
+        setSelectedImage(reader.result as string);
+        setShowImageModal(true);
+      };
       reader.readAsDataURL(file);
-    });
-
-  const isPdfFile = (file: File) =>
-    file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
-
-  const uploadProfilePhoto = (file: File) => {
-    if (!file.type.startsWith("image/")) {
-      showToast("Please choose an image file", false);
-      return;
     }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      setSelectedImage(String(reader.result));
-    };
-    reader.readAsDataURL(file);
   };
 
-  const saveCroppedPhoto = async (croppedBase64: string) => {
+  const handleCroppedImageSave = async (croppedBase64: string) => {
+    setShowImageModal(false);
     try {
       setSaving(true);
-      const res = await API.post("/employees/update-profile-photo/", {
+      await API.post("/employees/update-profile/", {
         employee_id: employeeId,
-        image: croppedBase64,
+        profile_img: croppedBase64,
       });
-
-      const data = res.data.employee;
-      setProfile(data);
-      localStorage.setItem("profile_img", data.profile_img || "");
-      showToast("Profile photo updated");
-      setSelectedImage(null);
+      showToast("Profile picture updated!");
+      loadProfile();
     } catch (err) {
-      showToast(getError(err, "Upload failed"), false);
+      showToast(getError(err, "Failed to update profile picture"), false);
     } finally {
       setSaving(false);
     }
   };
 
-  const captureFace = () => {
-    const snap = webcamRef.current?.getScreenshot();
-    if (!snap) {
-      showToast("Could not capture image", false);
-      return;
+  const handleCaptureFace = () => {
+    if (webcamRef.current) {
+      const imageSrc = webcamRef.current.getScreenshot();
+      if (imageSrc) {
+        setCapturedImage(imageSrc);
+      }
     }
-    setCapturedImage(snap);
   };
 
-  const saveFace = async () => {
-    if (!capturedImage) {
-      showToast("Capture your face first", false);
-      return;
-    }
+  const handleUpdateFace = async () => {
+    if (!capturedImage) return;
     try {
       setFaceSaving(true);
-      const res = await API.post(
+      await API.post(
         "/employees/update-face/",
         {
           employee_id: employeeId,
           image: capturedImage,
         },
-        { timeout: FACE_REQUEST_TIMEOUT_MS },
+        { timeout: FACE_REQUEST_TIMEOUT_MS }
       );
-      const data = res.data.employee as EmployeeProfile;
-      setProfile(data);
-      localStorage.setItem("profile_img", data.profile_img || "");
+      showToast("Face verification model updated successfully!");
+      setShowFaceEnrollment(false);
       setCapturedImage(null);
-      showToast(res.data.message || "Face profile updated");
     } catch (err) {
-      showToast(getError(err, "Face update failed"), false);
+      showToast(getError(err, "Failed to update face biometric model"), false);
     } finally {
       setFaceSaving(false);
     }
   };
 
-  const activeCvUrl = profile?.cv_file ? getMediaUrl(profile.cv_file) : "";
-  const cvDisplayName =
-    cvFileName ||
-    (profile?.cv_file
-      ? profile.cv_file.split("/").pop()?.replace(/^\w+_/, "") || "Resume.pdf"
-      : "");
+  const handleToggleAppLock = async (enabled: boolean) => {
+    if (enabled) {
+      const ok = await registerBiometricCredential(employeeId);
+      if (ok) {
+        setAppLockEnabled(true);
+        setAppLock(true);
+        showToast("Biometric lock enabled");
+      } else {
+        setAppLockEnabled(false);
+        setAppLock(false);
+        showToast("Failed to register WebAuthn credential", false);
+      }
+    } else {
+      setAppLockEnabled(false);
+      setAppLock(false);
+      showToast("Biometric lock disabled");
+    }
+  };
 
   if (loading) {
     return (
-      <div className="profile-page flex min-h-screen items-center justify-center bg-slate-950 text-slate-300">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-600 border-t-blue-500" />
+      <div className="flex min-h-screen items-center justify-center bg-[#020617] text-white">
+        <div className="text-center">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-cyan-500 border-t-transparent mx-auto mb-4" />
+          <p className="text-slate-400 text-sm font-medium">Loading Employee Profile...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="profile-page min-h-screen bg-linear-to-br from-slate-950 via-[#0f172a] to-slate-950 px-4 py-6 text-white">
-      <AnimatePresence>
-        {toast && <Toast key={toast.msg} message={toast.msg} ok={toast.ok} />}
-      </AnimatePresence>
+    <div className="relative min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] text-slate-100 pb-16 px-4 py-5 sm:px-5 lg:px-5">
+      {/* 3D WebGL Particle Background Canvas */}
+      <AnimatedBackground particleColor={0x38bdf8} secondaryColor={0x818cf8} />
 
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-6 flex items-center gap-3">
-          <Button
-            type="button"
-            onClick={() => navigate("/dashboard")}
-            text={<ArrowLeft size={18} />}
-            unstyled
-            className="profile-back-btn rounded-xl border border-slate-700 bg-slate-900 p-2.5 text-slate-300 transition hover:border-slate-600 hover:text-white"
-            aria-label="Back to dashboard"
-          />
-          <div>
-            <h1 className="text-2xl font-bold text-white">Profile Details</h1>
-            <p className="text-sm text-slate-400">
-              Manage your account, credentials, and biometrics
-            </p>
+      {toast && <Toast message={toast.msg} ok={toast.ok} />}
+
+      {/* Navigation Sidebar */}
+      <AdminSidebar
+        items={sidebarItems}
+        onLogout={() => setShowLogoutModal(true)}
+        mobileOpen={showMenu}
+        onMobileClose={() => setShowMenu(false)}
+        adminName={employeeName}
+        adminRole={employeeId}
+        profileImg={profileImg}
+      />
+
+      <MobileMenuButton onClick={() => setShowMenu(true)} />
+
+      {/* Main Content Layout offset by sidebar */}
+      <div className="relative z-10 mx-auto max-w-7xl pt-12 sm:pt-5 lg:ml-22 lg:pt-0">
+        {/* Sticky Top Header */}
+        <header className="sticky top-0 z-30 mb-6 flex items-center justify-between border-b border-white/10 bg-transparent backdrop-blur-xl px-4 py-4 sm:px-6 shadow-xl rounded-b-2xl">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-2 text-sm font-medium text-slate-300 hover:text-white transition cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4 text-cyan-400" /> Back
+            </button>
           </div>
-        </div>
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-cyan-400 animate-pulse" />
+            <h1 className="text-base sm:text-lg font-bold text-white tracking-wide">
+              Employee Profile
+            </h1>
+          </div>
+          <div className="hidden sm:block text-right">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              Verified Account
+            </span>
+          </div>
+        </header>
 
-        <div className="grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)]">
-          <section className="profile-card flex flex-col rounded-3xl border border-slate-800/80 bg-slate-900/80 p-6 shadow-xl backdrop-blur-sm">
-            <label className="group relative mx-auto mb-5 block h-35 w-35 cursor-pointer">
-              <div
-                onClick={(e) => {
-                  e.preventDefault();
-                  if (profile?.profile_img) setShowImageModal(true);
-                }}
-                className="h-full w-full overflow-hidden rounded-full border-2 border-slate-700 bg-slate-800"
-              >
-                {profile?.profile_img ? (
-                  <ProfileAvatarImg
-                    src={getMediaUrl(profile.profile_img)}
-                    alt={profile.name}
-                    className="transition duration-300 group-hover:scale-105 h-35 w-35"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-blue-600 to-cyan-500 text-4xl font-bold">
-                    {profile?.name?.charAt(0) || "E"}
-                  </div>
-                )}
-              </div>
-              <div className="absolute inset-0 flex flex-col items-center justify-center rounded-full bg-black/0 px-2 text-center opacity-0 transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] group-hover:bg-black/60 group-hover:opacity-100">
-                <Camera size={22} className="text-white" />
-                <span className="mt-1 text-[10px] font-semibold leading-tight text-white">
-                  Change profile photo
-                </span>
-              </div>
-              <Input
-                type="file"
-                accept="image/*"
-                className="absolute inset-0 cursor-pointer opacity-0 right-20"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) uploadProfilePhoto(file);
-                  e.target.value = "";
-                }}
-              />
-            </label>
-
-            <h2 className="text-center text-xl font-bold">{profile?.name}</h2>
-            <p className="text-center text-sm text-slate-400">{profile?.employee_id}</p>
-
-            <div className="mt-6 space-y-3 text-sm">
-              <div className="profile-info-tile rounded-2xl border border-slate-800 bg-slate-950/80 p-3.5">
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                  Email
-                </p>
-                <p className="mt-1 font-medium text-slate-200">{profile?.email}</p>
-              </div>
-              <div className="profile-info-tile rounded-2xl border border-slate-800 bg-slate-950/80 p-3.5">
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                  Department / Role
-                </p>
-                <p className="mt-1 font-medium text-slate-200">
-                  {department} · {designation}
-                </p>
-              </div>
-
-              {(profile?.cv_file || cvFile) && !cvReplaceMode ? (
-                <div className="rounded-2xl border border-blue-500/30 bg-blue-500/10 p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-blue-500/30 bg-blue-500/15 text-blue-300">
-                      <FileText size={18} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-medium uppercase tracking-wide text-blue-300/80">
-                        Resume / CV
-                      </p>
-                      <p className="mt-0.5 truncate font-semibold text-white">
-                        {cvDisplayName}
-                      </p>
-                      {cvFile && (
-                        <p className="mt-1 text-xs text-amber-300">
-                          Pending save — click Save profile
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  {activeCvUrl && (
-                    <div className="mt-3 flex gap-2">
-                      <a
-                        href={activeCvUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex-1 rounded-xl border border-blue-500/40 bg-slate-950/60 py-2 text-center text-xs font-semibold text-blue-200 transition hover:bg-blue-500/20"
-                      >
-                        Preview
-                      </a>
-                      <a
-                        href={activeCvUrl}
-                        download={cvDisplayName || "resume.pdf"}
-                        className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-blue-500/40 bg-slate-950/60 py-2 text-xs font-semibold text-blue-200 transition hover:bg-blue-500/20"
-                      >
-                        <Download size={14} />
-                        Download
-                      </a>
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setCvReplaceMode(true)}
-                    className="mt-3 w-full rounded-xl border border-slate-600/60 bg-slate-950/50 py-2 text-xs font-semibold text-slate-300 transition hover:border-slate-500 hover:text-white"
-                  >
-                    Replace CV
-                  </button>
-                </div>
-              ) : (
-                <div>
-                  {cvReplaceMode && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCvReplaceMode(false);
-                        setCvFile("");
-                        setCvFileName("");
-                      }}
-                      className="mb-2 text-xs font-medium text-slate-400 transition hover:text-white"
-                    >
-                      Cancel replace
-                    </button>
-                  )}
-                  <CvDropZone
-                    fileName={cvFileName}
-                    onFileReady={(dataUrl, name) => {
-                      setCvFile(dataUrl);
-                      setCvFileName(name);
-                      setCvReplaceMode(false);
-                      showToast("CV selected. Click Save profile to upload.");
-                    }}
-                    onClear={() => {
-                      setCvFile("");
-                      setCvFileName("");
-                    }}
-                    onError={(msg) => showToast(msg, false)}
-                    isPdfFile={isPdfFile}
-                    fileToDataUrl={fileToDataUrl}
-                  />
-                </div>
-              )}
-            </div>
-
-            <div className="mt-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4">
-              <h3 className="text-sm font-bold text-white">Face re-enrollment</h3>
-              <p className="mt-1 text-xs text-slate-400">
-                Use when face verification keeps failing.
-              </p>
-              <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-200">
-                <span className="biometric-status-dot h-2 w-2 rounded-full bg-emerald-400" />
-                Enrolled &amp; active
-              </div>
-              <Button
-                text={showFaceEnrollment ? "Close" : "Re-enroll face"}
-                onClick={() => {
-                  setShowFaceEnrollment((value) => !value);
-                  setCapturedImage(null);
-                }}
-                className="mt-3 w-full rounded-xl bg-cyan-600 px-4 py-2.5 text-sm font-bold transition hover:bg-cyan-500"
-              />
-              {showFaceEnrollment && (
-                <div className="mt-3 space-y-3">
-                  <div className="relative aspect-video overflow-hidden rounded-2xl border-2 border-slate-700 bg-black">
-                    {capturedImage ? (
-                      <img
-                        src={capturedImage}
-                        alt="Captured face"
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <Webcam
-                        ref={webcamRef}
-                        audio={false}
-                        mirrored
-                        screenshotFormat="image/jpeg"
-                        screenshotQuality={0.95}
-                        onUserMedia={() => setCameraReady(true)}
-                        videoConstraints={{
-                          facingMode: "user",
-                          width: { ideal: 1280 },
-                          height: { ideal: 720 },
-                        }}
-                        className="h-full w-full object-cover"
-                      />
-                    )}
-                  </div>
-                  <Button
-                    text="Capture new face"
-                    onClick={captureFace}
-                    disabled={!cameraReady || faceSaving}
-                    className="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold hover:bg-blue-700 disabled:opacity-50"
-                  />
-                  <Button
-                    text={faceSaving ? "Updating..." : "Save face profile"}
-                    onClick={saveFace}
-                    disabled={!capturedImage || faceSaving}
-                    className="w-full rounded-xl bg-green-600 px-4 py-2.5 text-sm font-bold hover:bg-green-700 disabled:opacity-50"
-                  />
-                  {capturedImage && (
-                    <Button
-                      text="Retake photo"
-                      onClick={() => setCapturedImage(null)}
-                      className="w-full rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-300 hover:bg-slate-800"
+        <main className="space-y-8">
+          {/* Executive Profile Card wrapped in 3D Card Container */}
+          <ThreeDCardContainer maxDegrees={5}>
+            <div className="dash-shell-panel p-6 sm:p-8 border border-white/15 bg-transparent rounded-3xl backdrop-blur-xl relative overflow-hidden flex flex-col sm:flex-row items-center justify-between gap-6 shadow-2xl">
+              <div className="flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
+                <div className="relative group shrink-0">
+                  <div className="h-28 w-28 sm:h-32 sm:w-32 rounded-full overflow-hidden border-2 border-cyan-400/40 bg-slate-900 shadow-2xl">
+                    <ProfileAvatarImg
+                      src={profileImg}
+                      alt={profile?.name || "Employee"}
+                      className="h-full w-full object-cover"
                     />
-                  )}
+                  </div>
+                  <label
+                    htmlFor="avatar-upload"
+                    className="absolute bottom-1 right-1 p-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-full text-white cursor-pointer shadow-lg transition transform hover:scale-110 border border-white/20"
+                    title="Change Profile Photo"
+                  >
+                    <Camera className="w-4 h-4" />
+                  </label>
+                  <input
+                    id="avatar-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileSelect}
+                  />
                 </div>
-              )}
-            </div>
-          </section>
 
-          <div className="grid gap-5">
-            <section className="profile-card rounded-3xl border border-slate-800/80 bg-slate-900/80 p-6 shadow-xl backdrop-blur-sm">
-              <h2 className="mb-1 text-xl font-bold">Profile details</h2>
-              <p className="mb-5 text-sm text-slate-400">
-                Update your personal and role information
-              </p>
-              <div className="grid gap-4 md:grid-cols-2">
-                <label className="min-w-0 text-sm text-slate-400">
-                  Full name
+                <div className="space-y-1.5">
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                    <h2 className="text-2xl sm:text-3xl font-extrabold text-white">
+                      {profile?.name || "Employee"}
+                    </h2>
+                    <BadgeCheck className="w-6 h-6 text-cyan-400 shrink-0" />
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 text-xs sm:text-sm text-slate-300">
+                    <span className="flex items-center gap-1.5 font-medium text-cyan-300">
+                      <Briefcase className="w-4 h-4 text-cyan-400" />
+                      {profile?.designation || "Staff Member"}
+                    </span>
+                    <span>•</span>
+                    <span className="flex items-center gap-1.5 font-medium text-indigo-300">
+                      <Building2 className="w-4 h-4 text-indigo-400" />
+                      {profile?.department || "General"}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 pt-1 text-xs text-slate-400">
+                    <span className="bg-slate-800/80 px-3 py-1 rounded-lg border border-slate-700/60 font-mono">
+                      ID: {profile?.employee_id}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Mail className="w-3.5 h-3.5 text-slate-400" />
+                      {profile?.email}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 w-full sm:w-auto">
+                <div className="p-4 rounded-2xl bg-transparent border border-white/15 backdrop-blur-md text-center sm:text-right">
+                  <p className="text-xs text-slate-400 font-medium">Status</p>
+                  <p className="text-sm font-bold text-emerald-400 flex items-center justify-center sm:justify-end gap-1.5 mt-0.5">
+                    <CheckCircle2 className="w-4 h-4" /> Active Employee
+                  </p>
+                </div>
+              </div>
+            </div>
+          </ThreeDCardContainer>
+
+          {/* Tab Navigation Controls */}
+          <div className="flex items-center justify-center sm:justify-start gap-2 border-b border-white/10 pb-4 overflow-x-auto">
+            <button
+              onClick={() => setActiveTab("general")}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-semibold text-sm transition cursor-pointer whitespace-nowrap ${activeTab === "general"
+                ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-lg"
+                : "bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 border border-transparent"
+                }`}
+            >
+              <User className="w-4 h-4" /> Personal Details
+            </button>
+            <button
+              onClick={() => setActiveTab("biometrics")}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-semibold text-sm transition cursor-pointer whitespace-nowrap ${activeTab === "biometrics"
+                ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-lg"
+                : "bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 border border-transparent"
+                }`}
+            >
+              <Fingerprint className="w-4 h-4" /> Biometrics & Face AI
+            </button>
+            <button
+              onClick={() => setActiveTab("security")}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-semibold text-sm transition cursor-pointer whitespace-nowrap ${activeTab === "security"
+                ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-lg"
+                : "bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 border border-transparent"
+                }`}
+            >
+              <Lock className="w-4 h-4" /> Password & Security
+            </button>
+          </div>
+
+          {/* TAB 1: GENERAL PERSONAL DETAILS */}
+          {activeTab === "general" && (
+            <div className="dash-shell-panel p-6 sm:p-8 border border-white/15 bg-transparent rounded-3xl backdrop-blur-xl space-y-6 shadow-xl">
+              <div className="flex items-center gap-3 text-white font-bold text-lg border-b border-white/10 pb-4">
+                <User className="w-5 h-5 text-cyan-400" />
+                Personal & Professional Profile
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 tracking-wider uppercase">
+                    Full Name
+                  </label>
                   <Input
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className={fieldClass}
-                  />
-                </label>
-                <label className="min-w-0 text-sm text-slate-400">
-                  Phone
-                  <Input
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className={fieldClass}
-                  />
-                </label>
-                <label className="min-w-0 text-sm text-slate-400">
-                  Date of birth
-                  <DashboardDatePicker
-                    value={dateOfBirth}
-                    onChange={setDateOfBirth}
-                    max={getLocalDate()}
-                    placeholder="Select date of birth"
-                    className="profile-field mt-2 w-full"
-                  />
-                </label>
-                <label className="min-w-0 text-sm text-slate-400">
-                  Join date
-                  <DashboardDatePicker
-                    value={joinDate}
-                    onChange={setJoinDate}
-                    max={getLocalDate()}
-                    placeholder="Select join date"
-                    className="profile-field mt-2 w-full"
-                  />
-                </label>
-                <div className="min-w-0">
-                  <SearchableSelect
-                    label="Department *"
-                    value={department}
-                    options={[...DEPARTMENTS]}
-                    onChange={handleDepartmentChange}
-                    icon={<BriefcaseBusiness size={18} />}
-                    placeholder="Search department..."
+                    placeholder="Enter full name"
+                    className="mt-2"
                   />
                 </div>
-                <div className="min-w-0">
-                  <SearchableSelect
-                    label="Job Role *"
-                    value={designation}
-                    options={jobRoleOptions}
-                    onChange={setDesignation}
-                    icon={<BriefcaseBusiness size={18} />}
-                    placeholder="Search role..."
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 tracking-wider uppercase">
+                    Phone Number
+                  </label>
+                  <div className="relative mt-2">
+                    <Input
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="Enter phone number"
+                    />
+                    <Phone className="w-4 h-4 text-slate-400 absolute right-3 top-3.5 pointer-events-none" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-400 tracking-wider uppercase">
+                    Official Email (Read Only)
+                  </label>
+                  <div className="mt-2 p-3.5 rounded-2xl bg-slate-900/60 border border-slate-700/80 text-slate-200 text-sm font-medium flex items-center justify-between light:bg-slate-100 light:text-slate-900 light:border-slate-300">
+                    <span>{profile?.email || "--"}</span>
+                    <Mail className="w-4 h-4 text-slate-500" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-400 tracking-wider uppercase">
+                    Employee ID (Read Only)
+                  </label>
+                  <div className="mt-2 p-3.5 rounded-2xl bg-slate-900/60 border border-slate-700/80 text-slate-200 text-sm font-mono flex items-center justify-between light:bg-slate-100 light:text-slate-900 light:border-slate-300">
+                    <span>{profile?.employee_id || "--"}</span>
+                    <BadgeCheck className="w-4 h-4 text-slate-500" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-400 tracking-wider uppercase">
+                    Department
+                  </label>
+                  <div className="mt-2 p-3.5 rounded-2xl bg-slate-900/60 border border-slate-700/80 text-slate-200 text-sm font-medium light:bg-slate-100 light:text-slate-900 light:border-slate-300">
+                    {profile?.department || "General"}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-400 tracking-wider uppercase">
+                    Designation
+                  </label>
+                  <div className="mt-2 p-3.5 rounded-2xl bg-slate-900/60 border border-slate-700/80 text-slate-200 text-sm font-medium light:bg-slate-100 light:text-slate-900 light:border-slate-300">
+                    {profile?.designation || "Staff Member"}
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4 flex justify-end">
+                <Button onClick={saveProfileDetails} disabled={saving} className="px-6 py-3 rounded-2xl bg-cyan-600 hover:bg-cyan-500 font-semibold cursor-pointer">
+                  {saving ? "Saving Changes..." : "Save Profile Details"}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: BIOMETRICS & FACE AI */}
+          {activeTab === "biometrics" && (
+            <div className="dash-shell-panel p-6 sm:p-8 border border-white/15 bg-transparent rounded-3xl backdrop-blur-xl space-y-6 shadow-xl">
+              <div className="flex items-center gap-3 text-white font-bold text-lg border-b border-white/10 pb-4">
+                <Shield className="w-5 h-5 text-cyan-400" />
+                Biometric Authentication Settings
+              </div>
+
+              <div className="space-y-6">
+                {/* App Lock Toggle */}
+                <div className="p-5 rounded-2xl bg-transparent border border-white/15 flex items-center justify-between gap-4 backdrop-blur-md">
+                  <div className="space-y-1">
+                    <h4 className="text-base font-bold text-white flex items-center gap-2">
+                      <Fingerprint className="w-5 h-5 text-cyan-400" /> App Lock (Passkey / Device Biometrics)
+                    </h4>
+                    <p className="text-xs text-slate-300">
+                      Require fingerprint or face ID device prompt when opening the application.
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={appLock}
+                      onChange={(e) => handleToggleAppLock(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-12 h-6.5 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2.5px] after:left-[2.5px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-500"></div>
+                  </label>
+                </div>
+
+                {/* Face Enrollment */}
+                <div className="p-5 rounded-2xl bg-transparent border border-white/15 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 backdrop-blur-md">
+                  <div className="space-y-1">
+                    <h4 className="text-base font-bold text-white flex items-center gap-2">
+                      <Camera className="w-5 h-5 text-cyan-400" /> Face Recognition Model
+                    </h4>
+                    <p className="text-xs text-slate-300">
+                      Re-enroll or update your high-accuracy facial biometric dataset for attendance check-ins.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowFaceEnrollment(!showFaceEnrollment);
+                      setCapturedImage(null);
+                    }}
+                    className="px-4 py-2.5 text-xs font-semibold cursor-pointer"
+                  >
+                    {showFaceEnrollment ? "Close Camera" : "Re-enroll Face Data"}
+                  </Button>
+                </div>
+
+                {showFaceEnrollment && (
+                  <div className="p-6 rounded-2xl bg-slate-900/90 border border-cyan-500/30 space-y-5 backdrop-blur-md">
+                    <h5 className="text-sm font-bold text-slate-200 text-center sm:text-left">
+                      Live Face Capture Preview
+                    </h5>
+                    <div className="relative mx-auto w-full max-w-sm overflow-hidden rounded-2xl bg-slate-950 border border-slate-700 shadow-2xl">
+                      {capturedImage ? (
+                        <img src={capturedImage} alt="Captured" className="w-full h-auto" />
+                      ) : (
+                        <Webcam
+                          audio={false}
+                          ref={webcamRef}
+                          screenshotFormat="image/jpeg"
+                          onUserMedia={() => setCameraReady(true)}
+                          className="w-full h-auto"
+                        />
+                      )}
+                    </div>
+
+                    <div className="flex justify-center gap-4">
+                      {!capturedImage ? (
+                        <Button onClick={handleCaptureFace} disabled={!cameraReady} className="bg-cyan-600 hover:bg-cyan-500 text-white font-semibold cursor-pointer">
+                          <Camera className="w-4 h-4 mr-2" /> Capture Frame
+                        </Button>
+                      ) : (
+                        <>
+                          <Button variant="secondary" onClick={() => setCapturedImage(null)} className="cursor-pointer">
+                            Retake
+                          </Button>
+                          <Button onClick={handleUpdateFace} disabled={faceSaving} className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold cursor-pointer">
+                            {faceSaving ? "Saving Biometric Model..." : "Save Face Model"}
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: PASSWORD & SECURITY */}
+          {activeTab === "security" && (
+            <div className="dash-shell-panel p-6 sm:p-8 border border-white/15 bg-transparent rounded-3xl backdrop-blur-xl space-y-6 shadow-xl">
+              <div className="flex items-center gap-3 text-white font-bold text-lg border-b border-white/10 pb-4">
+                <Lock className="w-5 h-5 text-cyan-400" />
+                Password & Account Credentials
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 tracking-wider uppercase">
+                    Current Password
+                  </label>
+                  <PasswordField
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="Enter current password"
+                    className="mt-2"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 tracking-wider uppercase">
+                    New Password
+                  </label>
+                  <PasswordField
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Enter new password"
+                    className="mt-2"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 tracking-wider uppercase">
+                    Confirm New Password
+                  </label>
+                  <PasswordField
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm new password"
+                    className="mt-2"
                   />
                 </div>
               </div>
-              <Button
-                text={saving ? "Saving..." : "Save profile"}
-                onClick={saveProfileDetails}
-                disabled={saving}
-                className="mt-6 rounded-2xl bg-blue-600 px-5 py-3 font-bold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-              />
-            </section>
 
-            <section className="profile-card rounded-3xl border border-slate-800/80 bg-slate-900/80 p-6 shadow-xl backdrop-blur-sm">
-              <div className="mb-5 border-b border-slate-800 pb-5">
-                <h2 className="text-xl font-bold">App lock</h2>
-                <p className="mt-1 text-sm text-slate-400">
-                  Locks when you switch tabs or after 2 minutes idle. Use biometrics to unlock.
-                </p>
+              <div className="pt-4 flex justify-end">
+                <Button onClick={changePassword} disabled={saving} className="px-6 py-3 rounded-2xl bg-cyan-600 hover:bg-cyan-500 font-semibold cursor-pointer">
+                  Update Account Password
+                </Button>
               </div>
-              <label className="flex cursor-pointer items-center gap-3 text-sm text-slate-200">
-                <input
-                  type="checkbox"
-                  checked={appLock}
-                  onChange={async (event) => {
-                    const enabled = event.target.checked;
-                    if (enabled) {
-                      const registered = await registerBiometricCredential();
-                      if (!registered) return;
-                    }
-                    setAppLockEnabled(enabled);
-                    setAppLock(enabled);
-                  }}
-                  className="h-4 w-4 rounded border-slate-600"
-                />
-                Enable biometric app lock
-              </label>
-            </section>
-
-            <section className="profile-card rounded-3xl border border-slate-800/80 border-t-indigo-500/20 bg-slate-900/80 p-6 shadow-xl backdrop-blur-sm">
-              <div className="mb-5 border-b border-slate-800 pb-5">
-                <h2 className="text-xl font-bold">Password</h2>
-                <p className="mt-1 text-sm text-slate-400">
-                  Change your sign-in password. This section is separate from profile
-                  details.
-                </p>
-              </div>
-              <div className="grid gap-4 md:grid-cols-3">
-                <PasswordField
-                  label="Current password"
-                  value={currentPassword}
-                  onChange={setCurrentPassword}
-                  placeholder="••••••••"
-                />
-                <PasswordField
-                  label="New password"
-                  value={newPassword}
-                  onChange={setNewPassword}
-                  placeholder="••••••••"
-                />
-                <PasswordField
-                  label="Confirm new password"
-                  value={confirmPassword}
-                  onChange={setConfirmPassword}
-                  placeholder="••••••••"
-                />
-              </div>
-              <Button
-                text={saving ? "Updating..." : "Update password"}
-                onClick={updatePassword}
-                disabled={saving}
-                className="mt-6 rounded-2xl bg-indigo-600 px-5 py-3 font-bold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
-              />
-            </section>
-          </div>
-        </div>
+            </div>
+          )}
+        </main>
       </div>
 
-      {showImageModal && profile?.profile_img && (
-        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-5">
-          <div className="relative">
-            <Button
-              text={<X />}
-              onClick={() => setShowImageModal(false)}
-              className="absolute top-2 right-2 rounded-full bg-black/50 p-2 text-white cursor-pointer"
-            />
+      {/* Logout Confirmation Modal */}
+      <LogOutModal
+        open={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onLogout={handleLogout}
+      />
 
-            <img
-              src={getMediaUrl(profile.profile_img)}
-              alt="Profile"
-              className="max-h-[90vh] max-w-[90vw] rounded-3xl"
-            />
-          </div>
-        </div>
-      )}
-
-      {selectedImage && (
+      {/* Image Crop Modal */}
+      {showImageModal && selectedImage && (
         <ProfilePhotoCropModal
           imageSrc={selectedImage}
-          onCancel={() => setSelectedImage(null)}
-          onSave={saveCroppedPhoto}
-          saving={saving}
+          onClose={() => setShowImageModal(false)}
+          onSave={handleCroppedImageSave}
         />
       )}
     </div>

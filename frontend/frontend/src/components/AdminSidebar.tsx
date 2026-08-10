@@ -24,6 +24,7 @@ interface Props {
   adminName?: string;
   adminRole?: string;
   profileImg?: string;
+  showThemeToggle?: boolean;
 }
 
 /** Uniform squircle — 48×48px, never shrinks */
@@ -75,8 +76,10 @@ export default function AdminSidebar({
   adminName = "Admin",
   adminRole = "HR",
   profileImg,
+  showThemeToggle = true,
 }: Props) {
   const reducedMotion = useReducedMotion();
+
   const iconWellTone = (isActive: boolean) =>
     isActive
       ? "bg-blue-600/30 text-blue-100"
@@ -186,40 +189,40 @@ export default function AdminSidebar({
             exit={sidebarDrawer.exit}
             transition={sidebarDrawer.transition}
           >
-        <div className="sidebar-rail-top w-full shrink-0 px-4 pb-2">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-3">
-              <ProfileAvatar adminName={adminName} profileImg={profileImg} />
-              <div className="min-w-0">
-                <p className="truncate font-bold text-white">{adminName}</p>
-                <p className="truncate text-xs text-slate-400">{adminRole}</p>
+            <div className="sidebar-rail-top w-full shrink-0 px-4 pb-2">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <ProfileAvatar adminName={adminName} profileImg={profileImg} />
+                  <div className="min-w-0">
+                    <p className="truncate font-bold text-white">{adminName}</p>
+                    <p className="truncate text-xs text-slate-400">{adminRole}</p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  onClick={onMobileClose}
+                  text={<X size={20} />}
+                  unstyled
+                  className={`flex ${SQUIRCLE} items-center justify-center rounded-xl p-0 text-slate-400 hover:bg-white/10 hover:text-white`}
+                  aria-label="Close menu"
+                />
               </div>
             </div>
-            <Button
-              type="button"
-              onClick={onMobileClose}
-              text={<X size={20} />}
-              unstyled
-              className={`flex ${SQUIRCLE} items-center justify-center rounded-xl p-0 text-slate-400 hover:bg-white/10 hover:text-white`}
-              aria-label="Close menu"
-            />
-          </div>
-        </div>
 
-        <nav className="sidebar-rail-nav flex min-h-0 w-full flex-1 flex-col gap-5 overflow-y-auto overscroll-contain px-3 py-2">
-          {items.map((item) => navButton(item, true))}
-        </nav>
+            <nav className="sidebar-rail-nav flex min-h-0 w-full flex-1 flex-col gap-5 overflow-y-auto overscroll-contain px-3 py-2">
+              {items.map((item) => navButton(item, true))}
+            </nav>
 
-        <div className="sidebar-rail-bottom mt-auto w-full shrink-0 space-y-2 border-t border-white/10 px-3 pt-3">
-          <ThemeToggle mobile showLabel />
-          {logoutButton(true)}
-        </div>
+            <div className="sidebar-rail-bottom mt-auto w-full shrink-0 space-y-2 border-t border-white/10 px-3 pt-3">
+              {showThemeToggle && <ThemeToggle mobile showLabel />}
+              {logoutButton(true)}
+            </div>
           </motion.aside>
         )}
       </AnimatePresence>
 
       <aside
-        className={`${railShell} group/sidebar z-app-sidebar fixed bottom-4 left-3 top-4 hidden w-18 rounded-[28px] border border-white/10 bg-slate-950 shadow-2xl backdrop-blur-xl transition-[width] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] hover:w-64 lg:flex`}
+        className={`${railShell} group/sidebar z-app-sidebar fixed bottom-4 left-3 top-4 hidden w-18 rounded-[28px] border border-white/10 bg-transparent shadow-2xl backdrop-blur-xl transition-[width] duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] hover:w-64 lg:flex`}
       >
         <div className="sidebar-rail-top flex w-full shrink-0 items-center gap-2 p-3">
           <ProfileAvatar adminName={adminName} profileImg={profileImg} />
@@ -234,7 +237,7 @@ export default function AdminSidebar({
         </nav>
 
         <div className="sidebar-rail-bottom mt-auto w-full shrink-0 space-y-2 px-2 pb-1 pt-2">
-          <ThemeToggle showLabel />
+          {showThemeToggle && <ThemeToggle showLabel />}
           {logoutButton(false)}
         </div>
       </aside>

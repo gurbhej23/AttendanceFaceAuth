@@ -19,7 +19,8 @@ import { clampPixelCrop, cropImageToBase64 } from "../../utils/cropImage";
 
 interface Props {
   imageSrc: string;
-  onCancel: () => void;
+  onCancel?: () => void;
+  onClose?: () => void;
   onSave: (croppedBase64: string) => void | Promise<void>;
   saving?: boolean;
 }
@@ -27,9 +28,11 @@ interface Props {
 export default function ProfilePhotoCropModal({
   imageSrc,
   onCancel,
+  onClose,
   onSave,
   saving = false,
 }: Props) {
+  const handleCancel = onCancel || onClose || (() => {});
   const imgRef = useRef<HTMLImageElement>(null);
   const [crop, setCrop] = useState<Crop>();
   const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
@@ -152,7 +155,7 @@ export default function ProfilePhotoCropModal({
           <Button
             type="button"
             text={<X size={18} />}
-            onClick={onCancel}
+            onClick={handleCancel}
             disabled={saving}
             unstyled
             className="crop-modal-close grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white"
@@ -231,7 +234,7 @@ export default function ProfilePhotoCropModal({
         <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_1fr_1.2fr]">
           <Button
             text="Cancel"
-            onClick={onCancel}
+            onClick={handleCancel}
             disabled={saving}
             className="crop-modal-btn rounded-2xl border border-slate-600 bg-slate-800 py-3 font-semibold text-slate-200 hover:bg-slate-700 disabled:opacity-50"
           />

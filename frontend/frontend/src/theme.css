@@ -84,14 +84,35 @@ html.light .min-h-screen {
   background-image: none !important;
 }
 
-html.light .dash-shell-panel {
-  background-color: #ffffff !important;
-  border-color: #e2e8f0 !important;
+/* Fully transparent glass card panels */
+.dash-shell-panel,
+.dash-table-panel {
+  background: transparent !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
 }
 
+html.light .dash-shell-panel,
 html.light .dash-table-panel {
-  background-color: #ffffff !important;
-  border-color: #e2e8f0 !important;
+  background: transparent !important;
+  border: 1px solid rgba(15, 23, 42, 0.12) !important;
+}
+
+/* Light mode input fields — gray background with clear border */
+html.light input,
+html.light select,
+html.light textarea,
+html.light .dash-input-box {
+  background-color: #f1f5f9 !important; /* Slate 100 / Gray bg */
+  color: #0f172a !important;            /* Slate 900 dark text */
+  border: 1px solid #cbd5e1 !important;   /* Slate 300 visible border */
+}
+
+html.light input::placeholder,
+html.light select::placeholder,
+html.light textarea::placeholder {
+  color: #64748b !important;
 }
 
 html.light .dash-data-table-wrap {

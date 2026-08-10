@@ -36,14 +36,14 @@ import DashboardExtras, {
   type DashboardExtrasData,
 } from "../../components/dashboard/DashboardExtras";
 import DashboardDatePicker from "../../components/common/DashboardDatePicker";
-import {
-  enqueueMarkPresent,
-  flushOfflineQueue,
-} from "../../utils/offlineQueue";
+import { enqueueMarkPresent, flushOfflineQueue } from "../../utils/offlineQueue";
 import InstallPwaButton from "../../components/common/InstallPwaButton";
 import PortalModal from "../../components/common/PortalModal";
 import EmptyState from "../../components/common/EmptyState";
 import { formatLateDuration } from "../../utils/formatLateDuration";
+import { getAttendanceStatusLabel } from "../../utils/dashboardUi";
+import AnimatedBackground from "../../components/motion/AnimatedBackground";
+import FaceVerificationModal from "../../components/modal/FaceVerificationModal";
 
 interface AttendanceRecord {
   employee_id: string;
@@ -53,8 +53,6 @@ interface AttendanceRecord {
   check_out: string;
   duration: string;
   status: string;
-  shift_code?: string;
-  shift_name?: string;
   minutes_late?: number;
   reason?: string;
   half_day_until?: string;
@@ -109,9 +107,7 @@ const getLateAlertState = (
 const isLateAlertDismissed = (employeeId: string, date: string) => {
   if (!employeeId) return false;
   try {
-    return (
-      localStorage.getItem(getLateAlertDismissedKey(employeeId, date)) === "1"
-    );
+    return localStorage.getItem(getLateAlertDismissedKey(employeeId, date)) === "1";
   } catch {
     return false;
   }
@@ -134,9 +130,9 @@ const getApiError = (err: unknown, fallback: string): string => {
 const getStatusBadgeClass = (s: string) => {
   switch (s) {
     case "present":
-      return "text-green-500";
+      return "  text-green-500";
     case "late":
-      return "text-yellow-600";
+      return "bg-yellow-500/20 text-yellow-300";
     case "absent":
       return "bg-red-500/20 text-red-500";
     case "half_day":
@@ -165,9 +161,9 @@ const getStatusCardStyle = (s: string) => {
       };
     case "late":
       return {
-        bg: "from-yellow-600/20 to-yellow-600/10",
+        bg: "from-yellow-500/20 to-yellow-500/10",
         border: "border-yellow-500/20",
-        text: "text-yellow-500",
+        text: "text-yellow-400",
         icon: <TriangleAlert color="#febd1e" />,
       };
     case "absent":
@@ -236,6 +232,7 @@ export default function Dashboard() {
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAttendancePrompt, setShowAttendancePrompt] = useState(true);
+  const [showFaceVerificationModal, setShowFaceVerificationModal] = useState(false);
   const [showAbsentModal, setShowAbsentModal] = useState(false);
   const [showHalfDayModal, setShowHalfDayModal] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
@@ -243,8 +240,7 @@ export default function Dashboard() {
   const [showReasonModal, setShowReasonModal] = useState(false);
   const [showRegularizationModal, setShowRegularizationModal] = useState(false);
   const [workMode, setWorkMode] = useState<"office" | "wfh">("office");
-  const [dashboardExtras, setDashboardExtras] =
-    useState<DashboardExtrasData | null>(null);
+  const [dashboardExtras, setDashboardExtras] = useState<DashboardExtrasData | null>(null);
   const [regDate, setRegDate] = useState(getLocalDate());
   const [regStatus, setRegStatus] = useState("present");
   const [regReason, setRegReason] = useState("");
@@ -326,21 +322,25 @@ export default function Dashboard() {
 
   const todayRecord = records.find((r) => r.date === today);
   const todayStatus = todayRecord?.status || "";
+  const isAttendanceMarkedToday = Boolean(
+    todayRecord && todayStatus && todayStatus.toLowerCase() !== "not_marked"
+  );
   const cardStyle = getStatusCardStyle(todayStatus);
 
   const anyModalOpen =
+    showFaceVerificationModal ||
     showAbsentModal ||
     showHalfDayModal ||
     showLeaveModal ||
     showLeavesModal ||
     showReasonModal;
 
-  const showWelcomePrompt =
-    showAttendancePrompt &&
-    selectedDate === today &&
-    !loading &&
-    !todayRecord &&
-    !anyModalOpen;
+  // const showWelcomePrompt =
+  //   showAttendancePrompt &&
+  //   selectedDate === today &&
+  //   !loading &&
+  //   !todayRecord &&
+  //   !anyModalOpen;
 
   const dismissLateAlert = useCallback(() => {
     setLateAlert({ show: false, minutesLate: 0 });
@@ -376,8 +376,7 @@ export default function Dashboard() {
       setRecords(enrichedRows);
       if (selectedDate === today) {
         const todayRecordForAlert = enrichedRows.find(
-          (record) =>
-            record.date === today && record.employee_id === employeeId,
+          (record) => record.date === today && record.employee_id === employeeId,
         );
         setLateAlert(getLateAlertState(employeeId, today, todayRecordForAlert));
       }
@@ -483,8 +482,7 @@ export default function Dashboard() {
   }, [employeeId, fetchRecords]);
 
   useEffect(() => {
-    if (!employeeId || todayStatus === "present" || todayStatus === "late")
-      return;
+    if (!employeeId || todayStatus === "present" || todayStatus === "late") return;
     const hour = new Date().getHours();
     if (hour >= 10) return;
     const key = `att_reminder_${employeeId}_${today}`;
@@ -704,7 +702,10 @@ export default function Dashboard() {
 
   // ── Render ────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] px-4 py-5 sm:px-5 lg:px-5">
+    <div className="relative min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] px-4 py-5 sm:px-5 lg:px-5">
+      {/* 3D WebGL Particle Constellation & Ambient Mesh Background */}
+      <AnimatedBackground particleColor={0x38bdf8} secondaryColor={0x818cf8} />
+
       {/* LATE ALERT BANNER */}
       {lateAlert.show && (
         <div className="fixed top-5 left-0 right-0 z-99 bg-yellow-500/95 text-slate-900 px-6 py-3 flex items-center justify-between shadow-xl w-150 mx-auto">
@@ -765,7 +766,7 @@ export default function Dashboard() {
       <MobileMenuButton onClick={() => setShowMenu(true)} />
 
       <div
-        className={` mx-auto max-w-8xl pt-12 sm:pt-5 lg:ml-22 lg:pt-0 transition-all duration-500 ease-out ${anyModalOpen || showWelcomePrompt ? "blur-sm pointer-events-none select-none" : ""}`}
+        className={`relative z-10 mx-auto max-w-8xl pt-12 sm:pt-5 lg:ml-22 lg:pt-0 transition-all duration-500 ease-out ${anyModalOpen ? "blur-sm pointer-events-none select-none" : ""}`}
       >
         <WelcomeCard
           employeeName={employeeName}
@@ -774,6 +775,58 @@ export default function Dashboard() {
           employeeDesignation={employeeDesignation}
           profileImg={profileImg}
         />
+
+        {/* CHECK-IN OPTIONS BAR */}
+        <div className="dash-shell-panel mb-4 p-4.5 rounded-3xl border border-slate-200 dark:border-white/15 bg-white dark:bg-slate-900/80 backdrop-blur-xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
+          <div>
+            <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <ScanLine className="w-5 h-5 text-cyan-600 dark:text-cyan-400" /> Attendance Check-In Options
+            </h3>
+            <p className={`text-xs font-semibold ${isAttendanceMarkedToday ? "text-emerald-600 dark:text-emerald-400" : "text-slate-600 dark:text-slate-300"}`}>
+              {isAttendanceMarkedToday
+                ? `✅ Attendance marked for today (${getAttendanceStatusLabel(todayStatus)})`
+                : `Choose your check-in status for today (${today})`}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 w-full sm:w-auto">
+            <button
+              onClick={() => setShowFaceVerificationModal(true)}
+              disabled={isAttendanceMarkedToday}
+              title={isAttendanceMarkedToday ? "Attendance already marked for today" : "Mark Present"}
+              className="px-4 py-2.5 rounded-2xl bg-emerald-100 dark:bg-emerald-500/20 hover:bg-emerald-200 dark:hover:bg-emerald-500/30 border border-emerald-300 dark:border-emerald-500/40 text-emerald-800 dark:text-emerald-300 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
+            >
+              ✅ Present
+            </button>
+
+            <button
+              onClick={() => setShowAbsentModal(true)}
+              disabled={isAttendanceMarkedToday}
+              title={isAttendanceMarkedToday ? "Attendance already marked for today" : "Mark Absent"}
+              className="px-4 py-2.5 rounded-2xl bg-rose-100 dark:bg-red-500/20 hover:bg-rose-200 dark:hover:bg-red-500/30 border border-rose-300 dark:border-red-500/40 text-rose-800 dark:text-red-300 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
+            >
+              ❌ Absent
+            </button>
+
+            <button
+              onClick={() => setShowHalfDayModal(true)}
+              disabled={isAttendanceMarkedToday}
+              title={isAttendanceMarkedToday ? "Attendance already marked for today" : "Mark Half Day"}
+              className="px-4 py-2.5 rounded-2xl bg-amber-100 dark:bg-orange-500/20 hover:bg-amber-200 dark:hover:bg-orange-500/30 border border-amber-300 dark:border-orange-500/40 text-amber-800 dark:text-orange-300 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
+            >
+              🌗 Half Day
+            </button>
+
+            <button
+              onClick={() => setShowLeaveModal(true)}
+              disabled={isAttendanceMarkedToday}
+              title={isAttendanceMarkedToday ? "Attendance already marked for today" : "Request Leave"}
+              className="px-4 py-2.5 rounded-2xl bg-purple-100 dark:bg-purple-500/20 hover:bg-purple-200 dark:hover:bg-purple-500/30 border border-purple-300 dark:border-purple-500/40 text-purple-800 dark:text-purple-300 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
+            >
+              🏖️ Leave
+            </button>
+          </div>
+        </div>
 
         <div className="mb-3 flex justify-end">
           <InstallPwaButton />
@@ -812,72 +865,61 @@ export default function Dashboard() {
         />
 
         {monthlySummary && (
-          <div className="dash-table-panel dash-fade-up dash-fade-up-delay-4 overflow-hidden border border-white/10 bg-white/5 shadow-2xl backdrop-blur-xl mt-5 pt-5 px-4">
-            <div className="dash-monthly-summary dash-fade-up dash-fade-up-delay-5 pt-3 pb-4">
+          <div className="dash-table-panel dash-fade-up border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900/80 shadow-2xl backdrop-blur-xl mt-5 pt-5 px-4 rounded-3xl">
+            <div className="dash-monthly-summary pt-3 pb-4">
               <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex flex-col gap-2">
-                  <h3 className="text-3xl font-bold text-white">
+                <div className="flex flex-col gap-1">
+                  <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">
                     Monthly Summary
                   </h3>
-                  <p className="text-sm font-medium dash-welcome-muted text-slate-300">
-                    {monthLabel}
-                  </p>
+                  <p className="text-sm font-medium text-slate-600 dark:text-slate-400">{monthLabel}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 lg:w-full lg:max-w-425">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 lg:w-full">
                 {[
                   {
                     label: "Present Days",
                     value: monthlySummary.present_count,
-                    color: "text-green-500",
-                    bg: "bg-green-500/10 border-green-500/20",
+                    color: "text-emerald-700 dark:text-green-400",
+                    bg: "bg-emerald-50 dark:bg-green-500/10 border-emerald-200 dark:border-green-500/20",
                   },
                   {
                     label: "Late Arrivals",
                     value: monthlySummary.late_count,
-                    color: "text-yellow-500",
-                    bg: "bg-yellow-500/10 border-yellow-500/20",
+                    color: "text-amber-700 dark:text-yellow-400",
+                    bg: "bg-amber-50 dark:bg-yellow-500/10 border-amber-200 dark:border-yellow-500/20",
                   },
                   {
                     label: "Absent Days",
                     value: monthlySummary.absent_count,
-                    color: "text-red-500",
-                    bg: "bg-red-500/10 border-red-500/20",
+                    color: "text-rose-700 dark:text-red-400",
+                    bg: "bg-rose-50 dark:bg-red-500/10 border-rose-200 dark:border-red-500/20",
                   },
                   {
                     label: "Half Days",
                     value: monthlySummary.half_day_count,
-                    color: "text-orange-500",
-                    bg: "bg-orange-500/10 border-orange-500/20",
+                    color: "text-indigo-700 dark:text-orange-400",
+                    bg: "bg-indigo-50 dark:bg-orange-500/10 border-indigo-200 dark:border-orange-500/20",
                   },
                   {
                     label: "Leave Days",
                     value: monthlySummary.leave_count,
-                    color: "text-purple-500",
-                    bg: "bg-purple-500/10 border-purple-500/20",
+                    color: "text-purple-700 dark:text-purple-400",
+                    bg: "bg-purple-50 dark:bg-purple-500/10 border-purple-200 dark:border-purple-500/20",
                   },
                   {
                     label: "Total Hours",
                     value: monthlySummary.total_working_hours,
-                    color: "text-blue-500",
-                    bg: "bg-blue-500/10 border-blue-500/20",
+                    color: "text-blue-700 dark:text-blue-400",
+                    bg: "bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20",
                   },
-                ].map(({ label, value, color, bg }, index) => (
+                ].map(({ label, value, color, bg }) => (
                   <div
                     key={label}
-                    className={`dash-metric-card dash-fade-up border p-4 ${bg}`}
-                    style={{
-                      animationDelay: `${380 + Math.min(index, 5) * 50}ms`,
-                    }}
+                    className={`dash-metric-card border p-4 rounded-2xl ${bg}`}
                   >
-                    <p className="dash-metric-label text-xs font-semibold text-slate-300">
-                      {label}
-                    </p>
-                    <p
-                      className={`dash-metric-value mt-1 text-2xl font-bold ${color}`}
-                    >
-                      {value}
-                    </p>
+                    <p className="dash-metric-label text-xs font-semibold text-slate-600 dark:text-slate-300">{label}</p>
+                    <p className={`dash-metric-value mt-1 text-2xl font-black ${color}`}>{value}</p>
                   </div>
                 ))}
               </div>
@@ -892,43 +934,21 @@ export default function Dashboard() {
         onLogout={handleLogout}
       />
 
-      {/* ── WELCOME MODAL ── */}
-      <PortalModal open={showWelcomePrompt} cardClassName="max-w-lg">
-        <div className="dash-modal-card w-full rounded-4xl border border-white/10 bg-[#111827] p-8 text-center shadow-2xl">
-          <div className="w-20 h-20 rounded-3xl bg-linear-to-br from-blue-500 to-cyan-400 flex items-center justify-center text-4xl mx-auto mb-5">
-            👋
-          </div>
-          <p className="text-slate-400 text-sm mb-2">Welcome back</p>
-          <h2 className="text-2xl sm:text-3xl text-white font-bold mb-3">
-            {employeeName}
-          </h2>
-          <p className="text-slate-400 mb-4">Mark your attendance for today</p>
-          <div className="grid grid-cols-2 gap-3">
-            <Button
-              text="✅ Present"
-              onClick={markPresent}
-              loading={markingAttendance}
-              disabled={markingAttendance}
-              className="bg-green-600 hover:bg-green-700 text-white py-4 rounded-2xl font-semibold transition cursor-pointer"
-            />
-            <Button
-              text="❌ Absent"
-              onClick={() => setShowAbsentModal(true)}
-              className="bg-red-600 hover:bg-red-700 text-white py-4 rounded-2xl font-semibold transition cursor-pointer"
-            />
-            <Button
-              text="🌗 Half Day"
-              onClick={() => setShowHalfDayModal(true)}
-              className="bg-orange-600 hover:bg-orange-700 text-white py-4 rounded-2xl font-semibold transition cursor-pointer"
-            />
-            <Button
-              text="🏖️ Request Leave"
-              onClick={() => setShowLeaveModal(true)}
-              className="bg-purple-600 hover:bg-purple-700 text-white py-4 rounded-2xl font-semibold transition cursor-pointer"
-            />
-          </div>
-        </div>
-      </PortalModal>
+      <FaceVerificationModal
+        open={showFaceVerificationModal}
+        onClose={() => setShowFaceVerificationModal(false)}
+        employeeId={employeeId || ""}
+        workMode={workMode}
+        onSuccess={(msg, isLate, minutesLate) => {
+          showSuccess(msg);
+          setShowAttendancePrompt(false);
+          if (isLate && minutesLate && minutesLate > 0) {
+            setLateAlert({ show: true, minutesLate });
+          }
+          fetchRecords();
+        }}
+      />
+
 
       {/* ── ABSENT MODAL ── */}
       <PortalModal
@@ -1027,10 +1047,7 @@ export default function Dashboard() {
       </PortalModal>
 
       {/* ── LEAVE REQUEST MODAL ── */}
-      <PortalModal
-        open={showLeaveModal}
-        onClose={() => setShowLeaveModal(false)}
-      >
+      <PortalModal open={showLeaveModal} onClose={() => setShowLeaveModal(false)}>
         <div className="dash-modal-card w-full rounded-4xl border border-white/10 bg-[#111827] p-6 shadow-2xl sm:p-7">
           <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-3xl bg-purple-500/20 text-2xl">
             🏖️
@@ -1079,11 +1096,10 @@ export default function Dashboard() {
               <button
                 key={v}
                 onClick={() => setLeaveType(v)}
-                className={`flex cursor-pointer flex-col items-center gap-1 rounded-2xl border py-2.5 text-sm font-semibold transition ${
-                  leaveType === v
-                    ? "border-purple-500 bg-purple-600 text-white"
-                    : "dash-leave-type-inactive border-slate-700 bg-slate-800 text-slate-400 hover:border-purple-500"
-                }`}
+                className={`flex cursor-pointer flex-col items-center gap-1 rounded-2xl border py-2.5 text-sm font-semibold transition ${leaveType === v
+                  ? "border-purple-500 bg-purple-600 text-white"
+                  : "dash-leave-type-inactive border-slate-700 bg-slate-800 text-slate-400 hover:border-purple-500"
+                  }`}
               >
                 <span>{e}</span>
                 {l}
@@ -1194,9 +1210,7 @@ export default function Dashboard() {
             onChange={setRegDate}
             className="mb-4 w-full"
           />
-          <label className="mb-2 block text-sm text-slate-400">
-            Requested status
-          </label>
+          <label className="mb-2 block text-sm text-slate-400">Requested status</label>
           <select
             value={regStatus}
             onChange={(e) => setRegStatus(e.target.value)}

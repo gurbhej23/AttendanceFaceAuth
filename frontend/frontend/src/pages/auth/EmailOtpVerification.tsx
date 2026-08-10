@@ -1,14 +1,14 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../../services/api";
 import { notifyAuthChanged } from "../../hooks/useEmployeeSession";
 import MessageOverlay from "../../components/chat/MessageOverlay";
 import Button from "../../components/common/Button";
-import { ArrowLeft, Mail } from "lucide-react";
+import { ArrowLeft, Mail, RefreshCw } from "lucide-react";
 
 const getApiError = (err: unknown, fallback: string): string => {
   const e = err as { response?: { data?: { error?: string } } };
-  return e.response?.data?.error || fallback;
+  return e?.response?.data?.error || fallback;
 };
 
 export default function EmailOtpVerification() {
@@ -17,11 +17,11 @@ export default function EmailOtpVerification() {
   const employeeName = localStorage.getItem("employee_name") || "Employee";
 
   const [otp, setOtp] = useState("");
-  const [emailHint, setEmailHint] = useState("");
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [emailHint, setEmailHint] = useState("");
   const [error, setError] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
+  const [message, setMessage] = useState("");
   const [overlay, setOverlay] = useState<{
     title: string;
     message?: string;
@@ -29,46 +29,55 @@ export default function EmailOtpVerification() {
     loading?: boolean;
   } | null>(null);
 
-  useEffect(() => {
-    if (!employeeId || employeeId === "undefined") {
-      localStorage.clear();
-      navigate("/", { replace: true });
-    }
-  }, [employeeId, navigate]);
-
-  const sendOtp = useCallback(async () => {
+  const sendOtp = async (isResend = false) => {
+    if (!employeeId) return;
     setSending(true);
     setError("");
+    if (isResend) setMessage("");
+
     try {
       const res = await API.post("/attendance/send-verify-otp/", {
         employee_id: employeeId,
       });
-      if (res.data.success) {
-        setOtpSent(true);
-        setEmailHint(res.data.email_hint || "");
+
+      if (res.data?.success) {
+        if (res.data?.email_hint) {
+          setEmailHint(res.data.email_hint);
+        }
+        if (isResend) {
+          setMessage("A new OTP code has been sent to your email.");
+        }
       } else {
-        setError(res.data.error || "Could not send OTP");
+        setError(res.data?.error || "Failed to send OTP email.");
       }
-    } catch (err) {
-      setError(getApiError(err, "Could not send OTP"));
+    } catch (err: unknown) {
+      setError(getApiError(err, "Failed to send OTP. Please try again."));
     } finally {
       setSending(false);
     }
-  }, [employeeId]);
+  };
 
   useEffect(() => {
-    if (employeeId) void sendOtp();
-  }, [employeeId, sendOtp]);
+    if (!employeeId || employeeId === "undefined") {
+      localStorage.clear();
+      navigate("/", { replace: true });
+      return;
+    }
+    sendOtp();
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employeeId, navigate]);
 
   const verifyOtp = async () => {
     const code = otp.trim();
-    if (!code) {
-      setError("Please enter the OTP from your email");
+    if (!code || code.length < 4) {
+      setError("Please enter the OTP code sent to your email.");
       return;
     }
 
     setLoading(true);
     setError("");
+    setMessage("");
     setOverlay({
       title: "Verifying OTP",
       message: "Please wait...",
@@ -81,7 +90,7 @@ export default function EmailOtpVerification() {
         otp: code,
       });
 
-      if (res.data.success) {
+      if (res.data?.success) {
         if (res.data.employee_id) {
           localStorage.setItem("employee_id", res.data.employee_id);
         }
@@ -97,17 +106,17 @@ export default function EmailOtpVerification() {
         notifyAuthChanged();
 
         setOverlay({
-          title: "Email verified",
-          message: "Welcome back. Opening your dashboard.",
+          title: "OTP Verified",
+          message: "Welcome back! Redirecting to your dashboard...",
           tone: "success",
           loading: true,
         });
-        setTimeout(() => navigate("/dashboard", { replace: true }), 1600);
+        setTimeout(() => navigate("/dashboard", { replace: true }), 1400);
       } else {
-        setError(res.data.error || "Invalid OTP");
+        setError(res.data?.error || "Invalid or expired OTP");
         setOverlay(null);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setError(getApiError(err, "Verification failed"));
       setOverlay(null);
     } finally {
@@ -129,7 +138,7 @@ export default function EmailOtpVerification() {
       <div className="relative w-full max-w-md rounded-[36px] border border-white/15 bg-white/8 p-8 shadow-2xl backdrop-blur-2xl">
         <button
           type="button"
-          onClick={() => navigate("/verify-choice", { replace: true })}
+          onClick={() => navigate("/")}
           className="mb-4 flex items-center gap-2 text-sm text-slate-400 hover:text-white cursor-pointer"
         >
           <ArrowLeft size={16} />
@@ -140,13 +149,13 @@ export default function EmailOtpVerification() {
           <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-2xl bg-violet-600 text-white">
             <Mail size={30} />
           </div>
-          <h1 className="text-2xl font-bold text-white">Email OTP Verification</h1>
+          <h1 className="text-2xl font-bold text-white">Email Verification</h1>
           <p className="mt-2 text-sm text-slate-400">{employeeName}</p>
-          {emailHint && (
-            <p className="mt-2 text-xs text-violet-300">
-              Code sent to {emailHint}
-            </p>
-          )}
+          <p className="mt-2 text-xs text-violet-200/80">
+            {emailHint
+              ? `OTP code sent to ${emailHint}`
+              : "An OTP code was sent to your registered email"}
+          </p>
         </div>
 
         {error && (
@@ -155,47 +164,52 @@ export default function EmailOtpVerification() {
           </div>
         )}
 
+        {message && (
+          <div className="mt-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-center text-sm text-emerald-300">
+            {message}
+          </div>
+        )}
+
         <div className="mt-6 space-y-4">
           <div>
             <label className="mb-2 block text-sm text-slate-300">
-              Enter 6-digit OTP
+              Enter Security Code
             </label>
             <input
               type="text"
               inputMode="numeric"
               maxLength={6}
+              autoComplete="off"
               value={otp}
               onChange={(e) =>
                 setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
               }
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  verifyOtp();
-                }
+                if (e.key === "Enter") verifyOtp();
               }}
-              placeholder="000000"
-              className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 p-4 text-center text-2xl tracking-[0.4em] text-white outline-none focus:border-violet-500"
+              placeholder="••••••"
+              className="w-full rounded-2xl border border-slate-700 bg-slate-950/80 p-4 text-center font-mono text-2xl tracking-[0.4em] text-white outline-none focus:border-violet-500"
             />
           </div>
 
           <Button
-            type="button"
-            onClick={verifyOtp}
-            disabled={loading || otp.length < 6}
-            loading={loading}
             text={loading ? "Verifying..." : "Verify & Continue"}
-            className="w-full bg-violet-600 py-4 text-white hover:bg-violet-700"
+            onClick={verifyOtp}
+            disabled={loading}
+            className="w-full bg-linear-to-r from-violet-600 to-indigo-600 py-3.5 font-bold text-white disabled:opacity-50"
           />
 
-          <Button
-            type="button"
-            onClick={sendOtp}
-            disabled={sending}
-            loading={sending}
-            text={sending ? "Sending..." : otpSent ? "Resend OTP" : "Send OTP"}
-            className="w-full border border-slate-700 py-3 text-sm text-slate-300 hover:bg-slate-800"
-          />
+          <div className="pt-2 text-center">
+            <button
+              type="button"
+              onClick={() => sendOtp(true)}
+              disabled={sending || loading}
+              className="inline-flex items-center gap-2 text-xs text-slate-400 transition hover:text-violet-300 disabled:opacity-50 cursor-pointer"
+            >
+              <RefreshCw size={12} className={sending ? "animate-spin" : ""} />
+              {sending ? "Sending OTP..." : "Didn't receive code? Resend OTP"}
+            </button>
+          </div>
         </div>
       </div>
     </div>

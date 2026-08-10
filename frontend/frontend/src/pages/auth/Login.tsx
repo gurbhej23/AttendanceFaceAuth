@@ -23,6 +23,8 @@ import {
   MotionNav,
   StaggerGroup,
 } from "../../components/motion/MotionPrimitives";
+import AnimatedBackground from "../../components/motion/AnimatedBackground";
+import ThreeDCardContainer from "../../components/motion/ThreeDCardContainer";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -97,17 +99,17 @@ export default function Login() {
             navigate("/dashboard", { replace: true });
           }, 800);
         } else {
-          setSuccess("Login successful. Choose your verification method...");
+          setSuccess("Login successful. Sending email OTP code...");
 
           setOverlay({
             title: "Login successful",
-            message: "Choose face, PIN, or email OTP verification.",
+            message: "Sending 6-digit OTP code to your registered email...",
             loading: true,
           });
 
           setTimeout(() => {
-            navigate("/verify-choice", { replace: true });
-          }, 1000);
+            navigate("/verify-otp", { replace: true });
+          }, 900);
         }
       }
     } catch (err: unknown) {
@@ -137,6 +139,7 @@ export default function Login() {
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] p-6">
+      <AnimatedBackground particleColor={0x6366f1} secondaryColor={0x06b6d4} />
       {overlay && (
         <MessageOverlay
           title={overlay.title}
@@ -146,8 +149,8 @@ export default function Login() {
         />
       )}
 
-      <StaggerGroup className="flex w-full max-w-5xl flex-col items-center">
-        <MotionNav className="w-full max-w-md">
+      <StaggerGroup className="flex w-full max-w-4xl flex-col items-center justify-center mx-auto">
+        <MotionNav className="w-full max-w-md mb-2">
           <div className={LOGIN_ROLE_TOGGLE}>
             <Button
               text="Employee"
@@ -157,133 +160,135 @@ export default function Login() {
             <Button
               text="Admin"
               onClick={() => navigate("/admin-login", { replace: true })}
-              className="bg-slate-800/80 py-3 text-slate-300 hover:bg-slate-700 cursor-pointer"
+              className="bg-white/10 py-3 text-slate-300 hover:bg-white/20 cursor-pointer backdrop-blur-md"
             />
           </div>
         </MotionNav>
 
-        <div className={`${LOGIN_OUTER_SHELL} lg:grid-cols-[270px_1fr] mt-6`}>
-          <MotionCard className={`${LOGIN_INNER_PANEL} p-4 text-center`}>
-          <p className="text-lg font-semibold text-slate-100">Selected User</p>
+        <ThreeDCardContainer maxDegrees={8} className="mt-4 w-full max-w-3xl mx-auto">
+          <div className={`${LOGIN_OUTER_SHELL} lg:grid-cols-[270px_1fr] mx-auto`}>
+            <MotionCard className={`${LOGIN_INNER_PANEL} p-4 text-center`}>
+              <p className="text-lg font-semibold text-slate-100">Selected User</p>
 
-          <div className="login-face-frame relative mx-auto mt-5 flex h-36 w-36 items-center justify-center rounded-full border border-cyan-300/30 bg-slate-950/70 shadow-xl shadow-cyan-500/10">
-            <div className="absolute left-5 top-5 h-6 w-6 border-l-2 border-t-2 border-cyan-300" />
-            <div className="absolute right-5 top-5 h-6 w-6 border-r-2 border-t-2 border-cyan-300" />
-            <div className="absolute bottom-5 left-5 h-6 w-6 border-b-2 border-l-2 border-cyan-300" />
-            <div className="absolute bottom-5 right-5 h-6 w-6 border-b-2 border-r-2 border-cyan-300" />
-            <div className="absolute h-0.5 w-28 bg-cyan-300/80 shadow-lg shadow-cyan-300" />
-            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-linear-to-br from-slate-700 to-slate-900 text-cyan-100">
-              <UserRound size={58} strokeWidth={1.6} />
-            </div>
+              <div className="login-face-frame relative mx-auto mt-5 flex h-36 w-36 items-center justify-center rounded-full border border-cyan-300/30 bg-white/5 backdrop-blur-md shadow-xl shadow-cyan-500/10">
+                <div className="absolute left-5 top-5 h-6 w-6 border-l-2 border-t-2 border-cyan-300" />
+                <div className="absolute right-5 top-5 h-6 w-6 border-r-2 border-t-2 border-cyan-300" />
+                <div className="absolute bottom-5 left-5 h-6 w-6 border-b-2 border-l-2 border-cyan-300" />
+                <div className="absolute bottom-5 right-5 h-6 w-6 border-b-2 border-r-2 border-cyan-300" />
+                <div className="absolute h-0.5 w-28 bg-cyan-300/80 shadow-lg shadow-cyan-300" />
+                <div className="flex h-24 w-24 items-center justify-center rounded-full bg-white/10 text-cyan-100 backdrop-blur-sm">
+                  <UserRound size={58} strokeWidth={1.6} />
+                </div>
+              </div>
+              <h1 className="mt-4 text-3xl font-bold text-white">Attendance</h1>
+              <p className={LOGIN_SUBTITLE}>Smart Face Recognition System</p>
+            </MotionCard>
+
+            <MotionCard className={`${LOGIN_INNER_PANEL} flex flex-col justify-center p-5`}>
+              <form
+                className="space-y-5"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleLogin();
+                }}
+              >
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-200">
+                    Employee ID
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Enter employee ID"
+                    value={formData.employee_id}
+                    autoComplete="username"
+                    name="username"
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        employee_id: e.target.value,
+                      })
+                    }
+                    onKeyDown={handleKeyPress}
+                    className={LOGIN_INPUT}
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-200">
+                    Password
+                  </label>
+
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter password"
+                      value={formData.password}
+                      autoComplete="current-password"
+                      name="password"
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          password: e.target.value,
+                        })
+                      }
+                      onKeyDown={handleKeyPress}
+                      className={LOGIN_PASSWORD_INPUT}
+                    />
+
+                    <Button
+                      text={showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                      type="button"
+                      unstyled
+                      onClick={() => setShowPassword(!showPassword)}
+                      className={LOGIN_EYE_BUTTON}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    />
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button
+                      text="Forgot Password?"
+                      onClick={() => navigate("/forgot-password")}
+                      className="mt-2 text-sm text-blue-300 hover:text-blue-200 cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                {success && (
+                  <div className="dash-squircle border border-green-500/30 bg-green-500/10 p-4 text-center text-sm text-green-300">
+                    {success}
+                  </div>
+                )}
+
+                {error && (
+                  <div className="dash-squircle border border-red-500/30 bg-red-500/10 p-4 text-center text-sm text-red-300">
+                    {error}
+                  </div>
+                )}
+
+                <MotionButton>
+                  <Button
+                    text={loading ? "Verifying..." : "Login"}
+                    type="submit"
+                    disabled={loading}
+                    className={LOGIN_SUBMIT_BUTTON}
+                  />
+                </MotionButton>
+              </form>
+
+              <div className="mt-5 flex flex-wrap items-center justify-center gap-2 text-center">
+                <p className="text-sm text-slate-400">Don't have an account?</p>
+
+                <Link
+                  to="/register"
+                  className="text-sm font-semibold text-blue-300 transition hover:text-blue-200"
+                >
+                  Register Here
+                </Link>
+              </div>
+            </MotionCard>
           </div>
-          <h1 className="mt-4 text-3xl font-bold text-white">Attendance</h1>
-          <p className={LOGIN_SUBTITLE}>Smart Face Recognition System</p>
-          </MotionCard>
-
-          <MotionCard className={`${LOGIN_INNER_PANEL} flex flex-col justify-center p-5`}>
-          <form
-            className="space-y-5"
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleLogin();
-            }}
-          >
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-200">
-                Employee ID
-              </label>
-              <input
-                type="text"
-                placeholder="Enter employee ID"
-                value={formData.employee_id}
-                autoComplete="username"
-                name="username"
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    employee_id: e.target.value,
-                  })
-                }
-                onKeyDown={handleKeyPress}
-                className={LOGIN_INPUT}
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-200">
-                Password
-              </label>
-
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter password"
-                  value={formData.password}
-                  autoComplete="current-password"
-                  name="password"
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      password: e.target.value,
-                    })
-                  }
-                  onKeyDown={handleKeyPress}
-                  className={LOGIN_PASSWORD_INPUT}
-                />
-
-                <Button
-                  text={showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                  type="button"
-                  unstyled
-                  onClick={() => setShowPassword(!showPassword)}
-                  className={LOGIN_EYE_BUTTON}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                />
-              </div>
-
-              <div className="flex justify-end">
-                <Button
-                  text="Forgot Password?"
-                  onClick={() => navigate("/forgot-password")}
-                  className="mt-2 text-sm text-blue-300 hover:text-blue-200 cursor-pointer"
-                />
-              </div>
-            </div>
-
-            {success && (
-              <div className="dash-squircle border border-green-500/30 bg-green-500/10 p-4 text-center text-sm text-green-300">
-                {success}
-              </div>
-            )}
-
-            {error && (
-              <div className="dash-squircle border border-red-500/30 bg-red-500/10 p-4 text-center text-sm text-red-300">
-                {error}
-              </div>
-            )}
-
-            <MotionButton>
-              <Button
-                text={loading ? "Verifying..." : "Login"}
-                type="submit"
-                disabled={loading}
-                className={LOGIN_SUBMIT_BUTTON}
-              />
-            </MotionButton>
-          </form>
-
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-2 text-center">
-            <p className="text-sm text-slate-400">Don't have an account?</p>
-
-            <Link
-              to="/register"
-              className="text-sm font-semibold text-blue-300 transition hover:text-blue-200"
-            >
-              Register Here
-            </Link>
-          </div>
-          </MotionCard>
-        </div>
+        </ThreeDCardContainer>
       </StaggerGroup>
     </div>
   );

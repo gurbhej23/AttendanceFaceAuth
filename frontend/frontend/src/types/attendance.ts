@@ -12,5 +12,7 @@ export interface AttendanceRecord {
   reason?: string;
   half_day_until?: string;
   profile_img?: string;
-  cv_file?: string; 
+  cv_file?: string;
+  department?: string;
+  designation?: string;
 }
