@@ -13,7 +13,7 @@ import {
 } from "../../hooks/useDashboardNotifications";
 import { dispatchNotificationAction } from "../../utils/notificationActions";
 import { clearAuthSession } from "../../utils/auth";
-import { getCurrentLocation } from "../../services/attendanceSecurity";
+// import { getCurrentLocation } from "../../services/attendanceSecurity";
 import { getMediaUrl } from "../../utils/chatHelpers";
 import LogOutModal from "../../components/modal/LogOutModal";
 import {
@@ -31,12 +31,16 @@ import WelcomeCard from "../../components/dashboard/WelcomeCard";
 import StatusCard from "../../components/dashboard/StatusCards";
 import AttendanceTable from "../../components/dashboard/AttendanceTable";
 import HRPanel from "../../components/dashboard/HRPanel";
-import DashboardExtras, {
+import DashboardExtras from "../../components/dashboard/DashboardExtras";
+import {
   fetchDashboardExtras,
   type DashboardExtrasData,
-} from "../../components/dashboard/DashboardExtras";
+} from "../../services/dashboardExtras";
 import DashboardDatePicker from "../../components/common/DashboardDatePicker";
-import { enqueueMarkPresent, flushOfflineQueue } from "../../utils/offlineQueue";
+import {
+  // enqueueMarkPresent,
+  flushOfflineQueue,
+} from "../../utils/offlineQueue";
 import InstallPwaButton from "../../components/common/InstallPwaButton";
 import PortalModal from "../../components/common/PortalModal";
 import EmptyState from "../../components/common/EmptyState";
@@ -107,7 +111,9 @@ const getLateAlertState = (
 const isLateAlertDismissed = (employeeId: string, date: string) => {
   if (!employeeId) return false;
   try {
-    return localStorage.getItem(getLateAlertDismissedKey(employeeId, date)) === "1";
+    return (
+      localStorage.getItem(getLateAlertDismissedKey(employeeId, date)) === "1"
+    );
   } catch {
     return false;
   }
@@ -231,8 +237,9 @@ export default function Dashboard() {
 
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAttendancePrompt, setShowAttendancePrompt] = useState(true);
-  const [showFaceVerificationModal, setShowFaceVerificationModal] = useState(false);
+  // const [showAttendancePrompt, setShowAttendancePrompt] = useState(true);
+  const [showFaceVerificationModal, setShowFaceVerificationModal] =
+    useState(false);
   const [showAbsentModal, setShowAbsentModal] = useState(false);
   const [showHalfDayModal, setShowHalfDayModal] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
@@ -240,7 +247,8 @@ export default function Dashboard() {
   const [showReasonModal, setShowReasonModal] = useState(false);
   const [showRegularizationModal, setShowRegularizationModal] = useState(false);
   const [workMode, setWorkMode] = useState<"office" | "wfh">("office");
-  const [dashboardExtras, setDashboardExtras] = useState<DashboardExtrasData | null>(null);
+  const [dashboardExtras, setDashboardExtras] =
+    useState<DashboardExtrasData | null>(null);
   const [regDate, setRegDate] = useState(getLocalDate());
   const [regStatus, setRegStatus] = useState("present");
   const [regReason, setRegReason] = useState("");
@@ -267,7 +275,7 @@ export default function Dashboard() {
   const [employeeDepartment, setEmployeeDepartment] = useState("");
   const [employeeDesignation, setEmployeeDesignation] = useState("");
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [markingAttendance, setMarkingAttendance] = useState(false);
+  // const [markingAttendance, setMarkingAttendance] = useState(false);
 
   // Late alert state
   const [lateAlert, setLateAlert] = useState<{
@@ -323,7 +331,7 @@ export default function Dashboard() {
   const todayRecord = records.find((r) => r.date === today);
   const todayStatus = todayRecord?.status || "";
   const isAttendanceMarkedToday = Boolean(
-    todayRecord && todayStatus && todayStatus.toLowerCase() !== "not_marked"
+    todayRecord && todayStatus && todayStatus.toLowerCase() !== "not_marked",
   );
   const cardStyle = getStatusCardStyle(todayStatus);
 
@@ -376,7 +384,8 @@ export default function Dashboard() {
       setRecords(enrichedRows);
       if (selectedDate === today) {
         const todayRecordForAlert = enrichedRows.find(
-          (record) => record.date === today && record.employee_id === employeeId,
+          (record) =>
+            record.date === today && record.employee_id === employeeId,
         );
         setLateAlert(getLateAlertState(employeeId, today, todayRecordForAlert));
       }
@@ -482,7 +491,8 @@ export default function Dashboard() {
   }, [employeeId, fetchRecords]);
 
   useEffect(() => {
-    if (!employeeId || todayStatus === "present" || todayStatus === "late") return;
+    if (!employeeId || todayStatus === "present" || todayStatus === "late")
+      return;
     const hour = new Date().getHours();
     if (hour >= 10) return;
     const key = `att_reminder_${employeeId}_${today}`;
@@ -516,38 +526,38 @@ export default function Dashboard() {
     return true;
   };
 
-  const markPresent = async () => {
-    if (!requireEmployeeId() || markingAttendance) return;
-    setMarkingAttendance(true);
-    try {
-      const location = await getCurrentLocation();
-      const res = await API.post("/attendance/mark-present/", {
-        employee_id: employeeId,
-        work_mode: workMode,
-        ...location,
-      });
-      showSuccess(res.data.message || "✅ Marked as present");
-      setShowAttendancePrompt(false);
-      if (res.data.is_late && res.data.minutes_late > 0) {
-        setLateAlert({ show: true, minutesLate: res.data.minutes_late });
-      } else {
-        setLateAlert({ show: false, minutesLate: 0 });
-      }
-      fetchRecords();
-    } catch (err: unknown) {
-      if (!navigator.onLine) {
-        enqueueMarkPresent({
-          employee_id: employeeId as string,
-          work_mode: workMode,
-        });
-        showSuccess("Saved offline — will sync when back online");
-        return;
-      }
-      showError(getApiError(err, "Failed to mark present"));
-    } finally {
-      setMarkingAttendance(false);
-    }
-  };
+  // const markPresent = async () => {
+  //   if (!requireEmployeeId() || markingAttendance) return;
+  //   setMarkingAttendance(true);
+  //   try {
+  //     const location = await getCurrentLocation();
+  //     const res = await API.post("/attendance/mark-present/", {
+  //       employee_id: employeeId,
+  //       work_mode: workMode,
+  //       ...location,
+  //     });
+  //     showSuccess(res.data.message || "✅ Marked as present");
+  //     setShowAttendancePrompt(false);
+  //     if (res.data.is_late && res.data.minutes_late > 0) {
+  //       setLateAlert({ show: true, minutesLate: res.data.minutes_late });
+  //     } else {
+  //       setLateAlert({ show: false, minutesLate: 0 });
+  //     }
+  //     fetchRecords();
+  //   } catch (err: unknown) {
+  //     if (!navigator.onLine) {
+  //       enqueueMarkPresent({
+  //         employee_id: employeeId as string,
+  //         work_mode: workMode,
+  //       });
+  //       showSuccess("Saved offline — will sync when back online");
+  //       return;
+  //     }
+  //     showError(getApiError(err, "Failed to mark present"));
+  //   } finally {
+  //     setMarkingAttendance(false);
+  //   }
+  // };
 
   const markAbsent = async () => {
     if (!requireEmployeeId()) return;
@@ -562,7 +572,7 @@ export default function Dashboard() {
       });
       setShowAbsentModal(false);
       setAbsentReason("");
-      setShowAttendancePrompt(false);
+      // setShowAttendancePrompt(false);
       showSuccess("Marked as absent");
       fetchRecords();
     } catch (err: unknown) {
@@ -585,7 +595,7 @@ export default function Dashboard() {
       setShowHalfDayModal(false);
       setHalfDayReason("");
       setHalfDayUntil("");
-      setShowAttendancePrompt(false);
+      // setShowAttendancePrompt(false);
       showSuccess(res.data.message || "Marked as half day");
       fetchRecords();
     } catch (err: unknown) {
@@ -620,7 +630,7 @@ export default function Dashboard() {
       setLeaveType("casual");
       setLeaveDate(getLocalDate());
       setLeaveEndDate(getLocalDate());
-      setShowAttendancePrompt(false);
+      // setShowAttendancePrompt(false);
       showSuccess(res.data.message || "Leave requested");
       fetchRecords();
       fetchLeaveRequests();
@@ -780,9 +790,12 @@ export default function Dashboard() {
         <div className="dash-shell-panel mb-4 p-4.5 rounded-3xl border border-slate-200 dark:border-white/15 bg-white dark:bg-slate-900/80 backdrop-blur-xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
           <div>
             <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <ScanLine className="w-5 h-5 text-cyan-600 dark:text-cyan-400" /> Attendance Check-In Options
+              <ScanLine className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />{" "}
+              Attendance Check-In Options
             </h3>
-            <p className={`text-xs font-semibold ${isAttendanceMarkedToday ? "text-emerald-600 dark:text-emerald-400" : "text-slate-600 dark:text-slate-300"}`}>
+            <p
+              className={`text-xs font-semibold ${isAttendanceMarkedToday ? "text-emerald-600 dark:text-emerald-400" : "text-slate-600 dark:text-slate-300"}`}
+            >
               {isAttendanceMarkedToday
                 ? `✅ Attendance marked for today (${getAttendanceStatusLabel(todayStatus)})`
                 : `Choose your check-in status for today (${today})`}
@@ -793,7 +806,11 @@ export default function Dashboard() {
             <button
               onClick={() => setShowFaceVerificationModal(true)}
               disabled={isAttendanceMarkedToday}
-              title={isAttendanceMarkedToday ? "Attendance already marked for today" : "Mark Present"}
+              title={
+                isAttendanceMarkedToday
+                  ? "Attendance already marked for today"
+                  : "Mark Present"
+              }
               className="px-4 py-2.5 rounded-2xl bg-emerald-100 dark:bg-emerald-500/20 hover:bg-emerald-200 dark:hover:bg-emerald-500/30 border border-emerald-300 dark:border-emerald-500/40 text-emerald-800 dark:text-emerald-300 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
             >
               ✅ Present
@@ -802,7 +819,11 @@ export default function Dashboard() {
             <button
               onClick={() => setShowAbsentModal(true)}
               disabled={isAttendanceMarkedToday}
-              title={isAttendanceMarkedToday ? "Attendance already marked for today" : "Mark Absent"}
+              title={
+                isAttendanceMarkedToday
+                  ? "Attendance already marked for today"
+                  : "Mark Absent"
+              }
               className="px-4 py-2.5 rounded-2xl bg-rose-100 dark:bg-red-500/20 hover:bg-rose-200 dark:hover:bg-red-500/30 border border-rose-300 dark:border-red-500/40 text-rose-800 dark:text-red-300 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
             >
               ❌ Absent
@@ -811,7 +832,11 @@ export default function Dashboard() {
             <button
               onClick={() => setShowHalfDayModal(true)}
               disabled={isAttendanceMarkedToday}
-              title={isAttendanceMarkedToday ? "Attendance already marked for today" : "Mark Half Day"}
+              title={
+                isAttendanceMarkedToday
+                  ? "Attendance already marked for today"
+                  : "Mark Half Day"
+              }
               className="px-4 py-2.5 rounded-2xl bg-amber-100 dark:bg-orange-500/20 hover:bg-amber-200 dark:hover:bg-orange-500/30 border border-amber-300 dark:border-orange-500/40 text-amber-800 dark:text-orange-300 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
             >
               🌗 Half Day
@@ -820,7 +845,11 @@ export default function Dashboard() {
             <button
               onClick={() => setShowLeaveModal(true)}
               disabled={isAttendanceMarkedToday}
-              title={isAttendanceMarkedToday ? "Attendance already marked for today" : "Request Leave"}
+              title={
+                isAttendanceMarkedToday
+                  ? "Attendance already marked for today"
+                  : "Request Leave"
+              }
               className="px-4 py-2.5 rounded-2xl bg-purple-100 dark:bg-purple-500/20 hover:bg-purple-200 dark:hover:bg-purple-500/30 border border-purple-300 dark:border-purple-500/40 text-purple-800 dark:text-purple-300 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
             >
               🏖️ Leave
@@ -872,7 +901,9 @@ export default function Dashboard() {
                   <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">
                     Monthly Summary
                   </h3>
-                  <p className="text-sm font-medium text-slate-600 dark:text-slate-400">{monthLabel}</p>
+                  <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                    {monthLabel}
+                  </p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 lg:w-full">
@@ -918,8 +949,14 @@ export default function Dashboard() {
                     key={label}
                     className={`dash-metric-card border p-4 rounded-2xl ${bg}`}
                   >
-                    <p className="dash-metric-label text-xs font-semibold text-slate-600 dark:text-slate-300">{label}</p>
-                    <p className={`dash-metric-value mt-1 text-2xl font-black ${color}`}>{value}</p>
+                    <p className="dash-metric-label text-xs font-semibold text-slate-600 dark:text-slate-300">
+                      {label}
+                    </p>
+                    <p
+                      className={`dash-metric-value mt-1 text-2xl font-black ${color}`}
+                    >
+                      {value}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -941,14 +978,13 @@ export default function Dashboard() {
         workMode={workMode}
         onSuccess={(msg, isLate, minutesLate) => {
           showSuccess(msg);
-          setShowAttendancePrompt(false);
+          // setShowAttendancePrompt(false);
           if (isLate && minutesLate && minutesLate > 0) {
             setLateAlert({ show: true, minutesLate });
           }
           fetchRecords();
         }}
       />
-
 
       {/* ── ABSENT MODAL ── */}
       <PortalModal
@@ -1047,7 +1083,10 @@ export default function Dashboard() {
       </PortalModal>
 
       {/* ── LEAVE REQUEST MODAL ── */}
-      <PortalModal open={showLeaveModal} onClose={() => setShowLeaveModal(false)}>
+      <PortalModal
+        open={showLeaveModal}
+        onClose={() => setShowLeaveModal(false)}
+      >
         <div className="dash-modal-card w-full rounded-4xl border border-white/10 bg-[#111827] p-6 shadow-2xl sm:p-7">
           <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-3xl bg-purple-500/20 text-2xl">
             🏖️
@@ -1096,10 +1135,11 @@ export default function Dashboard() {
               <button
                 key={v}
                 onClick={() => setLeaveType(v)}
-                className={`flex cursor-pointer flex-col items-center gap-1 rounded-2xl border py-2.5 text-sm font-semibold transition ${leaveType === v
-                  ? "border-purple-500 bg-purple-600 text-white"
-                  : "dash-leave-type-inactive border-slate-700 bg-slate-800 text-slate-400 hover:border-purple-500"
-                  }`}
+                className={`flex cursor-pointer flex-col items-center gap-1 rounded-2xl border py-2.5 text-sm font-semibold transition ${
+                  leaveType === v
+                    ? "border-purple-500 bg-purple-600 text-white"
+                    : "dash-leave-type-inactive border-slate-700 bg-slate-800 text-slate-400 hover:border-purple-500"
+                }`}
               >
                 <span>{e}</span>
                 {l}
@@ -1210,7 +1250,9 @@ export default function Dashboard() {
             onChange={setRegDate}
             className="mb-4 w-full"
           />
-          <label className="mb-2 block text-sm text-slate-400">Requested status</label>
+          <label className="mb-2 block text-sm text-slate-400">
+            Requested status
+          </label>
           <select
             value={regStatus}
             onChange={(e) => setRegStatus(e.target.value)}

@@ -12,8 +12,7 @@ interface ThreeDCardContainerProps {
 export default function ThreeDCardContainer({
   children,
   className = "",
-  maxDegrees = 8,
-  depthZ = 0,
+  maxDegrees = 8, 
   onClick,
 }: ThreeDCardContainerProps) {
   const cardRef = useRef<HTMLDivElement>(null);

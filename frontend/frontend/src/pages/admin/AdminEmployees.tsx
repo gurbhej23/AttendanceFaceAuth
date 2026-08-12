@@ -6,6 +6,9 @@ import Button from "../../components/common/Button";
 import { isAdminOrHR } from "../../utils/auth";
 import { getMediaUrl } from "../../utils/chatHelpers";
 import { ALL_JOB_ROLES, DEPARTMENTS } from "../../constants/departments";
+import AnimatedBackground from "../../components/motion/AnimatedBackground";
+import ThreeDCardContainer from "../../components/motion/ThreeDCardContainer";
+import { ArrowLeft } from "lucide-react";
 
 interface Employee {
   employee_id: string;
@@ -94,7 +97,9 @@ export default function AdminEmployees() {
   };
 
   return (
-    <div className="admin-page-bg min-h-screen bg-slate-950 px-4 py-6 text-slate-900 dark:text-white transition-colors duration-300">
+    <div className="admin-page-bg relative min-h-screen overflow-hidden bg-slate-950 px-4 py-6 text-slate-900 dark:text-white transition-colors duration-300">
+      <AnimatedBackground />
+
       {toast && (
         <div
           className={`fixed top-5 left-1/2 z-50 -translate-x-1/2 rounded-2xl border px-5 py-3 text-sm font-semibold shadow-xl ${
@@ -107,11 +112,21 @@ export default function AdminEmployees() {
         </div>
       )}
 
-      <div className="mx-auto max-w-7xl">
+      <div className="relative z-10 mx-auto max-w-7xl">
         <header className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="admin-subheading text-sm text-blue-600 dark:text-blue-300 font-semibold">Admin workspace</p>
-            <h1 className="admin-heading-title text-3xl font-extrabold text-slate-900 dark:text-white">Employee Management</h1>
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              onClick={() => navigate(-1)}
+              text={<ArrowLeft className="h-5 w-5" />}
+              unstyled
+              aria-label="Back"
+              className="rounded-2xl border border-slate-300 bg-white p-3 text-slate-700 shadow-md hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+            />
+            <div>
+              <p className="admin-subheading text-sm font-semibold text-blue-600 dark:text-blue-300">Admin workspace</p>
+              <h1 className="admin-heading-title text-3xl font-extrabold text-slate-900 dark:text-white">Employee Management</h1>
+            </div>
           </div>
           <div className="flex md:flex-wrap justify-center gap-3">
             <Button
@@ -130,23 +145,26 @@ export default function AdminEmployees() {
           </div>
         </header>
 
-        <div className="mb-5 grid grid-cols-3 gap-4 md:grid-cols-3">
+        <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
           {[
             ["Visible employees", employees.length],
             ["Active accounts", stats.active],
             ["HR / Admin", stats.staff],
           ].map(([label, value]) => (
-            <div
+            <ThreeDCardContainer
               key={String(label)}
-              className="admin-card flex flex-row md:flex-col md:items-center gap-3 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-lg backdrop-blur-xl transition-all"
+              maxDegrees={9}
             >
-              <p className="sheet-stat-label text-sm text-slate-500 dark:text-slate-400 font-semibold">{label}</p>
-              <p className="mt-1 text-3xl font-black text-slate-900 dark:text-white">{value}</p>
-            </div>
+              <div className="admin-card flex flex-row gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-lg backdrop-blur-xl transition-all dark:border-slate-800 dark:bg-slate-900 md:flex-col md:items-center">
+                <p className="sheet-stat-label text-sm font-semibold text-slate-500 dark:text-slate-400">{label}</p>
+                <p className="mt-1 text-3xl font-black text-slate-900 dark:text-white">{value}</p>
+              </div>
+            </ThreeDCardContainer>
           ))}
         </div>
 
-        <section className="admin-card rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl backdrop-blur-xl">
+        <ThreeDCardContainer maxDegrees={4}>
+          <section className="admin-card overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl backdrop-blur-xl dark:border-slate-800 dark:bg-slate-900">
           <div className="grid gap-3 border-b border-slate-200 dark:border-slate-800 p-5 lg:grid-cols-[1fr_160px_160px]">
             <Input
               type="search"
@@ -292,7 +310,8 @@ export default function AdminEmployees() {
               </table>
             </div>
           )}
-        </section>
+          </section>
+        </ThreeDCardContainer>
       </div>
 
       {editing && (

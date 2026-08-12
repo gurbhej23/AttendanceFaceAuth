@@ -4,7 +4,7 @@ import API, { FACE_REQUEST_TIMEOUT_MS } from "../../services/api";
 import PortalModal from "../common/PortalModal";
 import Button from "../common/Button";
 import { getCurrentLocation, pickLivenessPrompt } from "../../services/attendanceSecurity";
-import { Camera, RefreshCw, X, ShieldAlert, Sparkles } from "lucide-react";
+import { Camera, X, ShieldAlert, Sparkles } from "lucide-react";
 
 type BorderStatus = "idle" | "scanning" | "success" | "error";
 
@@ -29,28 +29,27 @@ export default function FaceCheckInModal({
   const [cameraReady, setCameraReady] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("Position your face inside the circle");
   const [livenessPrompt] = useState(pickLivenessPrompt);
+  const [message, setMessage] = useState(livenessPrompt);
   const [livenessDone, setLivenessDone] = useState(false);
   const [livenessCount, setLivenessCount] = useState(3);
   const [borderStatus, setBorderStatus] = useState<BorderStatus>("idle");
-  const [retryCount, setRetryCount] = useState(0);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!open) {
-      setCapturedImage(null);
-      setBorderStatus("idle");
-      setLivenessDone(false);
-      setLivenessCount(3);
-      setErrorDetails(null);
-      verifyingRef.current = false;
-    }
-  }, [open]);
+  const handleClose = () => {
+    setCapturedImage(null);
+    setLoading(false);
+    setMessage(livenessPrompt);
+    setLivenessDone(false);
+    setLivenessCount(3);
+    setBorderStatus("idle");
+    setErrorDetails(null);
+    verifyingRef.current = false;
+    onClose();
+  };
 
   useEffect(() => {
     if (!open || !cameraReady || livenessDone) return;
-    setMessage(livenessPrompt);
     const timer = window.setInterval(() => {
       setLivenessCount((count) => {
         if (count <= 1) {
@@ -226,7 +225,7 @@ export default function FaceCheckInModal({
         setMessage("Face Verified! Check-In successful.");
         setTimeout(() => {
           onSuccess(response.data.message || "Attendance marked Present");
-          onClose();
+          handleClose();
         }, 1200);
       } else {
         setBorderStatus("error");
@@ -245,12 +244,12 @@ export default function FaceCheckInModal({
   };
 
   return (
-    <PortalModal open={open} onClose={onClose} cardClassName="max-w-xl w-full">
+    <PortalModal open={open} onClose={handleClose} cardClassName="max-w-xl w-full">
       <div className="relative overflow-hidden rounded-3xl border border-white/15 bg-slate-950/95 p-6 shadow-2xl backdrop-blur-2xl text-left">
         {/* Header */}
         <div className="mb-4 flex items-center justify-between border-b border-white/10 pb-3">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-emerald-500 to-cyan-500 text-slate-950 shadow-md">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-linear-to-tr from-emerald-500 to-cyan-500 text-slate-950 shadow-md">
               <Camera className="h-5 w-5" />
             </div>
             <div>
@@ -332,7 +331,6 @@ export default function FaceCheckInModal({
                 setCapturedImage(null);
                 setBorderStatus("idle");
                 setErrorDetails(null);
-                setRetryCount((c) => c + 1);
                 handleFaceCheckIn();
               }}
               disabled={loading || !cameraReady}
@@ -344,7 +342,7 @@ export default function FaceCheckInModal({
               onClick={handleFaceCheckIn}
               disabled={loading || !cameraReady || !livenessDone}
               loading={loading}
-              className="flex-1 rounded-2xl bg-gradient-to-r from-emerald-600 to-cyan-600 py-3 font-bold text-white hover:from-emerald-500 hover:to-cyan-500 shadow-lg shadow-emerald-500/20 cursor-pointer disabled:opacity-50"
+              className="flex-1 rounded-2xl bg-linear-to-r from-emerald-600 to-cyan-600 py-3 font-bold text-white hover:from-emerald-500 hover:to-cyan-500 shadow-lg shadow-emerald-500/20 cursor-pointer disabled:opacity-50"
             />
           )}
         </div>

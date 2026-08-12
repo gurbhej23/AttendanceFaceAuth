@@ -151,7 +151,7 @@ export default function ThreeDCanvasBackground({
 
     // Animation Loop (60 FPS)
     let animationFrameId: number;
-    let clock = new THREE.Clock();
+    const clock = new THREE.Clock();
 
     const animate = () => {
       const elapsedTime = clock.getElapsedTime();
