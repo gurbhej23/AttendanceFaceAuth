@@ -46,7 +46,7 @@ PROFILE_DIR.mkdir(parents=True, exist_ok=True)
 GROUP_IMG_DIR.mkdir(parents=True, exist_ok=True)
 CHAT_ATTACH_DIR.mkdir(parents=True, exist_ok=True)
 
-FACE_DUPLICATE_THRESHOLD = 0.58
+FACE_DUPLICATE_THRESHOLD = 0.35
 
 
 def employee_attendance_marked_today(employee_id: str) -> bool:

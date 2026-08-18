@@ -148,12 +148,11 @@ def get_online_contact_ids(employee_id: str) -> list[str]:
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-
+        await self.accept()
         self.employee_id = self.scope["url_route"]["kwargs"]["employee_id"]
         self.group_name = f"chat_{self.employee_id}"
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.channel_layer.group_add("chat_presence", self.channel_name)
-        await self.accept()
         last_seen = await set_presence(self.employee_id, True)
         await self.broadcast_presence(True, last_seen)
         online_ids = await get_online_contact_ids(self.employee_id)

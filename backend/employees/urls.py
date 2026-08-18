@@ -113,3 +113,4 @@ urlpatterns = [
     ),
     path("group-poll/vote/", extras_views.group_poll_vote, name="group-poll-vote"),
 ]
+

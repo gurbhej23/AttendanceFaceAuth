@@ -122,6 +122,11 @@ export const getWsUrl = (employeeId: string) => {
     return `${base}/ws/chat/${id}/`;
   }
 
+  if (import.meta.env.DEV) {
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    return `${protocol}//${window.location.host}/ws/chat/${id}/`;
+  }
+
   const origin = resolveBackendOrigin();
   if (!origin) {
     console.error(
@@ -232,6 +237,11 @@ export const getGroupWsUrl = (groupId: string, employeeId: string) => {
       .replace(/^http:/i, "ws:")
       .replace(/^https:/i, "wss:");
     return `${base}/ws/group/${gid}/${eid}/`;
+  }
+
+  if (import.meta.env.DEV) {
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    return `${protocol}//${window.location.host}/ws/group/${gid}/${eid}/`;
   }
 
   const origin = resolveBackendOrigin();

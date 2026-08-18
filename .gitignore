@@ -2,10 +2,21 @@
 backend/.env
 *.env
 
-# Python cache files
+# Python cache and deepface model weights
 __pycache__/
 *.py[cod]
+backend/.deepface/
+.deepface/
+*.h5
+*.prototxt
+*.caffemodel
 
-# Frontend caches
+# Media and uploaded files
+backend/media/
+backend/media/*
+
+# Frontend caches and dependencies
+frontend/frontend/node_modules/
+frontend/frontend/dist/
 frontend/frontend/.vite-cache/
 frontend/frontend/node_modules/.vite/

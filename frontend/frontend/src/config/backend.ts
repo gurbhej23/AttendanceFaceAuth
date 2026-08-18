@@ -35,5 +35,5 @@ export const getBackendOrigin = (): string => {
     return PRODUCTION_BACKEND_ORIGIN;
   }
 
-  return import.meta.env.VITE_DEV_API_ORIGIN?.trim() || "http://localhost:8000";
+  return import.meta.env.VITE_DEV_API_ORIGIN?.trim() || "http://127.0.0.1:8000";
 };

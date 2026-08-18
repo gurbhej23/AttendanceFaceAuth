@@ -74,63 +74,114 @@ def resize_for_face(image_bgr: np.ndarray) -> np.ndarray:
     return cv2.resize(image_bgr, new_size, interpolation=cv2.INTER_AREA)
 
 
+import sys
+
+# Ensure stdout handles UTF-8 on Windows without UnicodeEncodeError
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
+
 def get_detector_attempts():
     configured = os.getenv("FACE_DETECTOR_BACKENDS", "").strip()
     if configured:
-        backends = [item.strip() for item in configured.split(",") if item.strip()]
+        backends = [item.strip() for item in configured.split(",") if item.strip() and item.strip() != "skip"]
         return [
             {
                 "detector_backend": backend,
-                "enforce_detection": backend != "skip",
+                "enforce_detection": True,
             }
             for backend in backends
         ]
 
-    # Render and other small hosts: avoid heavy MTCNN/RetinaFace chains that OOM or time out.
-    if os.getenv("RENDER") or os.getenv("FACE_LIGHTWEIGHT_DETECTORS", "").lower() in (
-        "1",
-        "true",
-        "yes",
-    ):
-        return [
-            {"detector_backend": "opencv", "enforce_detection": True},
-            {"detector_backend": "skip", "enforce_detection": False},
-        ]
-
+    # Prioritize deep-learning neural detectors (retinaface, mtcnn) first to prevent false detections on non-face objects.
     return [
-        {"detector_backend": "opencv", "enforce_detection": True},
-        {"detector_backend": "mtcnn", "enforce_detection": True},
         {"detector_backend": "retinaface", "enforce_detection": True},
-        {"detector_backend": "skip", "enforce_detection": False},
+        {"detector_backend": "mtcnn", "enforce_detection": True},
+        {"detector_backend": "opencv", "enforce_detection": True},
     ]
 
 
-def extract_embedding_with_fallbacks(image_bgr: np.ndarray):
+def extract_embedding_with_fallbacks(
+    image_bgr: np.ndarray,
+    require_single_face: bool = False,
+):
+    """
+    Extract an embedding from an image using a cascade of face detectors.
+
+    If require_single_face is True and multiple faces are detected, the function
+    returns (None, "Multiple faces detected").
+    """
     deepface = get_deepface()
     ensure_facenet_loaded()
     image_bgr = resize_for_face(image_bgr)
 
     attempts = get_detector_attempts()
 
+    if require_single_face:
+        attempts = [
+            attempt 
+            for attempt in attempts
+            if attempt["detector_backend"] not in ("skip", "opencv")
+        ]
     last_error = None
     for attempt in attempts:
         try:
+            detector = attempt["detector_backend"]
             print(
                 "   Trying detector:",
-                attempt["detector_backend"],
+                detector,
                 "| enforce_detection:",
                 attempt["enforce_detection"],
             )
             result = deepface.represent(
                 img_path=image_bgr,
                 model_name="Facenet",
-                detector_backend=attempt["detector_backend"],
+                detector_backend=detector,
                 enforce_detection=attempt["enforce_detection"],
                 align=True,
             )
-            if result and result[0].get("embedding"):
-                print(f"   Detector worked: {attempt['detector_backend']}")
-                return result[0]["embedding"], None
+            if result:
+                valid_candidates = []
+                for item in result:
+                    emb = item.get("embedding")
+                    if not emb:
+                        continue
+
+                    area_info = item.get("facial_area", {})
+                    w = area_info.get("w", 0)
+                    h = area_info.get("h", 0)
+                    area = w * h
+
+                    if detector == "opencv" and (w < 60 or h < 60):
+                        print(f"   Discarding tiny OpenCV detection ({w}x{h} px)")
+                        continue
+
+                    valid_candidates.append((area, emb))
+
+                if require_single_face:
+                    if len(valid_candidates) == 0:
+                        print("   Detected faces: 0 -> REJECTED")
+                        return (
+                            None,
+                            "No face detected. Please position your face clearly in the camera.",
+                        )
+                    if len(valid_candidates) > 1:
+                        print(f"   Detected faces: {len(valid_candidates)} -> REJECTED")
+                        return (
+                            None,
+                            "Multiple faces detected. Only the employee marking attendance should be visible.",
+                        )
+
+                if valid_candidates:
+                    primary_embedding = valid_candidates[0][1]
+                    print(
+                        f"   Detector worked: {detector} (Detected faces: {len(valid_candidates)})"
+                    )
+                    return primary_embedding, None
+
         except Exception as exc:
             last_error = exc
             print(f"   Detector failed: {attempt['detector_backend']} -> {exc}")
@@ -138,11 +189,11 @@ def extract_embedding_with_fallbacks(image_bgr: np.ndarray):
     return None, last_error
 
 
-def extract_and_save_embedding(base64_image: str, employee_id: str) -> tuple:
-    """
-    Extract a FaceNet embedding from a base64 image and save the image to disk.
-    Returns: (embedding_list, error_message, image_path)
-    """
+def extract_and_save_embedding(
+    base64_image: str, 
+    employee_id: str,
+    require_single_face: bool = False,    
+) -> tuple: 
     try:
         print(f"\n{'=' * 60}")
         print(f"Processing image for {employee_id}")
@@ -194,15 +245,21 @@ def extract_and_save_embedding(base64_image: str, employee_id: str) -> tuple:
         print("Extracting face embedding...")
         try:
             print(f"   Input shape: {image_bgr.shape}")
-            embedding, detector_error = extract_embedding_with_fallbacks(image_bgr)
+            embedding, detector_error = extract_embedding_with_fallbacks(
+                image_bgr,
+                require_single_face=require_single_face,
+            )
 
             if not embedding:
-                print("DeepFace returned empty result")
-                detail = f": {detector_error}" if detector_error else ""
+                print("Face extraction returned empty result or error:", detector_error)
+                err_str = str(detector_error) if detector_error else ""
+                if "Multiple faces detected" in err_str:
+                    err_msg = "Multiple faces detected. Only the employee marking attendance should be visible."
+                else:
+                    err_msg = "No face detected. Please position your face clearly in the camera."
                 return (
                     None,
-                    "Could not detect a clear face. Move closer, face the camera, and use better lighting"
-                    + detail,
+                    err_msg,
                     image_path,
                 )
 
@@ -232,11 +289,11 @@ def extract_and_save_embedding(base64_image: str, employee_id: str) -> tuple:
 def verify_face_match(
     uploaded_embedding: list, 
     stored_embedding: list, 
-    threshold: float = 0.45 
+    threshold: float = 0.35 
     ) -> bool: 
     try:
         print(f"\n{'=' * 60}")
-        print("Comparing face embeddings")
+        print("Comparing face embeddings (Cosine Distance)")
         print(f"{'=' * 60}")
 
         if not uploaded_embedding or not stored_embedding:
@@ -249,6 +306,10 @@ def verify_face_match(
         print(f"Current embedding shape: {current.shape}")
         print(f"Stored embedding shape: {stored.shape}")
 
+        if current.shape != stored.shape or current.size == 0 or stored.size == 0:
+            print(f"Shape mismatch: {current.shape} vs {stored.shape}")
+            return False
+
         current_norm = np.linalg.norm(current)
         stored_norm = np.linalg.norm(stored)
 
@@ -259,14 +320,17 @@ def verify_face_match(
         current = current / current_norm
         stored = stored / stored_norm
 
-        distance = np.linalg.norm(current - stored)
+        # Cosine distance = 1 - dot_product(unit_vectors)
+        cosine_sim = float(np.dot(current, stored))
+        cosine_distance = max(0.0, 1.0 - cosine_sim)
 
-        print(f"Face distance: {distance:.4f}")
-        print(f"   Threshold: {threshold}")
-        print(f"   Match: {'YES' if distance < threshold else 'NO'}")
+        is_match = cosine_distance < threshold
+        print(
+            f"Cosine Distance: {cosine_distance:.4f} | Cosine Sim: {cosine_sim:.4f} | Threshold: {threshold} | Match: {'YES' if is_match else 'NO'}"
+        )
         print(f"{'=' * 60}\n")
 
-        return distance < threshold
+        return is_match
 
     except Exception as exc:
         print(f"Error in verify_face_match: {exc}")

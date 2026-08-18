@@ -183,6 +183,55 @@ def location_payload(record):
     }
 
 
+def get_authenticated_employee(request, req_employee_id: str = ""):
+    """
+    Validates that the target employee matches the authenticated JWT user.
+    If authenticated via JWT, returns (authenticated_employee, None).
+    If frontend sends an employee_id that doesn't match the JWT user, returns (None, Response(403)).
+    Fallback to requested employee_id if unauthenticated (e.g. initial face login gate).
+    """
+    auth_employee = None
+    if hasattr(request, "user") and getattr(request.user, "employee_id", None):
+        auth_employee = request.user
+    else:
+        from employees.authentication import MongoJWTAuthentication
+        try:
+            auth_res = MongoJWTAuthentication().authenticate(request)
+            if auth_res and auth_res[0]:
+                auth_employee = auth_res[0]
+        except Exception:
+            pass
+
+    req_employee_id = (req_employee_id or "").strip()
+
+    if auth_employee:
+        if req_employee_id and auth_employee.employee_id != req_employee_id and getattr(auth_employee, "role", "") not in ("admin", "hr"):
+            print(f"SECURITY VIOLATION: User {auth_employee.employee_id} attempted action for {req_employee_id} -> REJECTED 403")
+            return None, Response(
+                {
+                    "success": False,
+                    "error": "Forbidden: You are not authorized to mark attendance or verify face for another employee.",
+                },
+                status=403,
+            )
+        return auth_employee, None
+
+    if not req_employee_id:
+        return None, Response(
+            {"success": False, "error": "Employee ID is required"},
+            status=400,
+        )
+
+    employee = Employee.objects(employee_id=req_employee_id, is_active=True).first()
+    if not employee:
+        return None, Response(
+            {"success": False, "error": "Employee not found"},
+            status=404,
+        )
+
+    return employee, None
+
+
 # ─── Face Verify ──────────────────────────────────────────────────────────────
 
 
@@ -192,17 +241,17 @@ def verify_face(request):
         employee_id = request.data.get("employee_id", "").strip()
         image = request.data.get("image", "").strip()
 
-        if not employee_id or not image:
+        if not image:
             return Response(
-                {"success": False, "error": "Employee ID and image required"},
+                {"success": False, "error": "Image required"},
                 status=400,
             )
 
-        employee = Employee.objects(employee_id=employee_id, is_active=True).first()
-        if not employee:
-            return Response(
-                {"success": False, "error": "Employee not found"}, status=404
-            )
+        employee, err_resp = get_authenticated_employee(request, employee_id)
+        if err_resp:
+            return err_resp
+
+        print(f"Comparing face with authenticated employee: {employee.employee_id} ({employee.name})")
 
         if not employee.face_embedding:
             return Response(
@@ -221,24 +270,32 @@ def verify_face(request):
                 {"success": False, "error": attendance_start_message()}, status=403
             )
 
-        uploaded_embedding, error, _ = extract_and_save_embedding(image, employee_id)
+        uploaded_embedding, error, _ = extract_and_save_embedding(
+            image, employee.employee_id, require_single_face=True
+        )
         if error:
+            print(f"Face verification rejected: {error}")
             return Response({"success": False, "error": error}, status=400) 
 
         is_match = verify_face_match(
             uploaded_embedding, employee.face_embedding, FACE_MATCH_THRESHOLD
         )
         if not is_match:
+            print(f"Face match: NO | Employee {employee.employee_id} -> REJECTED")
             return Response(
-                {"success": False, "error": "Face does not match. Access denied."},
+                {
+                    "success": False,
+                    "error": "❌ Face does not match the registered employee's face profile. Access denied.",
+                },
                 status=401,
             ) 
 
+        print(f"Face match: YES | Face verified successfully for authenticated employee {employee.employee_id}")
         return Response(
             {
                 "success": True,
                 "message": "Face verified",
-                "employee_id": employee_id,
+                "employee_id": employee.employee_id,
                 "employee_name": employee.name,
                 "profile_img": resolve_employee_profile_url(employee),
                 "cv_file": media_url(employee.cv_file or ""),
@@ -454,17 +511,17 @@ def check_in_face(request):
         employee_id = request.data.get("employee_id", "").strip()
         image = request.data.get("image", "").strip()
 
-        if not employee_id or not image:
+        if not image:
             return Response(
-                {"success": False, "error": "Employee ID and image required"},
+                {"success": False, "error": "Image required"},
                 status=400,
             )
 
-        employee = Employee.objects(employee_id=employee_id, is_active=True).first()
-        if not employee:
-            return Response(
-                {"success": False, "error": "Employee not found"}, status=404
-            )
+        employee, err_resp = get_authenticated_employee(request, employee_id)
+        if err_resp:
+            return err_resp
+
+        print(f"Comparing face with authenticated employee: {employee.employee_id} ({employee.name})")
 
         if not employee.face_embedding:
             return Response(
@@ -476,19 +533,28 @@ def check_in_face(request):
             )
 
         uploaded_embedding, error, check_in_image_path = extract_and_save_embedding(
-            image, employee_id
+            image, 
+            employee.employee_id, 
+            require_single_face=True
         )
         if error:
+            print(f"Check-in face extraction rejected for {employee.employee_id}: {error}")
             return Response({"success": False, "error": error}, status=400)
 
         is_match = verify_face_match(
             uploaded_embedding, employee.face_embedding, FACE_MATCH_THRESHOLD
         )
         if not is_match:
+            print(f"Face match: NO | Check-in face match failed for employee {employee.employee_id} -> REJECTED")
             return Response(
-                {"success": False, "error": "❌ Face does not match. Access denied."},
+                {
+                    "success": False,
+                    "error": "❌ Face does not match the registered employee's face profile. Access denied.",
+                },
                 status=401,
             )
+
+        print(f"Face match: YES | Authenticated employee {employee.employee_id} verified for check-in")
 
         location = parse_location(request.data)
         if not location["allowed"]:
@@ -571,17 +637,17 @@ def check_out_face(request):
         employee_id = request.data.get("employee_id", "").strip()
         image = request.data.get("image", "").strip()
 
-        if not employee_id or not image:
+        if not image:
             return Response(
-                {"success": False, "error": "Employee ID and image required"},
+                {"success": False, "error": "Image required"},
                 status=400,
             )
 
-        employee = Employee.objects(employee_id=employee_id, is_active=True).first()
-        if not employee:
-            return Response(
-                {"success": False, "error": "Employee not found"}, status=404
-            )
+        employee, err_resp = get_authenticated_employee(request, employee_id)
+        if err_resp:
+            return err_resp
+
+        print(f"Comparing face with authenticated employee: {employee.employee_id} ({employee.name})")
 
         if not employee.face_embedding:
             return Response(
@@ -592,18 +658,29 @@ def check_out_face(request):
                 status=400,
             )
 
-        uploaded_embedding, error, _ = extract_and_save_embedding(image, employee_id)
+        uploaded_embedding, error, _ = extract_and_save_embedding(
+            image, 
+            employee.employee_id, 
+            require_single_face=True
+        )
         if error:
+            print(f"Check-out face extraction rejected for {employee.employee_id}: {error}")
             return Response({"success": False, "error": error}, status=400)
 
         is_match = verify_face_match(
             uploaded_embedding, employee.face_embedding, FACE_MATCH_THRESHOLD
         )
         if not is_match:
+            print(f"Face match: NO | Check-out face match failed for employee {employee.employee_id} -> REJECTED")
             return Response(
-                {"success": False, "error": "❌ Face does not match. Access denied."},
+                {
+                    "success": False,
+                    "error": "❌ Face does not match the registered employee's face profile. Access denied.",
+                },
                 status=401,
             )
+
+        print(f"Face match: YES | Authenticated employee {employee.employee_id} verified for check-out")
 
         now = current_ist()
         today = now.strftime("%Y-%m-%d")

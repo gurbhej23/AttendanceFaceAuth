@@ -40,7 +40,7 @@ export default function DashboardExtras({ data }: Props) {
 
       {celebrations.slice(0, 3).map((c) => (
         <MotionStaggerItem key={`${c.type}-${c.employee_id}`}>
-          <ThreeDCardContainer maxDegrees={8} className="rounded-3xl border border-pink-500/30 bg-linear-to-br from-pink-500/15 via-slate-900/50 to-slate-950 p-4 backdrop-blur-xl shadow-xl">
+          <ThreeDCardContainer maxDegrees={8} className="rounded-3xl border border-pink-500/30 bg-white dark:bg-transparent p-4 backdrop-blur-xl shadow-xl">
             <div className="flex items-center gap-3">
               <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-pink-500/20 text-pink-300 border border-pink-500/30 shadow-md">
                 {c.type === "birthday" ? (
@@ -57,7 +57,7 @@ export default function DashboardExtras({ data }: Props) {
                     ? "New Teammate 👋"
                     : "Work Anniversary 🎈"}
                 </p>
-                <p className="font-bold text-white text-sm">{c.name}</p>
+                <p className="font-bold text-slate-900 dark:text-white text-sm">{c.name}</p>
               </div>
             </div>
           </ThreeDCardContainer>

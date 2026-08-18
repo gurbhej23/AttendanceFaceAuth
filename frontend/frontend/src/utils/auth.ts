@@ -19,7 +19,7 @@ export const isAuthenticated = () => {
 };
 
 export const isAdminOrHR = () => {
-  const role = localStorage.getItem("role");
+  const role = (localStorage.getItem("role") || "").toLowerCase().trim();
   return role === "admin" || role === "hr";
 };
 

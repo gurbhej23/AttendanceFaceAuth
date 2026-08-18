@@ -47,11 +47,11 @@ export default function StatusCard({
     : getAttendanceStatusTextClass(todayStatus);
 
   return (
-    <StaggerGroup className="mb-3 grid grid-cols-2 gap-3 sm:mb-4 sm:gap-4 xl:grid-cols-3 xl:gap-5">
-      <MotionStaggerItem className="col-span-2 xl:col-span-1">
-        <ThreeDCardContainer maxDegrees={8} className="rounded-3xl border border-white/15 bg-transparent p-4 backdrop-blur-xl shadow-xl">
-          <div className="flex flex-col gap-2">
-            <p className="dash-metric-label text-xs font-semibold text-slate-300">
+    <StaggerGroup className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:mb-4 sm:gap-4 xl:gap-5">
+      <MotionStaggerItem>
+        <ThreeDCardContainer maxDegrees={8} className="h-full rounded-3xl border border-white/15 bg-transparent p-4 backdrop-blur-xl shadow-xl">
+          <div className="flex min-h-[5.5rem] flex-col justify-between">
+            <p className="dash-metric-label text-xs font-semibold text-slate-300 sm:text-sm">
               Selected Date Filter
             </p>
             <DashboardDatePicker
@@ -66,7 +66,7 @@ export default function StatusCard({
       </MotionStaggerItem>
 
       <MotionStaggerItem>
-        <ThreeDCardContainer maxDegrees={10} className={`rounded-3xl border p-4 backdrop-blur-xl shadow-xl bg-transparent ${cardStyle.border}`}>
+        <ThreeDCardContainer maxDegrees={10} className={`h-full rounded-3xl border p-4 backdrop-blur-xl shadow-xl bg-transparent ${cardStyle.border}`}>
           <div className="flex min-h-[5.5rem] flex-col justify-between">
             <p className={`dash-metric-label font-semibold ${cardStyle.text} text-xs sm:text-sm`}>
               Today's Status
@@ -84,7 +84,7 @@ export default function StatusCard({
       </MotionStaggerItem>
 
       <MotionStaggerItem>
-        <ThreeDCardContainer maxDegrees={10} className="rounded-3xl border border-cyan-500/30 bg-transparent p-4 backdrop-blur-xl shadow-xl">
+        <ThreeDCardContainer maxDegrees={10} className="h-full rounded-3xl border border-cyan-500/30 bg-transparent p-4 backdrop-blur-xl shadow-xl">
           <div className="flex min-h-[5.5rem] flex-col justify-between">
             <p className="dash-metric-label text-xs font-semibold text-cyan-300 sm:text-sm">
               Working Hours

@@ -231,7 +231,7 @@ SERVE_MEDIA = (
 DEEPFACE_HOME = Path(
     os.getenv("DEEPFACE_HOME", str(BASE_DIR / ".deepface"))
 )
-FACE_MATCH_THRESHOLD = float(os.getenv("FACE_MATCH_THRESHOLD", "0.65"))
+FACE_MATCH_THRESHOLD = float(os.getenv("FACE_MATCH_THRESHOLD", "0.35"))
 DATA_UPLOAD_MAX_MEMORY_SIZE = int(
     os.getenv("DATA_UPLOAD_MAX_MEMORY_SIZE", str(15 * 1024 * 1024))
 )
