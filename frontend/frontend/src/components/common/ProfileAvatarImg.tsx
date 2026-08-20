@@ -1,15 +1,15 @@
 import React from "react";
 
 interface ProfileAvatarImgProps extends React.ImgHTMLAttributes<HTMLImageElement> {
-  src: string;
-  alt: string;
+  src?: string;
+  alt?: string;
   className?: string;
 }
 
 /** Consistent face-forward framing for circular / squircle avatars. */
 export default function ProfileAvatarImg({
   src,
-  alt,
+  alt = "",
   className = "",
   ...props
 }: ProfileAvatarImgProps) {
