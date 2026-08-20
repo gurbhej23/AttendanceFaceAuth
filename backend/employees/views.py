@@ -1855,8 +1855,6 @@ def dashboard_notifications(request):
                     "time": record.date,
                 }
             )
-    else:
-        # Only pending leave needs attention; approved/rejected are not re-sent every login.
         leave_rows = AttendanceRecord.objects(
             employee_id=employee.employee_id,
             status="leave_pending",
@@ -1871,6 +1869,47 @@ def dashboard_notifications(request):
                     "time": record.date,
                 }
             )
+
+    # Active Company Announcements
+    try:
+        from .extras_models import Announcement
+
+        today_str = current_ist().strftime("%Y-%m-%d")
+        for a in Announcement.objects(is_active=True).order_by("-created_at")[:5]:
+            if a.expires_at and a.expires_at < today_str:
+                continue
+            notifications.append(
+                {
+                    "id": f"announcement-{a.id}",
+                    "type": "announcement",
+                    "title": a.title,
+                    "message": a.body,
+                    "time": a.created_at.strftime("%Y-%m-%d") if a.created_at else today_str,
+                }
+            )
+    except Exception:
+        pass
+
+    # Upcoming Company Holidays (next 45 days)
+    try:
+        from attendance.hr_models import Holiday
+
+        today_str = current_ist().strftime("%Y-%m-%d")
+        for h in Holiday.objects(date__gte=today_str).order_by("date")[:5]:
+            dept = getattr(employee, "department", "") or ""
+            if h.applies_to and h.applies_to != "all" and h.applies_to.lower() != dept.lower():
+                continue
+            notifications.append(
+                {
+                    "id": f"holiday-{h.id}",
+                    "type": "holiday",
+                    "title": f"🌴 Upcoming Holiday: {h.name}",
+                    "message": f"Office is closed on {h.date} for {h.name}.",
+                    "time": h.date,
+                }
+            )
+    except Exception:
+        pass
 
     return Response({"success": True, "notifications": notifications})
 

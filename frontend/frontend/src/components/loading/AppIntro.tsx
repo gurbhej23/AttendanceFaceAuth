@@ -60,7 +60,7 @@ export default function AppIntro({ onComplete }: AppIntroProps) {
       <FloatingParticles />
 
       <div className="relative z-10 flex flex-col items-center px-6 text-center">
-        {/* Logo */}
+        {/* Logo — Assemble / Fragment Reveal */}
         <motion.div
           className="relative will-change-transform"
           initial={{ opacity: 0, scale: 0.8, filter: "blur(12px)" }}
@@ -68,13 +68,65 @@ export default function AppIntro({ onComplete }: AppIntroProps) {
           transition={{ duration: 0.9, ease: EASE_IN_OUT }}
         >
           <div className="absolute inset-0 -m-4 rounded-[2rem] bg-blue-500/10 blur-2xl" />
-          <img
-            src="/favicon.svg"
-            alt=""
-            width={88}
-            height={88}
-            className="relative h-[88px] w-[88px] rounded-[1.35rem] shadow-2xl shadow-blue-500/20"
-            draggable={false}
+
+          {/* Pulsing glow behind logo, fades in as fragments settle */}
+          <motion.div
+            className="pointer-events-none absolute inset-0 rounded-[1.35rem] bg-cyan-400/20 blur-xl"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0, 0.3, 0.6, 0.3] }}
+            transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut", delay: 1.1 }}
+          />
+
+          {/* 3x3 fragment grid — each shows a slice of the logo, scattered then assembled */}
+          <div className="relative h-[88px] w-[88px]">
+            {Array.from({ length: 9 }).map((_, i) => {
+              const row = Math.floor(i / 3);
+              const col = i % 3;
+              const piece = 88 / 3;
+              // Precomputed scatter offsets so the reveal looks deliberate, not random-jittery
+              const scatter = [
+                { x: -70, y: -60, r: -140 },
+                { x: 10, y: -80, r: 120 },
+                { x: 80, y: -55, r: -110 },
+                { x: -90, y: 5, r: 160 },
+                { x: 0, y: 0, r: 0 },
+                { x: 90, y: 5, r: -160 },
+                { x: -80, y: 60, r: 110 },
+                { x: -10, y: 85, r: -120 },
+                { x: 70, y: 65, r: 140 },
+              ][i];
+              return (
+                <motion.div
+                  key={i}
+                  className="absolute rounded-[3px]"
+                  style={{
+                    width: piece,
+                    height: piece,
+                    left: col * piece,
+                    top: row * piece,
+                    backgroundImage: "url(/favicon.svg)",
+                    backgroundSize: "88px 88px",
+                    backgroundPosition: `-${col * piece}px -${row * piece}px`,
+                    boxShadow: "0 0 6px 0 rgba(34,211,238,0.35)",
+                  }}
+                  initial={{ x: scatter.x, y: scatter.y, rotate: scatter.r, opacity: 0 }}
+                  animate={{ x: 0, y: 0, rotate: 0, opacity: 1 }}
+                  transition={{
+                    duration: 1.1,
+                    ease: EASE_IN_OUT,
+                    delay: 0.35 + (row + col) * 0.06,
+                  }}
+                />
+              );
+            })}
+          </div>
+
+          {/* Soft outer border settles in after assembly */}
+          <motion.div
+            className="pointer-events-none absolute inset-0 rounded-[1.35rem] border border-cyan-300/40 shadow-2xl shadow-blue-500/20"
+            initial={{ opacity: 0, scale: 1.15 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.6, ease: EASE_IN_OUT, delay: 1.15 }}
           />
         </motion.div>
 

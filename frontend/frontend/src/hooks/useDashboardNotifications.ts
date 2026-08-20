@@ -5,7 +5,9 @@ export type NotificationType =
   | "message"
   | "group_message"
   | "leave_request"
-  | "leave_status";
+  | "leave_status"
+  | "holiday"
+  | "announcement";
 
 export interface DashboardNotification {
   id: string;

@@ -15,6 +15,8 @@ import {
   Users,
   AlertCircle,
   Filter,
+  ShieldAlert,
+  LayoutDashboard,
 } from "lucide-react";
 import API from "../../services/api";
 import AdminSidebar from "../../components/AdminSidebar";
@@ -230,6 +232,18 @@ export default function AdminAttendanceSheet() {
   const sidebarItems = useMemo(
     () => [
       {
+        icon: <LayoutDashboard size={18} />,
+        label: "Dashboard",
+        onClick: () => navigate("/attendance-sheet"),
+        active: location.pathname === "/attendance-sheet",
+      },
+      {
+        icon: <Users size={18} />,
+        label: "Team",
+        onClick: () => navigate("/team"),
+        active: location.pathname === "/team",
+      },
+      {
         icon: <User size={18} />,
         label: "Profile",
         onClick: () => navigate("/admin-profile"),
@@ -249,15 +263,15 @@ export default function AdminAttendanceSheet() {
       },
       {
         icon: <IdCardLanyard size={18} />,
-        label: "Employees",
+        label: "Employees Management",
         onClick: () => navigate("/admin-employees"),
         active: location.pathname === "/admin-employees",
       },
       {
-        icon: <Download size={18} />,
-        label: "Attendance",
-        onClick: () => navigate("/attendance-sheet"),
-        active: location.pathname === "/attendance-sheet",
+        icon: <ShieldAlert size={18} />,
+        label: "Security & Occupancy",
+        onClick: () => navigate("/admin-security"),
+        active: location.pathname === "/admin-security",
       },
     ],
     [location.pathname, navigate],

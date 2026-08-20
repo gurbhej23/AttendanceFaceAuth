@@ -23,6 +23,7 @@ const AdminCreateEmployee = lazy(() => import("./pages/admin/AdminCreateEmployee
 const AdminAnalytics = lazy(() => import("./pages/admin/AdminAnalytics"));
 const AdminProfile = lazy(() => import("./pages/admin/AdminProfile"));
 const AdminHR = lazy(() => import("./pages/admin/AdminHR"));
+const AdminSecurityDashboard = lazy(() => import("./pages/admin/AdminSecurityDashboard"));
 const TeamDirectory = lazy(() => import("./pages/TeamDirectory"));
 
 const SIDEBAR_ROUTES = [
@@ -35,6 +36,7 @@ const SIDEBAR_ROUTES = [
   "/admin-analytics",
   "/admin-profile",
   "/admin-hr",
+  "/admin-security",
 ];
 
 function withPageTransition(element: ReactNode) {
@@ -102,6 +104,10 @@ function App() {
             element={withPageTransition(renderLazyRoute(<AdminProfile />))}
           />
           <Route path="/admin-hr" element={withPageTransition(renderLazyRoute(<AdminHR />))} />
+          <Route
+            path="/admin-security"
+            element={withPageTransition(renderLazyRoute(<AdminSecurityDashboard />))}
+          />
           <Route path="/team" element={withPageTransition(renderLazyRoute(<TeamDirectory />))} />
         </Routes>
       </AnimatePresence>

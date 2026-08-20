@@ -56,4 +56,9 @@ urlpatterns = [
     # HR: Overtime
     path("hr/overtime/admin/", hr_views.admin_overtime_requests, name="hr-ot-admin"),
     path("hr/overtime/resolve/", hr_views.resolve_overtime, name="hr-ot-resolve"),
+    # Real-Time Security & Live Occupancy
+    path("live-occupancy/", views.live_occupancy_overview, name="live-occupancy"),
+    path("security-alerts/", views.security_alerts_list, name="security-alerts"),
+    path("security-alerts/resolve/", views.resolve_security_alert, name="security-alerts-resolve"),
+    path("emergency-broadcast/", views.emergency_evacuation_broadcast, name="emergency-broadcast"),
 ]

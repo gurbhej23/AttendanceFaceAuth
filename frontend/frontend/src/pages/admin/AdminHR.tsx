@@ -6,11 +6,12 @@ import Input from "../../components/common/Input";
 import AdminSidebar from "../../components/AdminSidebar";
 import MobileMenuButton from "../../components/common/MobileMenuButton";
 import LogOutModal from "../../components/modal/LogOutModal";
+import EmptyState from "../../components/common/EmptyState";
+import AnimatedBackground from "../../components/motion/AnimatedBackground";
+import Toast from "../../components/common/Toast";
 import { clearAuthSession } from "../../utils/auth";
 import { getMediaUrl } from "../../utils/chatHelpers";
 import {
-  ArrowLeft,
-  Bell,
   Calendar,
   CalendarDays,
   ChartNoAxesCombined,
@@ -19,8 +20,14 @@ import {
   IdCardLanyard,
   Info,
   Megaphone,
+  ShieldAlert,
   User,
   Users,
+  CheckCircle2,
+  Plus,
+  Building2,
+  RefreshCw,
+  LayoutDashboard,
 } from "lucide-react";
 
 type Tab = "shifts" | "holidays" | "roster" | "overtime" | "regularization" | "announcements";
@@ -49,15 +56,6 @@ interface Shift {
   grace_minutes: number;
 }
 
-function InfoBanner({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="hr-info-banner mb-5 flex gap-3">
-      <Info className="mt-0.5 h-4 w-4 shrink-0 opacity-80" />
-      <div>{children}</div>
-    </div>
-  );
-}
-
 export default function AdminHR() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -66,6 +64,7 @@ export default function AdminHR() {
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
   const [showMenu, setShowMenu] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [holidays, setHolidays] = useState<
@@ -123,45 +122,77 @@ export default function AdminHR() {
   };
 
   const loadShifts = useCallback(async () => {
-    const res = await API.get("/attendance/hr/shifts/");
-    if (res.data.success) setShifts(res.data.shifts);
+    try {
+      const res = await API.get("/attendance/hr/shifts/");
+      if (res.data.success) setShifts(res.data.shifts);
+    } catch {
+      /* silent */
+    }
   }, []);
 
   const loadHolidays = useCallback(async () => {
-    const res = await API.get("/attendance/hr/holidays/");
-    if (res.data.success) setHolidays(res.data.holidays);
+    try {
+      const res = await API.get("/attendance/hr/holidays/");
+      if (res.data.success) setHolidays(res.data.holidays);
+    } catch {
+      /* silent */
+    }
   }, []);
 
   const loadRoster = useCallback(async () => {
-    const res = await API.get("/attendance/hr/roster/");
-    if (res.data.success) setRoster(res.data.roster);
+    try {
+      const res = await API.get("/attendance/hr/roster/");
+      if (res.data.success) setRoster(res.data.roster);
+    } catch {
+      /* silent */
+    }
   }, []);
 
   const loadOvertime = useCallback(async () => {
-    const res = await API.get("/attendance/hr/overtime/admin/", { params: { status: "pending" } });
-    if (res.data.success) setOvertime(res.data.records);
+    try {
+      const res = await API.get("/attendance/hr/overtime/admin/", { params: { status: "pending" } });
+      if (res.data.success) setOvertime(res.data.records);
+    } catch {
+      /* silent */
+    }
   }, []);
 
   const loadRegularizations = useCallback(async () => {
-    const res = await API.get("/attendance/hr/regularization/admin/", {
-      params: { status: "pending" },
-    });
-    if (res.data.success) setRegularizations(res.data.records);
+    try {
+      const res = await API.get("/attendance/hr/regularization/admin/", {
+        params: { status: "pending" },
+      });
+      if (res.data.success) setRegularizations(res.data.records);
+    } catch {
+      /* silent */
+    }
   }, []);
 
   const loadAnnouncements = useCallback(async () => {
-    const res = await API.get("/employees/announcements/", { params: { active: "0" } });
-    if (res.data.success) setAnnouncements(res.data.announcements);
+    try {
+      const res = await API.get("/employees/announcements/", { params: { active: "0" } });
+      if (res.data.success) setAnnouncements(res.data.announcements);
+    } catch {
+      /* silent */
+    }
   }, []);
 
-  useEffect(() => {
-    void loadShifts();
-    void loadHolidays();
-    void loadRoster();
-    void loadOvertime();
-    void loadRegularizations();
-    void loadAnnouncements();
+  const loadAll = useCallback(async () => {
+    setLoading(true);
+    await Promise.all([
+      loadShifts(),
+      loadHolidays(),
+      loadRoster(),
+      loadOvertime(),
+      loadRegularizations(),
+      loadAnnouncements(),
+    ]);
+    setLoading(false);
   }, [loadShifts, loadHolidays, loadRoster, loadOvertime, loadRegularizations, loadAnnouncements]);
+
+  useEffect(() => {
+    void loadAll();
+  }, [loadAll]);
 
   const updateRoster = async (employeeId: string, shiftCode: string, workMode: string) => {
     try {
@@ -170,7 +201,7 @@ export default function AdminHR() {
         shift_code: shiftCode,
         work_mode_default: workMode,
       });
-      showToast("Roster updated");
+      showToast("Roster updated successfully");
       void loadRoster();
     } catch {
       showToast("Failed to update roster", false);
@@ -179,13 +210,13 @@ export default function AdminHR() {
 
   const addHoliday = async () => {
     if (!holidayForm.date || !holidayForm.name) {
-      showToast("Date and name required", false);
+      showToast("Date and holiday name are required", false);
       return;
     }
     try {
       await API.post("/attendance/hr/holidays/", holidayForm);
       setHolidayForm({ date: "", name: "", applies_to: "all" });
-      showToast("Holiday added");
+      showToast("Holiday added successfully");
       void loadHolidays();
     } catch {
       showToast("Failed to add holiday", false);
@@ -193,15 +224,23 @@ export default function AdminHR() {
   };
 
   const resolveOT = async (id: string, action: "approve" | "reject") => {
-    await API.post("/attendance/hr/overtime/resolve/", { request_id: id, action });
-    showToast(`Overtime ${action}d`);
-    void loadOvertime();
+    try {
+      await API.post("/attendance/hr/overtime/resolve/", { request_id: id, action });
+      showToast(`Overtime ${action}d successfully`);
+      void loadOvertime();
+    } catch {
+      showToast(`Failed to ${action} overtime`, false);
+    }
   };
 
   const resolveReg = async (id: string, action: "approve" | "reject") => {
-    await API.post("/attendance/hr/regularization/resolve/", { request_id: id, action });
-    showToast(`Regularization ${action}d`);
-    void loadRegularizations();
+    try {
+      await API.post("/attendance/hr/regularization/resolve/", { request_id: id, action });
+      showToast(`Regularization ${action}d successfully`);
+      void loadRegularizations();
+    } catch {
+      showToast(`Failed to ${action} regularization`, false);
+    }
   };
 
   const handleLogout = () => {
@@ -218,9 +257,16 @@ export default function AdminHR() {
         active: location.pathname === "/admin-profile",
       },
       {
-        icon: <Bell size={18} />,
-        label: "Notifications",
+        icon: <LayoutDashboard size={18} />,
+        label: "Dashboard",
         onClick: () => navigate("/attendance-sheet"),
+        active: location.pathname === "/attendance-sheet",
+      },
+      {
+        icon: <Users size={18} />,
+        label: "Team",
+        onClick: () => navigate("/team"),
+        active: location.pathname === "/team",
       },
       {
         icon: <Calendar size={18} />,
@@ -235,6 +281,12 @@ export default function AdminHR() {
         active: location.pathname === "/admin-analytics",
       },
       {
+        icon: <ShieldAlert size={18} />,
+        label: "Security & Occupancy",
+        onClick: () => navigate("/admin-security"),
+        active: location.pathname === "/admin-security",
+      },
+      {
         icon: <IdCardLanyard size={18} />,
         label: "Employees",
         onClick: () => navigate("/admin-employees"),
@@ -242,232 +294,327 @@ export default function AdminHR() {
           location.pathname === "/admin-employees" ||
           location.pathname === "/admin-create-employee",
       },
-      {
-        icon: <Download size={18} />,
-        label: "Attendance",
-        onClick: () => navigate("/attendance-sheet"),
-        active: location.pathname === "/attendance-sheet",
-      },
     ],
     [location.pathname, navigate],
   );
 
-  const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: "shifts", label: "Shifts", icon: <Clock className="h-4 w-4" /> },
-    { id: "holidays", label: "Holidays", icon: <Calendar className="h-4 w-4" /> },
-    { id: "roster", label: "Roster", icon: <Users className="h-4 w-4" /> },
-    { id: "overtime", label: "Overtime", icon: <Clock className="h-4 w-4" /> },
-    { id: "regularization", label: "Regularization", icon: <CalendarDays className="h-4 w-4" /> },
-    { id: "announcements", label: "Announcements", icon: <Megaphone className="h-4 w-4" /> },
+  const tabs: { id: Tab; label: string; icon: React.ReactNode; badge?: number }[] = [
+    { id: "shifts", label: "Shifts & Policies", icon: <Clock size={16} /> },
+    { id: "holidays", label: "Holiday Calendar", icon: <Calendar size={16} /> },
+    { id: "roster", label: "Employee Roster", icon: <Users size={16} /> },
+    {
+      id: "overtime",
+      label: "Overtime Requests",
+      icon: <Clock size={16} />,
+      badge: overtime.length,
+    },
+    {
+      id: "regularization",
+      label: "Regularization",
+      icon: <CalendarDays size={16} />,
+      badge: regularizations.length,
+    },
+    { id: "announcements", label: "Announcements & Reminders", icon: <Megaphone size={16} /> },
   ];
 
   const fmtShift = (h: number, m: number) =>
     `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 
   return (
-    <>
-      <div className="min-h-screen px-3 py-5 pb-24 sm:px-5 lg:pb-8">
-        {toast && (
-          <div
-            className={`fixed top-5 left-1/2 z-50 -translate-x-1/2 rounded-2xl border px-6 py-3 text-sm font-semibold shadow-xl ${
-              toast.ok
-                ? "border-green-500/30 bg-green-500/15 text-green-300"
-                : "border-red-500/30 bg-red-500/15 text-red-300"
-            }`}
-          >
-            {toast.msg}
-          </div>
-        )}
+    <div className="admin-page-bg relative min-h-screen bg-slate-50 text-slate-900 dark:bg-[#080d1a] dark:text-white px-3 py-5 sm:px-6 transition-colors duration-300">
+      <AnimatedBackground particleColor={0x6366f1} secondaryColor={0xec4899} />
 
-        <AdminSidebar
-          items={sidebarItems}
-          onLogout={() => setShowLogoutModal(true)}
-          mobileOpen={showMenu}
-          onMobileClose={() => setShowMenu(false)}
-          adminName={adminName}
-          adminRole={adminRole}
-          profileImg={adminProfileImg}
-        />
+      {toast && <Toast message={toast.msg} ok={toast.ok} />}
 
-        <MobileMenuButton onClick={() => setShowMenu(true)} />
+      <AdminSidebar
+        items={sidebarItems}
+        onLogout={() => setShowLogoutModal(true)}
+        mobileOpen={showMenu}
+        onMobileClose={() => setShowMenu(false)}
+        adminName={adminName}
+        adminRole={adminRole}
+        profileImg={adminProfileImg}
+      />
+      <MobileMenuButton onClick={() => setShowMenu(true)} />
 
-        <div className="mx-auto max-w-6xl pb-10 pt-12 transition-all duration-500 ease-out sm:pb-12 sm:pt-5 lg:ml-22 lg:pt-0">
-            <div className="hr-panel dash-shell-panel mb-6 border border-white/10 bg-white/5 p-5 shadow-xl backdrop-blur-xl sm:p-6">
-              <button
-                type="button"
-                onClick={() => navigate("/attendance-sheet")}
-                className="mb-2 flex items-center gap-2 text-sm hr-text-muted hover:opacity-80 cursor-pointer"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Back to dashboard
-              </button>
-              <h1 className="hr-page-title text-2xl font-bold sm:text-3xl">HR Management</h1>
-              <p className="hr-page-subtitle mt-1 text-sm">
-                Shifts, holidays, roster, overtime &amp; regularization
-              </p>
+      {/* Main Content Area */}
+      <div className="relative z-10 mx-auto max-w-7xl pt-12 sm:pt-4 lg:ml-22 lg:pt-0">
+        {/* Hero Header */}
+        <header className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-200/80 dark:border-white/10 pb-5">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/10 border border-indigo-500/30 text-indigo-600 dark:text-indigo-400">
+                <Building2 size={12} className="text-indigo-500" /> Human Resources Command Suite
+              </span>
+              {(regularizations.length > 0 || overtime.length > 0) && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400">
+                  ⚡ {regularizations.length + overtime.length} Pending Actions
+                </span>
+              )}
             </div>
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
+              HR Operations Center
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-0.5">
+              Shift policies, company holidays, staff rosters, overtime approvals, and broadcast notices.
+            </p>
+          </div>
 
-          <div className="mb-6 flex flex-wrap gap-2">
-            {tabs.map((t) => (
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Button
+              onClick={loadAll}
+              className="flex items-center gap-1.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-3.5 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 shadow-xs hover:bg-slate-50 cursor-pointer"
+            >
+              <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> Refresh
+            </Button>
+            <Button
+              onClick={() => navigate("/attendance-sheet")}
+              className="flex items-center gap-1.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-indigo-500/20 cursor-pointer"
+            >
+              <Download size={13} /> Attendance Sheet
+            </Button>
+          </div>
+        </header>
+
+        {/* Tab Switcher Pills */}
+        <div className="flex items-center gap-2 border-b border-slate-200 dark:border-white/10 pb-3 mb-6 overflow-x-auto">
+          {tabs.map((t) => {
+            const isActive = tab === t.id;
+            return (
               <button
                 key={t.id}
                 type="button"
                 onClick={() => selectTab(t.id)}
-                className={tab === t.id ? "hr-tab hr-tab-active" : "hr-tab hr-tab-inactive"}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl font-bold text-xs sm:text-sm transition cursor-pointer whitespace-nowrap ${isActive
+                    ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/20"
+                    : "bg-white dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-transparent"
+                  }`}
               >
                 {t.icon}
-                {t.label}
-                {t.id === "overtime" && overtime.length > 0 && (
-                  <span className="rounded-full bg-red-500 px-1.5 text-[10px] text-white">
-                    {overtime.length}
-                  </span>
-                )}
-                {t.id === "regularization" && regularizations.length > 0 && (
-                  <span className="rounded-full bg-red-500 px-1.5 text-[10px] text-white">
-                    {regularizations.length}
+                <span>{t.label}</span>
+                {Boolean(t.badge && t.badge > 0) && (
+                  <span className="rounded-full bg-rose-500 px-2 py-0.2 text-[10px] font-black text-white">
+                    {t.badge}
                   </span>
                 )}
               </button>
-            ))}
-          </div>
+            );
+          })}
+        </div>
 
-          {tab === "shifts" && (
-            <div className="hr-panel">
-              <h2 className="hr-text-primary mb-2 text-lg font-bold">Shift definitions</h2>
-              <InfoBanner>
-                <p className="font-semibold hr-text-primary">How shifts work</p>
-                <p className="mt-1">
-                  Each employee is assigned a shift on the <strong>Roster</strong> tab. The shift
-                  sets expected start/end times and a grace period (minutes after start before
-                  marking &quot;late&quot;). Morning (9–6), Evening (2–11), and Night (10–7) are
-                  pre-configured. Late status and shift-start warnings on the employee dashboard
-                  use this schedule.
-                </p>
-              </InfoBanner>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {shifts.map((s) => (
-                  <div key={s.code} className="hr-card">
-                    <p className="hr-text-primary font-semibold capitalize">{s.name}</p>
-                    <p className="hr-text-muted mt-1 text-xs">Code: {s.code}</p>
-                    <p className="hr-text-secondary mt-2 text-sm">
-                      {fmtShift(s.start_hour, s.start_minute)} –{" "}
-                      {fmtShift(s.end_hour, s.end_minute)}
-                    </p>
-                    <p className="hr-text-muted text-xs">Grace: {s.grace_minutes} min</p>
-                  </div>
-                ))}
+        {/* ─── TAB 1: SHIFTS & POLICIES ─── */}
+        {tab === "shifts" && (
+          <div className="space-y-6">
+            <div className="rounded-3xl border border-indigo-500/30 bg-indigo-500/5 dark:bg-slate-950/80 p-5 backdrop-blur-xl">
+              <div className="flex items-start gap-3">
+                <Info className="h-5 w-5 text-indigo-500 shrink-0 mt-0.5" />
+                <div className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                  <p className="font-bold text-slate-900 dark:text-white">How Shifts &amp; Punctuality Work</p>
+                  <p className="mt-1">
+                    Each employee is assigned a shift via the <strong>Roster</strong> tab. Shifts define expected check-in/out hours and grace periods before attendance is marked as &quot;Late&quot;. Morning, Evening, and Night shifts are pre-configured.
+                  </p>
+                </div>
               </div>
             </div>
-          )}
 
-          {tab === "holidays" && (
-            <div className="grid gap-4 lg:grid-cols-2">
-              <div className="hr-panel">
-                <h2 className="hr-text-primary mb-4 text-lg font-bold">Add holiday</h2>
-                <InfoBanner>
-                  Holidays block check-in and leave requests for affected employees.
-                  Use <code className="text-xs">all</code> or a department name for &quot;Applies
-                  to&quot;.
-                </InfoBanner>
-                <div className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {shifts.map((s) => (
+                <div
+                  key={s.code}
+                  className="relative overflow-hidden rounded-3xl border border-slate-200/90 dark:border-white/10 bg-white/90 dark:bg-slate-950/80 p-6 shadow-xl backdrop-blur-xl"
+                >
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 mb-3">
+                    <span className="text-xs font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                      Code: {s.code}
+                    </span>
+                    <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                      Active Shift
+                    </span>
+                  </div>
+
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white capitalize">
+                    {s.name}
+                  </h3>
+
+                  <div className="my-4 rounded-2xl bg-slate-50 dark:bg-slate-900/80 p-4 border border-slate-200 dark:border-slate-800 text-center">
+                    <p className="font-mono text-xl font-extrabold text-slate-900 dark:text-white">
+                      {fmtShift(s.start_hour, s.start_minute)} – {fmtShift(s.end_hour, s.end_minute)}
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-1">Standard Operating Hours</p>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400">
+                    <span>Grace Period:</span>
+                    <span className="font-bold font-mono text-amber-600 dark:text-amber-400">
+                      {s.grace_minutes} Minutes
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ─── TAB 2: HOLIDAY CALENDAR ─── */}
+        {tab === "holidays" && (
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.3fr] gap-6">
+            {/* Add Holiday Card */}
+            <div className="rounded-3xl border border-slate-200/90 dark:border-white/10 bg-white/90 dark:bg-slate-950/80 p-6 shadow-xl backdrop-blur-xl">
+              <h2 className="text-base font-bold text-slate-900 dark:text-white mb-1 flex items-center gap-2">
+                <Plus size={18} className="text-indigo-500" /> Schedule Company Holiday
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-5">
+                Designated holidays block attendance marking and auto-mark off-duty.
+              </p>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5">
+                    Holiday Date
+                  </label>
                   <Input
                     type="date"
                     value={holidayForm.date}
                     onChange={(e) => setHolidayForm((f) => ({ ...f, date: e.target.value }))}
-                    className="hr-input"
+                    className="w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-3 text-sm"
                   />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5">
+                    Holiday Title
+                  </label>
                   <Input
-                    placeholder="Holiday name"
+                    placeholder="e.g. Independence Day / Diwali"
                     value={holidayForm.name}
                     onChange={(e) => setHolidayForm((f) => ({ ...f, name: e.target.value }))}
-                    className="hr-input"
+                    className="w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-3 text-sm"
                   />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5">
+                    Applies To
+                  </label>
                   <Input
-                    placeholder="Applies to (all or department)"
+                    placeholder="all or specific department"
                     value={holidayForm.applies_to}
-                    onChange={(e) =>
-                      setHolidayForm((f) => ({ ...f, applies_to: e.target.value }))
-                    }
-                    className="hr-input"
-                  />
-                  <Button
-                    text="Add Holiday"
-                    onClick={addHoliday}
-                    className="w-full rounded-xl bg-emerald-600 py-2.5 font-semibold text-white hover:bg-emerald-700 cursor-pointer"
+                    onChange={(e) => setHolidayForm((f) => ({ ...f, applies_to: e.target.value }))}
+                    className="w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-3 text-sm"
                   />
                 </div>
-              </div>
-              <div className="hr-panel">
-                <h2 className="hr-text-primary mb-4 text-lg font-bold">Holiday calendar</h2>
-                <div className="max-h-80 space-y-2 overflow-y-auto">
-                  {holidays.length === 0 ? (
-                    <p className="hr-text-muted text-sm">No holidays configured</p>
-                  ) : (
-                    holidays.map((h) => (
-                      <div
-                        key={h.id}
-                        className="hr-card flex items-center justify-between px-3 py-2"
-                      >
-                        <div>
-                          <p className="hr-text-primary font-medium">{h.name}</p>
-                          <p className="hr-text-muted text-xs">{h.date}</p>
-                        </div>
-                        <span className="hr-text-muted text-xs">{h.applies_to}</span>
-                      </div>
-                    ))
-                  )}
-                </div>
+
+                <Button
+                  text="Save Holiday"
+                  onClick={addHoliday}
+                  className="w-full rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 py-3 font-bold text-white shadow-md shadow-emerald-500/20 cursor-pointer text-xs sm:text-sm"
+                />
               </div>
             </div>
-          )}
 
-          {tab === "roster" && (
-            <div className="hr-panel">
-              <h2 className="hr-text-primary mb-2 text-lg font-bold">Employee roster</h2>
-              <InfoBanner>
-                Assign each employee&apos;s shift and default work mode (Office or WFH). WFH skips
-                location/geofence checks when marking present.
-              </InfoBanner>
+            {/* Holiday Roster List */}
+            <div className="rounded-3xl border border-slate-200/90 dark:border-white/10 bg-white/90 dark:bg-slate-950/80 p-6 shadow-xl backdrop-blur-xl">
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-3 mb-4">
+                <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Calendar size={18} className="text-emerald-500" /> Holiday Master Calendar ({holidays.length})
+                </h2>
+                <span className="text-xs text-slate-400 font-mono">Company Wide</span>
+              </div>
+
+              {holidays.length === 0 ? (
+                <div className="py-12 text-center">
+                  <EmptyState
+                    icon={<Calendar className="h-8 w-8 text-slate-400" />}
+                    title="No holidays scheduled yet"
+                  />
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+                  {holidays.map((h) => (
+                    <div
+                      key={h.id}
+                      className="flex items-center justify-between rounded-2xl border border-slate-200 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-900/60 p-4 shadow-xs"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-500 font-bold">
+                          🌴
+                        </div>
+                        <div>
+                          <p className="font-bold text-sm text-slate-900 dark:text-white">{h.name}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">📅 {h.date}</p>
+                        </div>
+                      </div>
+
+                      <span className="rounded-full bg-slate-200 dark:bg-slate-800 px-3 py-1 text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase">
+                        {h.applies_to}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ─── TAB 3: EMPLOYEE ROSTER ─── */}
+        {tab === "roster" && (
+          <div className="space-y-6">
+            <div className="rounded-3xl border border-slate-200/90 dark:border-white/10 bg-white/90 dark:bg-slate-950/80 p-5 sm:p-6 shadow-xl backdrop-blur-xl">
+              <div className="flex items-center justify-between mb-4 border-b border-slate-200 dark:border-white/10 pb-3">
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                    Employee Shift &amp; Work Mode Assignments ({roster.length})
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Assign shifts and WFH status (WFH bypasses office geofence checks)
+                  </p>
+                </div>
+              </div>
+
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
-                    <tr className="hr-table-head">
-                      <th className="pb-2 pr-4">Employee</th>
-                      <th className="pb-2 pr-4">Department</th>
-                      <th className="pb-2 pr-4">Shift</th>
-                      <th className="pb-2">Default mode</th>
+                    <tr className="border-b border-slate-200 dark:border-white/10 text-xs font-bold uppercase text-slate-400">
+                      <th className="py-3 px-4">Employee</th>
+                      <th className="py-3 px-4">Department</th>
+                      <th className="py-3 px-4">Assigned Shift</th>
+                      <th className="py-3 px-4">Default Mode</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
                     {roster.map((r) => (
-                      <tr key={r.employee_id} className="hr-table-row">
-                        <td className="hr-text-primary py-3 pr-4">{r.name}</td>
-                        <td className="hr-text-muted py-3 pr-4">{r.department}</td>
-                        <td className="py-3 pr-4">
+                      <tr key={r.employee_id} className="hover:bg-slate-50 dark:hover:bg-slate-900/50 transition">
+                        <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
+                          {r.name} <span className="text-xs font-mono font-normal text-slate-400">({r.employee_id})</span>
+                        </td>
+                        <td className="py-3 px-4 text-xs font-semibold text-slate-600 dark:text-slate-400">
+                          {r.department}
+                        </td>
+                        <td className="py-3 px-4">
                           <select
                             value={r.shift_code}
                             onChange={(e) =>
                               updateRoster(r.employee_id, e.target.value, r.work_mode_default)
                             }
-                            className="hr-input max-w-[140px] py-1.5 text-sm"
+                            className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer"
                           >
                             {shifts.map((s) => (
                               <option key={s.code} value={s.code}>
-                                {s.name}
+                                {s.name} ({s.code})
                               </option>
                             ))}
                           </select>
                         </td>
-                        <td className="py-3">
+                        <td className="py-3 px-4">
                           <select
                             value={r.work_mode_default}
                             onChange={(e) =>
                               updateRoster(r.employee_id, r.shift_code, e.target.value)
                             }
-                            className="hr-input max-w-[120px] py-1.5 text-sm"
+                            className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer"
                           >
-                            <option value="office">Office</option>
-                            <option value="wfh">WFH</option>
+                            <option value="office">🏢 Office</option>
+                            <option value="wfh">🏠 WFH</option>
                           </select>
                         </td>
                       </tr>
@@ -476,36 +623,50 @@ export default function AdminHR() {
                 </table>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {tab === "overtime" && (
-            <div className="hr-panel">
-              <h2 className="hr-text-primary mb-4 text-lg font-bold">Pending overtime</h2>
+        {/* ─── TAB 4: OVERTIME REQUESTS ─── */}
+        {tab === "overtime" && (
+          <div className="space-y-6">
+            <div className="rounded-3xl border border-slate-200/90 dark:border-white/10 bg-white/90 dark:bg-slate-950/80 p-5 sm:p-6 shadow-xl backdrop-blur-xl">
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-3 mb-4">
+                <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Clock size={18} className="text-amber-500" /> Pending Overtime Claims ({overtime.length})
+                </h2>
+                <span className="text-xs text-slate-400">Approval Workflow</span>
+              </div>
+
               {overtime.length === 0 ? (
-                <p className="hr-text-muted">No pending overtime requests</p>
+                <div className="py-12 text-center">
+                  <CheckCircle2 className="h-8 w-8 text-emerald-500 mx-auto mb-2" />
+                  <p className="text-sm font-bold text-slate-700 dark:text-slate-300">All Overtime Requests Cleared</p>
+                  <p className="text-xs text-slate-400 mt-0.5">No pending overtime submissions awaiting review.</p>
+                </div>
               ) : (
                 <div className="space-y-3">
                   {overtime.map((o) => (
                     <div
                       key={o.id}
-                      className="hr-card flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+                      className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 dark:bg-slate-900/70 p-4 shadow-xs"
                     >
                       <div>
-                        <p className="hr-text-primary font-semibold">{o.employee_name}</p>
-                        <p className="hr-text-muted text-sm">
-                          {o.date} · {o.overtime_minutes} min OT
+                        <p className="font-extrabold text-sm text-slate-900 dark:text-white">{o.employee_name}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">
+                          📅 {o.date} • <span className="text-amber-600 dark:text-amber-400 font-bold">{o.overtime_minutes} Mins Requested</span>
                         </p>
                       </div>
-                      <div className="flex gap-2">
+
+                      <div className="flex items-center gap-2">
                         <Button
                           text="Approve"
                           onClick={() => resolveOT(o.id, "approve")}
-                          className="rounded-lg bg-green-600 px-3 py-1.5 text-sm text-white cursor-pointer"
+                          className="rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-xs cursor-pointer"
                         />
                         <Button
                           text="Reject"
                           onClick={() => resolveOT(o.id, "reject")}
-                          className="rounded-lg bg-red-600/80 px-3 py-1.5 text-sm text-white cursor-pointer"
+                          className="rounded-xl bg-rose-600 hover:bg-rose-500 px-4 py-2 text-xs font-bold text-white shadow-xs cursor-pointer"
                         />
                       </div>
                     </div>
@@ -513,113 +674,188 @@ export default function AdminHR() {
                 </div>
               )}
             </div>
-          )}
+          </div>
+        )}
 
-          {tab === "regularization" && (
-            <div className="hr-panel">
-              <h2 className="hr-text-primary mb-4 text-lg font-bold">Attendance regularization</h2>
-              <InfoBanner>
-                Employees request corrections from their dashboard (Regularize button). Approve to
-                update their attendance record for that date.
-              </InfoBanner>
+        {/* ─── TAB 5: REGULARIZATION ─── */}
+        {tab === "regularization" && (
+          <div className="space-y-6">
+            <div className="rounded-3xl border border-slate-200/90 dark:border-white/10 bg-white/90 dark:bg-slate-950/80 p-5 sm:p-6 shadow-xl backdrop-blur-xl">
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-3 mb-4">
+                <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <CalendarDays size={18} className="text-indigo-500" /> Pending Attendance Regularizations ({regularizations.length})
+                </h2>
+                <span className="text-xs text-slate-400">Employee Corrections</span>
+              </div>
+
               {regularizations.length === 0 ? (
-                <p className="hr-text-muted">No pending requests</p>
+                <div className="py-12 text-center">
+                  <CheckCircle2 className="h-8 w-8 text-emerald-500 mx-auto mb-2" />
+                  <p className="text-sm font-bold text-slate-700 dark:text-slate-300">All Regularizations Processed</p>
+                  <p className="text-xs text-slate-400 mt-0.5">No pending attendance correction requests.</p>
+                </div>
               ) : (
                 <div className="space-y-3">
                   {regularizations.map((r) => (
-                    <div key={r.id} className="hr-card">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                          <p className="hr-text-primary font-semibold">{r.employee_name}</p>
-                          <p className="hr-text-muted text-sm">
-                            {r.date} → {r.requested_status}
+                    <div
+                      key={r.id}
+                      className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-2xl border border-indigo-500/20 bg-indigo-500/5 dark:bg-slate-900/70 p-4 shadow-xs"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-extrabold text-sm text-slate-900 dark:text-white">{r.employee_name}</p>
+                          <span className="rounded-full bg-indigo-500/20 border border-indigo-500/30 px-2 py-0.2 text-[10px] font-bold text-indigo-500 uppercase">
+                            To: {r.requested_status}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">📅 Date: {r.date}</p>
+                        {r.reason && (
+                          <p className="text-xs text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-950/70 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 mt-1">
+                            &quot;{r.reason}&quot;
                           </p>
-                          <p className="hr-text-secondary mt-1 text-sm">{r.reason}</p>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            text="Approve"
-                            onClick={() => resolveReg(r.id, "approve")}
-                            className="rounded-lg bg-green-600 px-3 py-1.5 text-sm text-white cursor-pointer"
-                          />
-                          <Button
-                            text="Reject"
-                            onClick={() => resolveReg(r.id, "reject")}
-                            className="rounded-lg bg-red-600/80 px-3 py-1.5 text-sm text-white cursor-pointer"
-                          />
-                        </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Button
+                          text="Approve"
+                          onClick={() => resolveReg(r.id, "approve")}
+                          className="rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-xs cursor-pointer"
+                        />
+                        <Button
+                          text="Reject"
+                          onClick={() => resolveReg(r.id, "reject")}
+                          className="rounded-xl bg-rose-600 hover:bg-rose-500 px-4 py-2 text-xs font-bold text-white shadow-xs cursor-pointer"
+                        />
                       </div>
                     </div>
                   ))}
                 </div>
               )}
             </div>
-          )}
+          </div>
+        )}
 
-          {tab === "announcements" && (
-            <div className="grid gap-4 lg:grid-cols-2">
-              <div className="hr-panel">
-                <h2 className="hr-text-primary mb-4 text-lg font-bold">Post announcement</h2>
-                <div className="space-y-3">
+        {/* ─── TAB 6: ANNOUNCEMENTS & REMINDERS ─── */}
+        {tab === "announcements" && (
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.3fr] gap-6">
+            {/* Post Announcement */}
+            <div className="rounded-3xl border border-slate-200/90 dark:border-white/10 bg-white/90 dark:bg-slate-950/80 p-6 shadow-xl backdrop-blur-xl">
+              <h2 className="text-base font-bold text-slate-900 dark:text-white mb-1 flex items-center gap-2">
+                <Megaphone size={18} className="text-violet-500" /> Broadcast Company Announcement
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-5">
+                Publish notices and push instant morning attendance email reminders.
+              </p>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5">
+                    Announcement Headline
+                  </label>
                   <Input
-                    placeholder="Title"
+                    placeholder="e.g. Quarterly Town Hall / Policy Update"
                     value={announcementForm.title}
                     onChange={(e) => setAnnouncementForm((f) => ({ ...f, title: e.target.value }))}
-                    className="hr-input"
+                    className="w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-3 text-sm"
                   />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5">
+                    Message Body
+                  </label>
                   <textarea
-                    placeholder="Message for all employees"
+                    placeholder="Write your announcement details..."
                     value={announcementForm.body}
                     onChange={(e) => setAnnouncementForm((f) => ({ ...f, body: e.target.value }))}
                     rows={4}
-                    className="hr-input resize-none"
+                    className="w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-3 text-sm text-slate-900 dark:text-white resize-none outline-none focus:border-violet-500"
                   />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1.5">
+                    Expiry Date (Optional)
+                  </label>
                   <Input
                     type="date"
                     value={announcementForm.expires_at}
                     onChange={(e) =>
                       setAnnouncementForm((f) => ({ ...f, expires_at: e.target.value }))
                     }
-                    className="hr-input"
+                    className="w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-3 text-sm"
                   />
+                </div>
+
+                <div className="pt-2 space-y-2.5">
                   <Button
-                    text="Publish"
+                    text="Publish Notice"
                     onClick={async () => {
+                      if (!announcementForm.title || !announcementForm.body) {
+                        showToast("Title and message are required", false);
+                        return;
+                      }
                       await API.post("/employees/announcements/", {
                         employee_id: localStorage.getItem("employee_id"),
                         ...announcementForm,
                       });
                       setAnnouncementForm({ title: "", body: "", expires_at: "" });
-                      showToast("Announcement published");
+                      showToast("Announcement published successfully");
                       void loadAnnouncements();
                     }}
-                    className="w-full rounded-xl bg-blue-600 py-2.5 font-semibold text-white cursor-pointer"
+                    className="w-full rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 py-3 font-bold text-white shadow-md shadow-violet-500/20 cursor-pointer text-xs sm:text-sm"
                   />
                   <Button
-                    text="Send attendance email reminders"
+                    text="Send Morning Attendance Reminders"
                     onClick={async () => {
                       const res = await API.post("/employees/send-attendance-reminders/", {
                         employee_id: localStorage.getItem("employee_id"),
                         force: true,
                       });
-                      showToast(`Reminders sent: ${res.data.sent || 0}`);
+                      showToast(`Automated reminders dispatched: ${res.data.sent || 0}`);
                     }}
-                    className="w-full rounded-xl bg-violet-600 py-2.5 text-sm font-semibold text-white cursor-pointer"
+                    className="w-full rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-700 py-3 text-xs font-bold text-slate-200 cursor-pointer"
                   />
                 </div>
               </div>
-              <div className="hr-panel">
-                <h2 className="hr-text-primary mb-4 text-lg font-bold">Recent announcements</h2>
-                {announcements.map((a) => (
-                  <div key={a.id} className="hr-card mb-2">
-                    <p className="hr-text-primary font-semibold">{a.title}</p>
-                    <p className="hr-text-secondary text-sm">{a.body}</p>
-                  </div>
-                ))}
-              </div>
             </div>
-          )}
-        </div>
+
+            {/* Active Announcements List */}
+            <div className="rounded-3xl border border-slate-200/90 dark:border-white/10 bg-white/90 dark:bg-slate-950/80 p-6 shadow-xl backdrop-blur-xl">
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-3 mb-4">
+                <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Megaphone size={18} className="text-indigo-500" /> Active Company Bulletins ({announcements.length})
+                </h2>
+                <span className="text-xs text-slate-400 font-mono">Company Wide</span>
+              </div>
+
+              {announcements.length === 0 ? (
+                <div className="py-12 text-center">
+                  <EmptyState
+                    icon={<Megaphone className="h-8 w-8 text-slate-400" />}
+                    title="No announcements posted yet"
+                  />
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+                  {announcements.map((a) => (
+                    <div
+                      key={a.id}
+                      className="rounded-2xl border border-slate-200 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-900/60 p-4 shadow-xs"
+                    >
+                      <p className="font-bold text-sm text-slate-900 dark:text-white mb-1">{a.title}</p>
+                      <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{a.body}</p>
+                      <p className="text-[10px] text-slate-400 mt-2 font-mono">
+                        Posted by {a.created_by_name || "HR Operations"}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <LogOutModal
@@ -627,6 +863,6 @@ export default function AdminHR() {
         onClose={() => setShowLogoutModal(false)}
         onLogout={handleLogout}
       />
-    </>
+    </div>
   );
 }

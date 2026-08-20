@@ -1675,6 +1675,15 @@ def mark_present(request):
             )
             if error:
                 print(f"Mark present face extraction rejected for {employee.employee_id}: {error}")
+                log_biometric_security_alert(
+                    alert_type="multi_face_detected" if "Multiple" in error else "no_face_detected",
+                    title=f"Check-In Anomaly: {error}",
+                    description=f"Biometric check-in failed for {employee.employee_id} ({employee.name}): {error}",
+                    employee_id=employee.employee_id,
+                    employee_name=employee.name,
+                    severity="critical" if "Multiple" in error else "warning",
+                    captured_image=image,
+                )
                 return Response({"success": False, "error": error}, status=400)
 
             is_match = verify_face_match(
@@ -1682,6 +1691,15 @@ def mark_present(request):
             )
             if not is_match:
                 print(f"Face match: NO | Mark present face match failed for employee {employee.employee_id} -> REJECTED")
+                log_biometric_security_alert(
+                    alert_type="failed_face_match",
+                    title="Unauthorized Face Verification Attempt",
+                    description=f"Face mismatch during check-in for account {employee.employee_id} ({employee.name}). The face captured did not match the registered biometric dataset.",
+                    employee_id=employee.employee_id,
+                    employee_name=employee.name,
+                    severity="critical",
+                    captured_image=image,
+                )
                 return Response(
                     {
                         "success": False,
@@ -1874,5 +1892,388 @@ def mark_half_day(request):
 
     except Exception as e:
         return Response({"success": False, "error": str(e)}, status=500)
+
+
+# ─── Real-Time Security & Live Occupancy ──────────────────────────────────────
+
+
+def save_security_snapshot(image_data: str) -> str:
+    """Save base64 image data to default storage as a security incident snapshot."""
+    import base64
+    import uuid
+    from django.core.files.base import ContentFile
+    from django.core.files.storage import default_storage
+
+    if not image_data or not isinstance(image_data, str):
+        return ""
+    try:
+        raw_data = image_data
+        extension = ".jpg"
+        if "," in image_data:
+            header, raw_data = image_data.split(",", 1)
+            if "png" in header:
+                extension = ".png"
+            elif "webp" in header:
+                extension = ".webp"
+        filename = f"security_snapshots/alert_{uuid.uuid4().hex[:12]}{extension}"
+        path = default_storage.save(filename, ContentFile(base64.b64decode(raw_data)))
+        return str(path)
+    except Exception:
+        return ""
+
+
+def log_biometric_security_alert(
+    alert_type: str,
+    title: str,
+    description: str,
+    employee_id: str = "",
+    employee_name: str = "",
+    severity: str = "warning",
+    confidence_score: float = 0.0,
+    captured_image: str = "",
+    latitude=None,
+    longitude=None,
+    ip_address: str = "",
+    device_info: str = "",
+):
+    """Helper to record a BiometricSecurityAlert."""
+    try:
+        from .models import BiometricSecurityAlert
+
+        snapshot_path = save_security_snapshot(captured_image) if captured_image else ""
+        alert = BiometricSecurityAlert(
+            employee_id=employee_id,
+            employee_name=employee_name,
+            alert_type=alert_type,
+            title=title,
+            description=description,
+            severity=severity,
+            confidence_score=confidence_score,
+            captured_image=snapshot_path,
+            latitude=latitude,
+            longitude=longitude,
+            ip_address=ip_address,
+            device_info=device_info,
+            created_at=datetime.utcnow(),
+            is_resolved=False,
+        )
+        alert.save()
+        return alert
+    except Exception:
+        return None
+
+
+@api_view(["GET"])
+def live_occupancy_overview(request):
+    """Real-time building occupancy, department presence, and activity feed."""
+    try:
+        today = today_ist()
+        now = current_ist()
+
+        # All active employees
+        all_employees = list(Employee.objects(is_active=True))
+        emp_map = {e.employee_id: e for e in all_employees}
+        total_active_staff = len(all_employees)
+
+        # Today's attendance records
+        records = list(AttendanceRecord.objects(date=today))
+        record_by_emp = {r.employee_id: r for r in records}
+
+        inside_building = []
+        checked_out = []
+        on_leave = []
+        absent = []
+        not_marked = []
+
+        for emp in all_employees:
+            r = record_by_emp.get(emp.employee_id)
+            prof_img = resolve_employee_profile_url(emp)
+
+            if not r:
+                not_marked.append(
+                    {
+                        "employee_id": emp.employee_id,
+                        "name": emp.name,
+                        "department": emp.department or "General",
+                        "designation": emp.designation or "Staff",
+                        "phone": getattr(emp, "phone", "") or "--",
+                        "profile_img": prof_img,
+                        "status": "not_marked",
+                    }
+                )
+            elif r.status in ("on_leave", "leave", "holiday"):
+                on_leave.append(
+                    {
+                        "employee_id": emp.employee_id,
+                        "name": emp.name,
+                        "department": emp.department or "General",
+                        "designation": emp.designation or "Staff",
+                        "phone": getattr(emp, "phone", "") or "--",
+                        "profile_img": prof_img,
+                        "status": "on_leave",
+                        "leave_type": getattr(r, "leave_type", "casual") or "casual",
+                        "reason": getattr(r, "reason", "") or "",
+                    }
+                )
+            elif r.status == "absent":
+                absent.append(
+                    {
+                        "employee_id": emp.employee_id,
+                        "name": emp.name,
+                        "department": emp.department or "General",
+                        "designation": emp.designation or "Staff",
+                        "phone": getattr(emp, "phone", "") or "--",
+                        "profile_img": prof_img,
+                        "status": "absent",
+                        "reason": getattr(r, "reason", "") or "",
+                    }
+                )
+            elif r.check_out_time is not None:
+                duration_m = r.duration_minutes or 0
+                checked_out.append(
+                    {
+                        "employee_id": emp.employee_id,
+                        "name": emp.name,
+                        "department": emp.department or "General",
+                        "designation": emp.designation or "Staff",
+                        "phone": getattr(emp, "phone", "") or "--",
+                        "profile_img": prof_img,
+                        "check_in": format_time(r.check_in_time),
+                        "check_out": format_time(r.check_out_time),
+                        "duration": format_duration(duration_m),
+                        "status": "checked_out",
+                        "work_mode": getattr(r, "work_mode", "office"),
+                    }
+                )
+            elif r.check_in_time is not None:
+                # Currently inside building
+                delta_m = max(0, int((now - r.check_in_time).total_seconds() / 60))
+                inside_building.append(
+                    {
+                        "employee_id": emp.employee_id,
+                        "name": emp.name,
+                        "department": emp.department or "General",
+                        "designation": emp.designation or "Staff",
+                        "phone": getattr(emp, "phone", "") or "--",
+                        "profile_img": prof_img,
+                        "check_in": format_time(r.check_in_time),
+                        "raw_check_in": r.check_in_time.isoformat() if r.check_in_time else "",
+                        "time_in_building": format_duration(delta_m),
+                        "minutes_in_building": delta_m,
+                        "status": r.status or "present",
+                        "work_mode": getattr(r, "work_mode", "office"),
+                        "location_status": getattr(r, "location_status", "verified"),
+                    }
+                )
+
+        # Sort inside building by most recently checked in
+        inside_building.sort(key=lambda x: x.get("minutes_in_building", 0))
+
+        # Department distribution of currently inside personnel
+        dept_counts: dict[str, int] = {}
+        for p in inside_building:
+            d = p["department"]
+            dept_counts[d] = dept_counts.get(d, 0) + 1
+
+        # Department breakdown summary
+        departments_data = [
+            {"department": d, "inside_count": c}
+            for d, c in sorted(dept_counts.items(), key=lambda x: x[1], reverse=True)
+        ]
+
+        # Recent live event ticker
+        recent_events = []
+        for r in sorted(
+            [rec for rec in records if rec.check_in_time],
+            key=lambda x: x.check_in_time,
+            reverse=True,
+        )[:15]:
+            recent_events.append(
+                {
+                    "employee_id": r.employee_id,
+                    "employee_name": r.employee_name,
+                    "action": "Checked Out" if r.check_out_time else "Checked In",
+                    "time": format_time(r.check_out_time or r.check_in_time),
+                    "status": r.status,
+                    "work_mode": getattr(r, "work_mode", "office"),
+                }
+            )
+
+        return Response(
+            {
+                "success": True,
+                "date": today,
+                "timestamp": now.isoformat(),
+                "summary": {
+                    "total_staff": total_active_staff,
+                    "currently_inside": len(inside_building),
+                    "checked_out": len(checked_out),
+                    "on_leave": len(on_leave),
+                    "absent": len(absent),
+                    "not_marked": len(not_marked),
+                    "occupancy_rate_percent": round(
+                        (len(inside_building) / max(1, total_active_staff)) * 100, 1
+                    ),
+                },
+                "inside_building": inside_building,
+                "checked_out": checked_out,
+                "on_leave": on_leave,
+                "absent": absent,
+                "departments": departments_data,
+                "recent_events": recent_events,
+            }
+        )
+    except Exception as e:
+        return Response({"success": False, "error": str(e)}, status=500)
+
+
+@api_view(["GET"])
+def security_alerts_list(request):
+    """Retrieve biometric security alerts and anomaly logs with snapshot URLs."""
+    try:
+        from .models import BiometricSecurityAlert
+
+        severity = request.query_params.get("severity", "").strip()
+        status_filter = request.query_params.get("status", "").strip()  # "open", "resolved", or ""
+
+        query = BiometricSecurityAlert.objects()
+        if severity:
+            query = query.filter(severity=severity)
+        if status_filter == "open":
+            query = query.filter(is_resolved=False)
+        elif status_filter == "resolved":
+            query = query.filter(is_resolved=True)
+
+        alerts_data = []
+        for alert in query.order_by("-created_at")[:50]:
+            snapshot_url = media_url(alert.captured_image) if alert.captured_image else ""
+            alerts_data.append(
+                {
+                    "id": str(alert.id),
+                    "employee_id": alert.employee_id or "--",
+                    "employee_name": alert.employee_name or "Unknown / Unverified",
+                    "alert_type": alert.alert_type,
+                    "title": alert.title,
+                    "description": alert.description,
+                    "severity": alert.severity,
+                    "confidence_score": round(alert.confidence_score, 3),
+                    "captured_image": snapshot_url,
+                    "latitude": alert.latitude,
+                    "longitude": alert.longitude,
+                    "ip_address": alert.ip_address,
+                    "device_info": alert.device_info,
+                    "created_at": alert.created_at.strftime("%Y-%m-%d %H:%M:%S")
+                    if alert.created_at
+                    else "",
+                    "is_resolved": alert.is_resolved,
+                    "resolved_by": alert.resolved_by,
+                    "resolution_notes": alert.resolution_notes,
+                }
+            )
+
+        unresolved_count = BiometricSecurityAlert.objects(is_resolved=False).count()
+        critical_count = BiometricSecurityAlert.objects(
+            is_resolved=False, severity="critical"
+        ).count()
+
+        return Response(
+            {
+                "success": True,
+                "total_alerts": len(alerts_data),
+                "unresolved_count": unresolved_count,
+                "critical_count": critical_count,
+                "alerts": alerts_data,
+            }
+        )
+    except Exception as e:
+        return Response({"success": False, "error": str(e)}, status=500)
+
+
+@api_view(["POST"])
+def resolve_security_alert(request):
+    """Mark a security alert as investigated and resolved with admin notes."""
+    try:
+        from .models import BiometricSecurityAlert
+
+        alert_id = request.data.get("alert_id", "").strip()
+        admin_id = request.data.get("admin_id", "").strip()
+        notes = request.data.get("notes", "").strip()
+
+        if not alert_id:
+            return Response(
+                {"success": False, "error": "alert_id is required"}, status=400
+            )
+
+        alert = BiometricSecurityAlert.objects(id=alert_id).first()
+        if not alert:
+            return Response(
+                {"success": False, "error": "Security alert not found"}, status=404
+            )
+
+        alert.is_resolved = True
+        alert.resolved_by = admin_id or "Admin"
+        alert.resolution_notes = notes or "Investigated and verified by security admin."
+        alert.save()
+
+        return Response(
+            {
+                "success": True,
+                "message": "Security alert marked as resolved",
+                "alert_id": alert_id,
+            }
+        )
+    except Exception as e:
+        return Response({"success": False, "error": str(e)}, status=500)
+
+
+@api_view(["POST"])
+def emergency_evacuation_broadcast(request):
+    """Send an emergency roll-call broadcast notification to all active web clients."""
+    try:
+        from asgiref.sync import async_to_sync
+        from channels.layers import get_channel_layer
+
+        admin_id = request.data.get("admin_id", "").strip()
+        headline = request.data.get("headline", "EMERGENCY EVACUATION NOTICE").strip()
+        instructions = request.data.get(
+            "instructions",
+            "Please proceed to your designated assembly area immediately. Account with your floor safety warden.",
+        ).strip()
+
+        channel_layer = get_channel_layer()
+        if channel_layer:
+            async_to_sync(channel_layer.group_send)(
+                "general_announcements",
+                {
+                    "type": "announcement_message",
+                    "data": {
+                        "type": "emergency_evacuation",
+                        "headline": headline,
+                        "instructions": instructions,
+                        "issued_by": admin_id or "Safety Officer",
+                        "timestamp": datetime.utcnow().isoformat(),
+                    },
+                },
+            )
+
+        # Log a critical security event
+        log_biometric_security_alert(
+            alert_type="emergency_evacuation",
+            title=f"Emergency Evacuation Triggered: {headline}",
+            description=instructions,
+            employee_id=admin_id or "ADMIN",
+            employee_name="Safety & Security Admin",
+            severity="critical",
+        )
+
+        return Response(
+            {
+                "success": True,
+                "message": "Emergency evacuation alert broadcasted successfully.",
+            }
+        )
+    except Exception as e:
+        return Response({"success": False, "error": str(e)}, status=500)
+
 
  

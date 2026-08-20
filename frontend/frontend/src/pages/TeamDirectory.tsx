@@ -20,6 +20,7 @@ import {
   Users,
   Sparkles,
   Building2,
+  ShieldAlert,
 } from "lucide-react";
 
 interface Member {
@@ -147,6 +148,12 @@ export default function TeamDirectory() {
         active:
           location.pathname === "/admin-employees" ||
           location.pathname === "/admin-create-employee",
+      },
+      {
+        icon: <ShieldAlert size={18} />,
+        label: "Security & Occupancy",
+        onClick: () => navigate("/admin-security"),
+        active: location.pathname === "/admin-security",
       },
     ];
   }, [isEmployee, location.pathname, navigate]);

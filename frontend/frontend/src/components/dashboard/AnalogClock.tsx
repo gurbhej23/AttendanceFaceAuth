@@ -109,11 +109,10 @@ export default function AnalogClock({ className = "", size }: AnalogClockProps) 
           {clockNumbers.map(({ num, x, y, isMajor }) => (
             <div
               key={num}
-              className={`absolute -translate-x-1/2 -translate-y-1/2 font-sans leading-none select-none pointer-events-none ${
-                isMajor
-                  ? "text-[9.5px] sm:text-[10.5px] text-blue-600 dark:text-cyan-300 font-black drop-shadow-xs dark:drop-shadow-[0_0_4px_rgba(6,182,212,0.6)]"
-                  : "text-[8px] sm:text-[9px] text-slate-700 dark:text-slate-200 font-bold"
-              }`}
+              className={`absolute -translate-x-1/2 -translate-y-1/2 font-sans leading-none select-none pointer-events-none ${isMajor
+                ? "text-[9.5px] sm:text-[10.5px] text-blue-600 dark:text-cyan-300 font-black drop-shadow-xs dark:drop-shadow-[0_0_4px_rgba(6,182,212,0.6)]"
+                : "text-[8px] sm:text-[9px] text-slate-700 dark:text-slate-200 font-bold"
+                }`}
               style={{
                 left: `${x}%`,
                 top: `${y}%`,

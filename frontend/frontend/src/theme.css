@@ -1179,7 +1179,22 @@ html.light .dash-modal-card .bg-slate-900\/70 {
 }
 
 html.light .dash-leave-item {
-  background-color: #f8fafc !important;
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+
+html.light .dash-leave-item .text-slate-200 {
+  color: #0f172a !important;
+}
+
+html.light .dash-leave-item .text-slate-300 {
+  color: #334155 !important;
+}
+
+html.light .dash-leave-item .bg-slate-950\/60,
+html.light .dash-leave-item .bg-slate-950\/50 {
+  background-color: #f1f5f9 !important;
   border-color: #e2e8f0 !important;
 }
 

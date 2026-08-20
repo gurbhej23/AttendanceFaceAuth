@@ -49,6 +49,7 @@ import {
   IdCardLanyard,
   ChartNoAxesCombined,
   Calendar,
+  ShieldAlert,
 } from "lucide-react";
 import {
   DEPARTMENTS,
@@ -363,6 +364,12 @@ export default function AdminProfile() {
         label: "Employees",
         onClick: () => navigate("/admin-employees"),
         active: location.pathname === "/admin-employees",
+      },
+      {
+        icon: <ShieldAlert size={18} />,
+        label: "Security & Occupancy",
+        onClick: () => navigate("/admin-security"),
+        active: location.pathname === "/admin-security",
       },
       {
         icon: <Download size={18} />,

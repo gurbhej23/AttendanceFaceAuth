@@ -8,6 +8,8 @@ import {
   Trash2,
   Users,
   X,
+  Megaphone,
+  SunMedium,
 } from "lucide-react";
 import Button from "./Button";
 import EmptyState from "./EmptyState";
@@ -51,6 +53,16 @@ const typeMeta: Record<
     icon: CalendarDays,
     label: "Leave update",
     accent: "bg-emerald-500/20 text-emerald-300",
+  },
+  holiday: {
+    icon: SunMedium,
+    label: "Holiday Notice",
+    accent: "bg-amber-500/20 text-amber-300",
+  },
+  announcement: {
+    icon: Megaphone,
+    label: "HR Bulletin",
+    accent: "bg-indigo-500/20 text-indigo-300",
   },
 };
 
@@ -136,11 +148,10 @@ export default function NotificationPanel({
                 return (
                   <li key={item.id}>
                     <div
-                      className={`notification-item group relative flex items-start gap-1 rounded-2xl border transition ${
-                        item.isRead
+                      className={`notification-item group relative flex items-start gap-1 rounded-2xl border transition ${item.isRead
                           ? "notification-item-read border-white/5 bg-white/[0.02]"
                           : "notification-item-unread border-sky-500/20 bg-white/5"
-                      }`}
+                        }`}
                     >
                       <button
                         type="button"
@@ -179,11 +190,10 @@ export default function NotificationPanel({
                           }}
                           text={<MoreVertical size={16} />}
                           unstyled
-                          className={`notification-item-menu-btn rounded-lg p-1.5 transition ${
-                            menuOpen
+                          className={`notification-item-menu-btn rounded-lg p-1.5 transition ${menuOpen
                               ? "notification-item-menu-btn-open bg-white/10 text-white"
                               : "text-slate-500 opacity-70 hover:bg-white/10 hover:text-white group-hover:opacity-100"
-                          }`}
+                            }`}
                           aria-label="Notification options"
                           aria-expanded={menuOpen}
                         />

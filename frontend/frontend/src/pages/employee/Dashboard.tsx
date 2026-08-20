@@ -207,18 +207,18 @@ const getStatusCardStyle = (s: string) => {
   }
 };
 
-const leaveStatusBadge = (s: string) => {
-  switch (s) {
-    case "leave_pending":
-      return "bg-yellow-500/20 text-yellow-500";
-    case "leave_approved":
-      return "bg-green-500/20 text-green-500";
-    case "leave_rejected":
-      return "bg-red-500/20 text-red-500";
-    default:
-      return "bg-slate-500/20 text-slate-400";
-  }
-};
+// const leaveStatusBadge = (s: string) => {
+//   switch (s) {
+//     case "leave_pending":
+//       return "bg-yellow-500/20 text-yellow-500";
+//     case "leave_approved":
+//       return "bg-green-500/20 text-green-500";
+//     case "leave_rejected":
+//       return "bg-red-500/20 text-red-500";
+//     default:
+//       return "bg-slate-500/20 text-slate-400";
+//   }
+// };
 
 const leaveStatusLabel = (s: string) => {
   switch (s) {
@@ -327,6 +327,61 @@ export default function Dashboard() {
     [markOneRead],
   );
 
+  const [dismissedBanners, setDismissedBanners] = useState<Record<string, boolean>>({});
+  const [holidaysList, setHolidaysList] = useState<
+    { id: string; date: string; name: string; applies_to: string }[]
+  >([]);
+  const [announcementsList, setAnnouncementsList] = useState<
+    { id: string; title: string; body: string; created_by_name?: string }[]
+  >([]);
+
+  const fetchHolidaysAndAnnouncements = useCallback(async () => {
+    try {
+      const [hRes, aRes] = await Promise.all([
+        API.get("/attendance/hr/holidays/"),
+        API.get("/employees/announcements/", { params: { active: "1" } }),
+      ]);
+      if (hRes.data?.success) {
+        setHolidaysList(hRes.data.holidays || []);
+      }
+      if (aRes.data?.success) {
+        setAnnouncementsList(aRes.data.announcements || []);
+      }
+    } catch {
+      /* silent */
+    }
+  }, []);
+
+  const today = getLocalDate();
+
+  const isTodayHoliday = useMemo(() => {
+    return holidaysList.find(
+      (h) =>
+        h.date === today &&
+        (!h.applies_to ||
+          h.applies_to === "all" ||
+          h.applies_to.toLowerCase() === employeeDepartment.toLowerCase()),
+    );
+  }, [holidaysList, today, employeeDepartment]);
+
+  const upcomingHolidays = useMemo(() => {
+    return holidaysList
+      .filter((h) => h.date >= today && !dismissedBanners[`holiday-${h.id || h.date}`])
+      .filter(
+        (h) =>
+          !h.applies_to ||
+          h.applies_to === "all" ||
+          h.applies_to.toLowerCase() === employeeDepartment.toLowerCase(),
+      )
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [holidaysList, today, dismissedBanners, employeeDepartment]);
+
+  const activeAnnouncements = useMemo(() => {
+    return announcementsList.filter(
+      (a) => !dismissedBanners[`announcement-${a.id}`],
+    );
+  }, [announcementsList, dismissedBanners]);
+
   useEffect(() => {
     if (showNotifications) {
       void refreshNotifications();
@@ -334,7 +389,6 @@ export default function Dashboard() {
   }, [refreshNotifications, showNotifications]);
   const profileImg = getMediaUrl(dashboardProfileImg || localStorage.getItem("profile_img"));
   const storedProfilePath = dashboardProfileImg || localStorage.getItem("profile_img") || "";
-  const today = getLocalDate();
 
   const todayRecord = records.find((r) => r.date === today);
   const todayStatus = todayRecord?.status || "";
@@ -469,6 +523,7 @@ export default function Dashboard() {
         fetchMonthlySummary(),
         fetchLeaveRequests(),
         fetchProfile(),
+        fetchHolidaysAndAnnouncements(),
       ]);
     };
 
@@ -484,6 +539,7 @@ export default function Dashboard() {
     fetchMonthlySummary,
     fetchLeaveRequests,
     fetchProfile,
+    fetchHolidaysAndAnnouncements,
     navigate,
   ]);
 
@@ -798,6 +854,111 @@ export default function Dashboard() {
           profileImg={profileImg}
         />
 
+        {/* TODAY IS A HOLIDAY BANNER */}
+        {isTodayHoliday && (
+          <div className="mb-4 rounded-3xl border-2 border-amber-500/50 bg-gradient-to-r from-amber-500/20 via-orange-500/15 to-amber-500/20 p-4 shadow-xl backdrop-blur-xl animate-pulse">
+            <div className="flex items-center gap-3.5">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-500 text-white font-bold text-2xl shadow-md shrink-0">
+                🌴
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="rounded-md bg-amber-500 px-2 py-0.5 text-[10px] font-black uppercase text-white tracking-wider">
+                    Official Holiday Today
+                  </span>
+                  <span className="text-xs font-mono font-bold text-amber-900 dark:text-amber-300">
+                    {isTodayHoliday.date}
+                  </span>
+                </div>
+                <p className="text-base font-extrabold text-amber-950 dark:text-amber-100 mt-0.5">
+                  Today is {isTodayHoliday.name}
+                </p>
+                <p className="text-xs text-amber-800/90 dark:text-amber-300/90">
+                  Office is closed today. Standard attendance requirements are exempt for all staff.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* UPCOMING HOLIDAYS BANNER */}
+        {upcomingHolidays.length > 0 && !isTodayHoliday && (
+          <div className="mb-4 space-y-2">
+            {upcomingHolidays.map((h) => (
+              <div
+                key={h.id || h.date}
+                className="flex items-center justify-between gap-3 rounded-3xl border border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-amber-500/10 dark:bg-slate-900/90 p-3.5 backdrop-blur-xl shadow-md"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0 text-lg">
+                    🌴
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs sm:text-sm font-extrabold text-amber-900 dark:text-amber-200 truncate">
+                      Upcoming Company Holiday: {h.name}
+                    </p>
+                    <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80 truncate font-mono">
+                      📅 Scheduled on {h.date} • Office Closed ({h.applies_to || "All"})
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setDismissedBanners((prev) => ({
+                      ...prev,
+                      [`holiday-${h.id || h.date}`]: true,
+                    }))
+                  }
+                  className="rounded-lg p-1.5 text-amber-700 dark:text-amber-400 hover:bg-amber-500/15 cursor-pointer shrink-0"
+                  title="Dismiss notice"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* HR ANNOUNCEMENTS BANNER */}
+        {activeAnnouncements.length > 0 && (
+          <div className="mb-4 space-y-2">
+            {activeAnnouncements.map((a) => (
+              <div
+                key={a.id}
+                className="flex items-center justify-between gap-3 rounded-3xl border border-indigo-500/30 bg-gradient-to-r from-indigo-500/10 via-violet-500/5 to-indigo-500/10 dark:bg-slate-900/90 p-3.5 backdrop-blur-xl shadow-md"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 shrink-0 text-lg">
+                    📢
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs sm:text-sm font-extrabold text-indigo-900 dark:text-indigo-200 truncate">
+                      {a.title}
+                    </p>
+                    <p className="text-[11px] text-indigo-800/80 dark:text-indigo-300/80 truncate">
+                      {a.body}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setDismissedBanners((prev) => ({
+                      ...prev,
+                      [`announcement-${a.id}`]: true,
+                    }))
+                  }
+                  className="rounded-lg p-1.5 text-indigo-700 dark:text-indigo-400 hover:bg-indigo-500/15 cursor-pointer shrink-0"
+                  title="Dismiss announcement"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* CHECK-IN OPTIONS BAR */}
         <div className="dash-shell-panel mb-4 p-4.5 rounded-3xl border border-slate-200 dark:border-white/15 bg-white dark:bg-slate-900/80 backdrop-blur-xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
           <div>
@@ -1069,32 +1230,44 @@ export default function Dashboard() {
           setHalfDayUntil("");
         }}
       >
-        <div className="dash-modal-card w-full rounded-4xl border border-white/10 bg-[#111827] p-8 shadow-2xl">
-          <div className="w-16 h-16 rounded-3xl bg-orange-500/20 flex items-center justify-center text-3xl mx-auto mb-5">
+        <div className="dash-modal-card relative w-full overflow-hidden rounded-3xl border border-amber-500/30 bg-slate-950/95 p-6 sm:p-7 shadow-[0_0_50px_rgba(245,158,11,0.15)] backdrop-blur-2xl">
+          <div className="pointer-events-none absolute -top-20 -left-20 h-40 w-40 rounded-full bg-amber-500/15 blur-3xl" />
+          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/15 border border-amber-500/30 text-2xl shadow-inner">
             🌗
           </div>
-          <h2 className="text-2xl text-white font-bold text-center mb-2">
-            Half Day Details
+          <h2 className="text-xl sm:text-2xl text-white font-extrabold text-center mb-1 tracking-tight">
+            Half Day Request
           </h2>
-          <p className="text-slate-400 text-center text-sm mb-6">
-            Enter your half day time and reason
+          <p className="text-slate-400 text-center text-xs sm:text-sm mb-5">
+            Specify your departure/arrival time and brief reason
           </p>
-          <label className="text-slate-400 text-sm mb-2 block">
-            Half day until
-          </label>
-          <Input
-            type="time"
-            value={halfDayUntil}
-            onChange={(e) => setHalfDayUntil(e.target.value)}
-            className="w-full p-4 rounded-2xl bg-slate-900/70 text-white border border-slate-700 focus:border-orange-500 outline-none mb-4"
-          />
-          <label className="text-slate-400 text-sm mb-2 block">Reason</label>
-          <textarea
-            value={halfDayReason}
-            onChange={(e) => setHalfDayReason(e.target.value)}
-            placeholder="Enter reason..."
-            className="w-full h-28 p-4 rounded-2xl bg-slate-900/70 text-white border border-slate-700 focus:border-orange-500 outline-none resize-none"
-          />
+
+          <div className="space-y-4 text-left">
+            <div>
+              <label className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5 block">
+                Half Day Until (Time)
+              </label>
+              <Input
+                type="time"
+                value={halfDayUntil}
+                onChange={(e) => setHalfDayUntil(e.target.value)}
+                className="w-full p-3 rounded-xl bg-slate-900/90 text-white border border-slate-700 focus:border-amber-500 outline-none text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5 block">
+                Reason for Half Day
+              </label>
+              <textarea
+                value={halfDayReason}
+                onChange={(e) => setHalfDayReason(e.target.value)}
+                placeholder="Explain the reason for half day..."
+                className="w-full h-24 p-3 rounded-xl bg-slate-900/90 text-white border border-slate-700 focus:border-amber-500 outline-none resize-none text-sm"
+              />
+            </div>
+          </div>
+
           <div className="flex gap-3 mt-6">
             <Button
               text="Cancel"
@@ -1103,12 +1276,12 @@ export default function Dashboard() {
                 setHalfDayReason("");
                 setHalfDayUntil("");
               }}
-              className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-2xl font-semibold transition cursor-pointer"
+              className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 py-3 rounded-2xl font-semibold transition cursor-pointer text-xs sm:text-sm"
             />
             <Button
-              text="Submit"
+              text="Submit Half Day"
               onClick={markHalfDay}
-              className="flex-1 bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-2xl font-semibold transition cursor-pointer"
+              className="flex-1 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white py-3 rounded-2xl font-bold transition cursor-pointer shadow-lg shadow-amber-500/25 text-xs sm:text-sm"
             />
           </div>
         </div>
@@ -1119,75 +1292,90 @@ export default function Dashboard() {
         open={showLeaveModal}
         onClose={() => setShowLeaveModal(false)}
       >
-        <div className="dash-modal-card w-full rounded-4xl border border-white/10 bg-[#111827] p-6 shadow-2xl sm:p-7">
-          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-3xl bg-purple-500/20 text-2xl">
+        <div className="dash-modal-card relative w-full overflow-hidden rounded-3xl border border-purple-500/30 bg-slate-950/95 p-6 sm:p-7 shadow-[0_0_50px_rgba(168,85,247,0.15)] backdrop-blur-2xl">
+          <div className="pointer-events-none absolute -top-20 -left-20 h-40 w-40 rounded-full bg-purple-500/15 blur-3xl" />
+          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-500/15 border border-purple-500/30 text-2xl shadow-inner">
             🏖️
           </div>
-          <h2 className="mb-1 text-center text-2xl font-bold text-white">
-            Request Leave
+          <h2 className="mb-1 text-center text-xl sm:text-2xl font-extrabold text-white tracking-tight">
+            Apply For Leave
           </h2>
-          <p className="mb-5 text-center text-sm text-slate-400">
-            Leave will be sent for admin approval
+          <p className="mb-5 text-center text-xs sm:text-sm text-slate-400">
+            Submit leave dates for manager approval
           </p>
 
-          <label className="mb-2 block text-sm text-slate-400">
-            Leave Start Date
-          </label>
-          <DashboardDatePicker
-            value={leaveDate}
-            min={today}
-            onChange={(ymd) => {
-              setLeaveDate(ymd);
-              if (leaveEndDate < ymd) setLeaveEndDate(ymd);
-            }}
-            placeholder="Select start date"
-            className="mb-4 w-full"
-          />
+          <div className="space-y-4 text-left">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1.5 block text-xs font-bold text-slate-300 uppercase tracking-wider">
+                  Start Date
+                </label>
+                <DashboardDatePicker
+                  value={leaveDate}
+                  min={today}
+                  onChange={(ymd) => {
+                    setLeaveDate(ymd);
+                    if (leaveEndDate < ymd) setLeaveEndDate(ymd);
+                  }}
+                  placeholder="Select start date"
+                  className="w-full"
+                />
+              </div>
 
-          <label className="mb-2 block text-sm text-slate-400">
-            Leave End Date
-          </label>
-          <DashboardDatePicker
-            value={leaveEndDate}
-            min={leaveDate}
-            onChange={setLeaveEndDate}
-            placeholder="Select end date"
-            className="mb-4 w-full"
-          />
+              <div>
+                <label className="mb-1.5 block text-xs font-bold text-slate-300 uppercase tracking-wider">
+                  End Date
+                </label>
+                <DashboardDatePicker
+                  value={leaveEndDate}
+                  min={leaveDate}
+                  onChange={setLeaveEndDate}
+                  placeholder="Select end date"
+                  className="w-full"
+                />
+              </div>
+            </div>
 
-          <label className="mb-2 block text-sm text-slate-400">
-            Leave Type
-          </label>
-          <div className="mb-4 grid grid-cols-3 gap-2">
-            {[
-              { v: "casual", l: "Casual", e: "😊" },
-              { v: "sick", l: "Sick", e: "🤒" },
-              { v: "emergency", l: "Emergency", e: "🚨" },
-            ].map(({ v, l, e }) => (
-              <button
-                key={v}
-                onClick={() => setLeaveType(v)}
-                className={`flex cursor-pointer flex-col items-center gap-1 rounded-2xl border py-2.5 text-sm font-semibold transition ${
-                  leaveType === v
-                    ? "border-purple-500 bg-purple-600 text-white"
-                    : "dash-leave-type-inactive border-slate-700 bg-slate-800 text-slate-400 hover:border-purple-500"
-                }`}
-              >
-                <span>{e}</span>
-                {l}
-              </button>
-            ))}
+            <div>
+              <label className="mb-1.5 block text-xs font-bold text-slate-300 uppercase tracking-wider">
+                Leave Type
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { v: "casual", l: "Casual", e: "😊" },
+                  { v: "sick", l: "Sick", e: "🤒" },
+                  { v: "emergency", l: "Emergency", e: "🚨" },
+                ].map(({ v, l, e }) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setLeaveType(v)}
+                    className={`flex cursor-pointer flex-col items-center gap-1 rounded-2xl border py-2 text-xs sm:text-sm font-semibold transition ${leaveType === v
+                        ? "border-purple-500 bg-gradient-to-br from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-500/20"
+                        : "border-slate-700/80 bg-slate-900/80 text-slate-400 hover:border-purple-500/50 hover:text-white"
+                      }`}
+                  >
+                    <span>{e}</span>
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-xs font-bold text-slate-300 uppercase tracking-wider">
+                Reason
+              </label>
+              <textarea
+                value={leaveReason}
+                onChange={(e) => setLeaveReason(e.target.value)}
+                placeholder="Enter detailed reason for leave..."
+                className="h-22 w-full resize-none rounded-xl border border-slate-700 bg-slate-900/90 p-3 text-sm text-white outline-none focus:border-purple-500"
+              />
+            </div>
           </div>
 
-          <label className="mb-2 block text-sm text-slate-400">Reason</label>
-          <textarea
-            value={leaveReason}
-            onChange={(e) => setLeaveReason(e.target.value)}
-            placeholder="Enter reason for leave..."
-            className="dash-modal-field h-24 w-full resize-none rounded-2xl border border-slate-700 bg-slate-900/70 p-4 text-white outline-none focus:border-purple-500"
-          />
-
-          <div className="mt-5 flex gap-3">
+          <div className="mt-6 flex gap-3">
             <Button
               text="Cancel"
               onClick={() => {
@@ -1195,60 +1383,92 @@ export default function Dashboard() {
                 setLeaveReason("");
                 setLeaveType("casual");
               }}
-              className="dash-modal-cancel-btn flex-1 cursor-pointer rounded-2xl border border-slate-600 bg-slate-700 py-3 font-semibold text-white transition hover:bg-slate-600"
+              className="flex-1 cursor-pointer rounded-2xl border border-slate-700 bg-slate-800 hover:bg-slate-700 py-3 font-semibold text-slate-200 transition text-xs sm:text-sm"
             />
             <Button
-              text="Submit Request"
+              text="Submit Leave Request"
               onClick={requestLeave}
-              className="flex-1 cursor-pointer rounded-2xl bg-purple-600 py-3 font-semibold text-white transition hover:bg-purple-700"
+              className="flex-1 cursor-pointer rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 py-3 font-bold text-white transition shadow-lg shadow-purple-500/25 text-xs sm:text-sm"
             />
           </div>
         </div>
       </PortalModal>
 
-      {/* ── MY LEAVE REQUESTS MODAL ── */}
+      {/* ── MY LEAVE REQUESTS SCROLLABLE MODAL ── */}
       <PortalModal
         open={showLeavesModal}
         onClose={() => setShowLeavesModal(false)}
         cardClassName="max-w-lg"
       >
-        <div className="dash-modal-card w-full rounded-4xl border border-white/10 bg-[#111827] p-6 shadow-2xl sm:p-8">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-purple-500/20 text-3xl">
-            🏖️
+        <div className="dash-modal-card relative w-full overflow-hidden rounded-3xl border border-purple-500/30 bg-slate-950/95 p-5 sm:p-7 shadow-[0_0_60px_rgba(168,85,247,0.15)] backdrop-blur-2xl">
+          <div className="pointer-events-none absolute -top-20 -left-20 h-40 w-40 rounded-full bg-purple-500/15 blur-3xl" />
+
+          <div className="flex items-center justify-between border-b border-white/10 pb-3.5 mb-4">
+            <div className="flex items-center gap-2.5 text-left">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/15 border border-purple-500/30 text-xl">
+                🏖️
+              </div>
+              <div>
+                <h2 className="text-base sm:text-lg font-bold text-white leading-tight">
+                  My Leave Requests
+                </h2>
+                <p className="text-xs text-slate-400">
+                  Track the approval status of your leave submissions
+                </p>
+              </div>
+            </div>
+            <span className="rounded-full bg-purple-500/20 px-2.5 py-0.5 text-xs font-bold text-purple-300 border border-purple-500/30">
+              {myLeaveRequests.length} Total
+            </span>
           </div>
-          <h2 className="mb-6 text-center text-2xl font-bold text-white">
-            My Leave Requests
-          </h2>
 
           {myLeaveRequests.length === 0 ? (
             <EmptyState
-              icon={<span className="text-2xl">🏖️</span>}
+              icon={<span className="text-3xl">🏖️</span>}
               title="No leave requests yet"
             />
           ) : (
-            <div className="max-h-72 space-y-3 overflow-y-auto pr-1">
+            <div className="max-h-80 space-y-3 overflow-y-auto pr-1">
               {myLeaveRequests.map((r, i) => (
                 <div
                   key={i}
-                  className="dash-leave-item flex items-start justify-between gap-3 rounded-2xl border border-slate-700 bg-slate-800 p-4"
+                  className="dash-leave-item group relative overflow-hidden rounded-2xl border border-slate-700/80 bg-slate-900/90 p-4 transition-all duration-300 hover:border-slate-600 hover:bg-slate-800/90 shadow-md text-left"
                 >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-white font-medium text-sm">
-                        {r.date}
-                      </span>
+                  {/* Status Left Accent Indicator */}
+                  <div
+                    className={`absolute top-0 left-0 bottom-0 w-1.5 ${r.status === "approved"
+                        ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"
+                        : r.status === "rejected"
+                          ? "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.8)]"
+                          : "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]"
+                      }`}
+                  />
+                  <div className="pl-2 flex flex-col gap-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs font-bold text-slate-200">
+                          📅 {r.date}
+                        </span>
+                        <span className="rounded-md bg-purple-500/15 border border-purple-500/30 px-2 py-0.5 text-[10px] font-bold text-purple-300 uppercase tracking-wide">
+                          {r.leave_type}
+                        </span>
+                      </div>
                       <span
-                        className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${leaveStatusBadge(r.status)}`}
+                        className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold capitalize border ${r.status === "approved"
+                            ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-300"
+                            : r.status === "rejected"
+                              ? "bg-rose-500/15 border-rose-500/40 text-rose-300"
+                              : "bg-amber-400/15 border-amber-400/40 text-amber-300"
+                          }`}
                       >
                         {leaveStatusLabel(r.status)}
                       </span>
-                      <span className="px-2 py-0.5 rounded-full text-xs bg-purple-500/20 text-purple-300 capitalize">
-                        {r.leave_type}
-                      </span>
                     </div>
-                    <p className="text-slate-400 text-sm wrap-break-words">
-                      {r.reason}
-                    </p>
+                    {r.reason && (
+                      <p className="text-xs text-slate-300 bg-slate-950/60 p-2.5 rounded-xl border border-white/5 wrap-break-words leading-relaxed">
+                        {r.reason}
+                      </p>
+                    )}
                   </div>
                 </div>
               ))}
@@ -1258,7 +1478,7 @@ export default function Dashboard() {
           <Button
             text="Close"
             onClick={() => setShowLeavesModal(false)}
-            className="dash-modal-cancel-btn mt-6 w-full cursor-pointer rounded-2xl border border-slate-600 bg-slate-700 py-3 font-semibold text-white transition hover:bg-slate-600"
+            className="dash-modal-cancel-btn mt-5 w-full cursor-pointer rounded-2xl border border-slate-700 bg-slate-800 py-3 font-semibold text-slate-200 transition hover:bg-slate-700 text-xs sm:text-sm"
           />
         </div>
       </PortalModal>
