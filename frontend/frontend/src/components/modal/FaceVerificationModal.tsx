@@ -1,5 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import Webcam from "react-webcam";
+import { motion, AnimatePresence } from "framer-motion";
 import PortalModal from "../common/PortalModal";
 import Button from "../common/Button";
 import API, { FACE_REQUEST_TIMEOUT_MS } from "../../services/api";
@@ -8,12 +9,13 @@ import {
   Camera,
   CheckCircle2,
   AlertCircle,
-  RefreshCw,
-  Scan,
+  ScanFace,
   RotateCcw,
   Sparkles,
   ShieldCheck,
   X,
+  Clock,
+  RefreshCw,
 } from "lucide-react";
 
 interface FaceVerificationModalProps {
@@ -37,6 +39,30 @@ export default function FaceVerificationModal({
   const [verifying, setVerifying] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [currentTime, setCurrentTime] = useState(() =>
+    new Date().toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true,
+    })
+  );
+
+  // Live clock ticker
+  useEffect(() => {
+    if (!open) return;
+    const timer = setInterval(() => {
+      setCurrentTime(
+        new Date().toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: true,
+        })
+      );
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [open]);
 
   useEffect(() => {
     if (open) {
@@ -47,7 +73,7 @@ export default function FaceVerificationModal({
     }
   }, [open]);
 
-  // Step 1: Capture snapshot from webcam
+  // Capture snapshot
   const handleCapture = useCallback(() => {
     if (!webcamRef.current) return;
     const snap = webcamRef.current.getScreenshot();
@@ -59,14 +85,14 @@ export default function FaceVerificationModal({
     setErrorMsg("");
   }, []);
 
-  // Reset captured image to retake photo
+  // Reset captured image
   const handleRetake = useCallback(() => {
     setCapturedImage(null);
     setErrorMsg("");
     setSuccessMsg("");
   }, []);
 
-  // Step 2: Scan & Verify captured image with backend API
+  // Scan & Verify captured image with backend
   const handleVerify = useCallback(async () => {
     if (!capturedImage || verifying) return;
 
@@ -88,7 +114,7 @@ export default function FaceVerificationModal({
       );
 
       if (res.data?.success) {
-        setSuccessMsg("✅ Face Verified! Attendance Marked.");
+        setSuccessMsg(res.data.message || "Face Verified! Attendance Marked.");
         setTimeout(() => {
           onSuccess(
             res.data.message || "Present marked successfully!",
@@ -96,7 +122,7 @@ export default function FaceVerificationModal({
             res.data.minutes_late
           );
           onClose();
-        }, 1000);
+        }, 1200);
       } else {
         setErrorMsg(res.data?.error || "Face verification failed. Please try again.");
       }
@@ -111,24 +137,32 @@ export default function FaceVerificationModal({
 
   return (
     <PortalModal open={open} onClose={onClose} cardClassName="max-w-md">
-      <div className="dash-modal-card relative w-full overflow-hidden rounded-3xl border border-cyan-500/30 bg-slate-950/95 p-5 sm:p-6 shadow-[0_0_50px_rgba(6,182,212,0.18)] backdrop-blur-2xl text-center">
-        {/* Glow ambient background accents */}
-        <div className="pointer-events-none absolute -top-20 -left-20 h-44 w-44 rounded-full bg-cyan-500/15 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-20 -right-20 h-44 w-44 rounded-full bg-blue-600/15 blur-3xl" />
+      <div className="dash-modal-card relative w-full overflow-hidden rounded-3xl border border-white/15 bg-slate-950/95 p-5 sm:p-6 shadow-[0_0_60px_rgba(0,0,0,0.7)] backdrop-blur-2xl text-center">
+        {/* Ambient glow */}
+        <div className="pointer-events-none absolute -top-24 -left-24 h-48 w-48 rounded-full bg-cyan-500/15 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 -right-24 h-48 w-48 rounded-full bg-blue-600/15 blur-3xl" />
 
         {/* Modal Header */}
-        <div className="relative flex items-center justify-between border-b border-white/10 pb-3 mb-4">
-          <div className="flex items-center gap-2.5 text-white font-bold text-base sm:text-lg">
-            <div className="grid h-9 w-9 place-items-center rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400">
-              <Scan className="w-5 h-5 animate-pulse" />
+        <div className="relative mb-4 flex items-center justify-between border-b border-white/10 pb-3.5">
+          <div className="flex items-center gap-2.5 text-left">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 shadow-inner">
+              <ScanFace className="w-5 h-5 animate-pulse" />
             </div>
-            <div className="text-left">
-              <h3 className="leading-tight text-white font-bold">Face Verification</h3>
-              <p className="text-[11px] text-cyan-400/90 font-medium">
-                {capturedImage ? "Step 2: Review & Scan" : "Step 1: Capture Photo"}
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base sm:text-lg font-bold text-white leading-tight">
+                  Face Check-In
+                </h3>
+                <span className="rounded-full bg-cyan-500/20 border border-cyan-500/30 px-2 py-0.2 text-[9px] font-bold text-cyan-300">
+                  AI Biometric
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1 font-mono">
+                <Clock size={11} className="text-cyan-400" /> {currentTime}
               </p>
             </div>
           </div>
+
           <button
             onClick={onClose}
             disabled={verifying}
@@ -138,132 +172,153 @@ export default function FaceVerificationModal({
           </button>
         </div>
 
-        {/* Status guidance pill */}
-        <div className="relative mb-4 flex items-center justify-center">
-          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${
-            successMsg
-              ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300"
+        {/* Camera Viewport with Holographic Laser Scanner Overlay */}
+        <div
+          className={`relative mx-auto aspect-video w-full overflow-hidden rounded-2xl border-2 shadow-2xl transition-all duration-300 ${successMsg
+              ? "border-emerald-500 shadow-[0_0_30px_rgba(16,185,129,0.3)]"
               : capturedImage
-              ? "bg-cyan-500/20 border-cyan-500/40 text-cyan-300"
-              : "bg-slate-800/80 border-slate-700 text-slate-300"
-          }`}>
-            {successMsg ? (
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-            ) : capturedImage ? (
-              <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-            ) : (
-              <Camera className="w-3.5 h-3.5 text-slate-400" />
-            )}
-            {successMsg || (capturedImage ? (verifying ? "Biometric Scanning in progress..." : "Photo Captured! Ready to scan.") : "Align your face in the oval frame")}
-          </span>
-        </div>
-
-        {/* Viewport Frame (Live Webcam or Captured Image) */}
-        <div className="relative mx-auto w-full max-w-xs aspect-4/3 overflow-hidden rounded-2xl border-2 border-cyan-500/40 bg-slate-900 shadow-2xl group">
-          {/* Tech Corner Brackets */}
-          <div className="pointer-events-none absolute top-2 left-2 h-4 w-4 border-t-2 border-l-2 border-cyan-400 z-20" />
-          <div className="pointer-events-none absolute top-2 right-2 h-4 w-4 border-t-2 border-r-2 border-cyan-400 z-20" />
-          <div className="pointer-events-none absolute bottom-2 left-2 h-4 w-4 border-b-2 border-l-2 border-cyan-400 z-20" />
-          <div className="pointer-events-none absolute bottom-2 right-2 h-4 w-4 border-b-2 border-r-2 border-cyan-400 z-20" />
+                ? "border-cyan-400 shadow-[0_0_30px_rgba(6,182,212,0.25)]"
+                : "border-cyan-500/40 shadow-[0_0_25px_rgba(6,182,212,0.15)]"
+            }`}
+        >
+          {/* Holographic Target Brackets */}
+          <div className="pointer-events-none absolute inset-3 z-10">
+            <div className="absolute top-0 left-0 h-4 w-4 border-t-2 border-l-2 border-cyan-400 rounded-tl-md shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+            <div className="absolute top-0 right-0 h-4 w-4 border-t-2 border-r-2 border-cyan-400 rounded-tr-md shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+            <div className="absolute bottom-0 left-0 h-4 w-4 border-b-2 border-l-2 border-cyan-400 rounded-bl-md shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+            <div className="absolute bottom-0 right-0 h-4 w-4 border-b-2 border-r-2 border-cyan-400 rounded-br-md shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+          </div>
 
           {!capturedImage ? (
-            /* Live Webcam Feed */
+            /* Live Webcam */
             <Webcam
               audio={false}
               ref={webcamRef}
+              mirrored
               screenshotFormat="image/jpeg"
+              screenshotQuality={0.95}
               onUserMedia={() => setCameraReady(true)}
-              className="w-full h-full object-cover"
+              className="absolute inset-0 h-full w-full object-cover"
             />
           ) : (
-            /* Captured Snapshot Preview */
+            /* Snapshot Preview */
             <img
               src={capturedImage}
               alt="Captured face preview"
-              className="w-full h-full object-cover"
+              className="absolute inset-0 h-full w-full object-cover"
             />
           )}
 
-          {/* Oval Face Alignment Reticle */}
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center z-10">
-            <div className={`h-40 w-28 sm:h-44 sm:w-32 rounded-[50%] border-2 ${
-              capturedImage
-                ? "border-emerald-400/90 shadow-[0_0_25px_rgba(52,211,153,0.4)]"
-                : "border-dashed border-cyan-400/80 shadow-[0_0_25px_rgba(56,189,248,0.3)] animate-pulse"
-            }`} />
+          {/* Oval Face Alignment Guide */}
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+            <div
+              className={`h-[78%] w-[54%] rounded-[50%] border-2 transition-all duration-300 ${successMsg
+                  ? "border-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.6)]"
+                  : capturedImage
+                    ? "border-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.5)]"
+                    : "border-dashed border-cyan-300/70 shadow-[0_0_20px_rgba(6,182,212,0.3)] animate-pulse"
+                }`}
+            />
           </div>
 
-          {/* Holographic Laser Scan Beam Effect */}
-          {(verifying || capturedImage) && (
-            <div className="pointer-events-none absolute inset-0 overflow-hidden z-15">
-              <div className={`w-full bg-linear-to-r from-transparent via-cyan-400 to-transparent ${
-                verifying
-                  ? "h-1.5 shadow-[0_0_20px_#38bdf8] animate-bounce mt-10"
-                  : "h-1 opacity-70 shadow-[0_0_10px_#38bdf8] animate-pulse mt-16"
-              }`} />
-              <div className="absolute inset-0 bg-cyan-500/5 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:16px_16px] opacity-30" />
-            </div>
+          {/* Animated Gliding Laser Scan Bar */}
+          {(!capturedImage || verifying) && (
+            <motion.div
+              className="pointer-events-none absolute left-0 right-0 z-20 h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_15px_rgba(34,211,238,1)]"
+              animate={{ top: ["8%", "92%", "8%"] }}
+              transition={{ repeat: Infinity, duration: 2.2, ease: "easeInOut" }}
+            />
           )}
 
-          {/* Viewport Live Badge */}
-          <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 z-20">
-            <span className="px-2.5 py-0.5 rounded-md bg-black/60 backdrop-blur-md text-[10px] font-mono tracking-wider text-cyan-300 uppercase border border-cyan-500/30">
-              {capturedImage ? "PREVIEW: SNAPSHOT" : "LIVE CAMERA"}
-            </span>
+          {/* Top-Right Camera Status Pill */}
+          <div className="absolute top-2.5 right-2.5 z-20">
+            <div className="flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[9px] font-bold backdrop-blur-md border border-cyan-500/40 bg-slate-950/80 text-cyan-300">
+              <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
+              {capturedImage ? "SNAPSHOT READY" : "LIVE CAMERA"}
+            </div>
           </div>
         </div>
 
-        {/* Error message card */}
-        {errorMsg && (
-          <div className="mt-4 p-3 rounded-2xl bg-red-500/15 border border-red-500/30 text-red-300 text-xs flex items-center gap-2 text-left">
-            <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
-            <span className="flex-1">{errorMsg}</span>
-          </div>
-        )}
+        {/* Animated Guidance Banner */}
+        <AnimatePresence mode="wait">
+          {successMsg ? (
+            <motion.div
+              key="success"
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-3.5 flex items-center justify-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/15 p-2.5 text-xs font-semibold text-emerald-300"
+            >
+              <CheckCircle2 size={15} className="text-emerald-400 shrink-0" />
+              <span>{successMsg}</span>
+            </motion.div>
+          ) : errorMsg ? (
+            <motion.div
+              key="error"
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-3.5 flex items-center gap-2 rounded-xl border border-red-500/40 bg-red-500/15 p-2.5 text-xs text-red-300 text-left"
+            >
+              <AlertCircle size={15} className="text-red-400 shrink-0" />
+              <span className="flex-1">{errorMsg}</span>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="guide"
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-3.5 flex items-center justify-center gap-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 p-2.5 text-xs font-semibold text-cyan-200"
+            >
+              <ShieldCheck size={14} className="text-cyan-400" />
+              <span>
+                {capturedImage
+                  ? "Photo ready • Click Verify & Check In"
+                  : "Align your face in the oval and capture photo"}
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {/* Action Button Bar */}
-        <div className="mt-5 flex items-center gap-3">
+        {/* Action Buttons */}
+        <div className="mt-4 flex items-center gap-3">
           {!capturedImage ? (
-            /* Step 1 Buttons */
             <>
               <Button
                 variant="secondary"
                 onClick={onClose}
-                className="flex-1 py-3 rounded-2xl cursor-pointer"
+                className="flex-1 py-3 rounded-2xl cursor-pointer text-xs sm:text-sm font-medium"
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleCapture}
                 disabled={!cameraReady}
-                className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-cyan-500/20 disabled:opacity-40"
+                className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-cyan-500/25 disabled:opacity-40"
               >
                 <Camera className="w-4 h-4" /> Capture Photo
               </Button>
             </>
           ) : (
-            /* Step 2 Buttons */
             <>
               <Button
                 variant="secondary"
                 onClick={handleRetake}
                 disabled={verifying}
-                className="flex-1 py-3 rounded-2xl border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 font-medium flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40"
+                className="flex-1 py-3 rounded-2xl border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 font-medium flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 text-xs sm:text-sm"
               >
                 <RotateCcw className="w-4 h-4 text-slate-400" /> Retake
               </Button>
               <Button
                 onClick={handleVerify}
                 disabled={verifying}
-                className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-emerald-500/25 disabled:opacity-40"
+                className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-emerald-500/25 disabled:opacity-50 text-xs sm:text-sm"
               >
                 {verifying ? (
                   <>
-                    <RefreshCw className="w-4 h-4 animate-spin text-cyan-200" /> Scanning...
+                    <RefreshCw className="w-4 h-4 animate-spin" /> Verifying...
                   </>
                 ) : (
                   <>
-                    <ShieldCheck className="w-4 h-4 text-emerald-200" /> Scan &amp; Verify
+                    <Sparkles className="w-4 h-4 text-cyan-200" /> Verify &amp; Check In
                   </>
                 )}
               </Button>

@@ -386,7 +386,7 @@ export default function AdminProfile() {
   }
 
   return (
-    <div className="relative min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] text-slate-100 pb-16 px-4 py-5 sm:px-5 lg:px-5">
+    <div className="relative min-h-screen bg-linear-to-br from-[#020617] via-[#0f172a] to-[#111827] text-slate-100 pb-16 px-4 py-5 sm:px-5 lg:pl-24 lg:pr-6">
       {/* 3D WebGL Particle Background Canvas */}
       <AnimatedBackground particleColor={0x38bdf8} secondaryColor={0x818cf8} />
 
@@ -408,7 +408,7 @@ export default function AdminProfile() {
       <MobileMenuButton onClick={() => setMobileSidebarOpen(true)} />
 
       {/* Main Content Layout offset by sidebar */}
-      <div className="relative z-10 mx-auto max-w-7xl pt-12 sm:pt-5 lg:ml-22 lg:pt-0">
+      <div className="relative z-10 mx-auto max-w-5xl pt-12 sm:pt-5 lg:pt-0">
         {/* Sticky Top Header */}
         <header className="sticky top-0 z-30 mb-6 flex items-center justify-between border-b border-white/10 bg-transparent backdrop-blur-xl px-4 py-4 sm:px-6 shadow-xl rounded-b-2xl">
           <div className="flex items-center gap-3">

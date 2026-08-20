@@ -139,11 +139,22 @@ def get_online_contact_ids(employee_id: str) -> list[str]:
         contacts = Employee.objects(
             is_active=True, is_online=True, employee_id__ne=employee_id
         )
+        return [contact.employee_id for contact in contacts]
     else:
-        contacts = Employee.objects(
+        admin_hr = Employee.objects(
             is_active=True, is_online=True, role__in=["admin", "hr"]
         )
-    return [contact.employee_id for contact in contacts]
+        admin_hr_ids = set(c.employee_id for c in admin_hr)
+
+        sent_ids = ChatMessage.objects(sender_id=employee_id).distinct("recipient_id")
+        rec_ids = ChatMessage.objects(recipient_id=employee_id).distinct("sender_id")
+        interacted_ids = (set(sent_ids) | set(rec_ids)) - {employee_id}
+
+        interacted_online = Employee.objects(
+            is_active=True, is_online=True, employee_id__in=list(interacted_ids)
+        )
+        all_ids = admin_hr_ids.union(c.employee_id for c in interacted_online)
+        return list(all_ids)
 
 
 class ChatConsumer(AsyncWebsocketConsumer):

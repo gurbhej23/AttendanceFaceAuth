@@ -48,6 +48,8 @@ import { formatLateDuration } from "../../utils/formatLateDuration";
 import { getAttendanceStatusLabel } from "../../utils/dashboardUi";
 import AnimatedBackground from "../../components/motion/AnimatedBackground";
 import FaceVerificationModal from "../../components/modal/FaceVerificationModal";
+import PinVerificationModal from "../../components/modal/PinVerificationModal";
+import PresentChoiceModal from "../../components/modal/PresentChoiceModal";
 
 interface AttendanceRecord {
   employee_id: string;
@@ -238,7 +240,10 @@ export default function Dashboard() {
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   // const [showAttendancePrompt, setShowAttendancePrompt] = useState(true);
+  const [showPresentChoiceModal, setShowPresentChoiceModal] = useState(false);
   const [showFaceVerificationModal, setShowFaceVerificationModal] =
+    useState(false);
+  const [showPinVerificationModal, setShowPinVerificationModal] =
     useState(false);
   const [showAbsentModal, setShowAbsentModal] = useState(false);
   const [showHalfDayModal, setShowHalfDayModal] = useState(false);
@@ -274,6 +279,9 @@ export default function Dashboard() {
   const [myLeaveRequests, setMyLeaveRequests] = useState<LeaveRequest[]>([]);
   const [employeeDepartment, setEmployeeDepartment] = useState("");
   const [employeeDesignation, setEmployeeDesignation] = useState("");
+  const [dashboardProfileImg, setDashboardProfileImg] = useState(
+    () => localStorage.getItem("profile_img") || "",
+  );
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   // const [markingAttendance, setMarkingAttendance] = useState(false);
 
@@ -324,8 +332,8 @@ export default function Dashboard() {
       void refreshNotifications();
     }
   }, [refreshNotifications, showNotifications]);
-  const profileImg = getMediaUrl(localStorage.getItem("profile_img"));
-  const storedProfilePath = localStorage.getItem("profile_img") || "";
+  const profileImg = getMediaUrl(dashboardProfileImg || localStorage.getItem("profile_img"));
+  const storedProfilePath = dashboardProfileImg || localStorage.getItem("profile_img") || "";
   const today = getLocalDate();
 
   const todayRecord = records.find((r) => r.date === today);
@@ -433,6 +441,10 @@ export default function Dashboard() {
       const data = res.data.employee;
       if (data?.department) setEmployeeDepartment(data.department);
       if (data?.designation) setEmployeeDesignation(data.designation);
+      if (data?.profile_img) {
+        localStorage.setItem("profile_img", data.profile_img);
+        setDashboardProfileImg(data.profile_img);
+      }
     } catch {
       /* silent */
     }
@@ -804,7 +816,7 @@ export default function Dashboard() {
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 w-full sm:w-auto">
             <button
-              onClick={() => setShowFaceVerificationModal(true)}
+              onClick={() => setShowPresentChoiceModal(true)}
               disabled={isAttendanceMarkedToday}
               title={
                 isAttendanceMarkedToday
@@ -971,6 +983,13 @@ export default function Dashboard() {
         onLogout={handleLogout}
       />
 
+      <PresentChoiceModal
+        open={showPresentChoiceModal}
+        onClose={() => setShowPresentChoiceModal(false)}
+        onSelectFace={() => setShowFaceVerificationModal(true)}
+        onSelectPin={() => setShowPinVerificationModal(true)}
+      />
+
       <FaceVerificationModal
         open={showFaceVerificationModal}
         onClose={() => setShowFaceVerificationModal(false)}
@@ -978,7 +997,20 @@ export default function Dashboard() {
         workMode={workMode}
         onSuccess={(msg, isLate, minutesLate) => {
           showSuccess(msg);
-          // setShowAttendancePrompt(false);
+          if (isLate && minutesLate && minutesLate > 0) {
+            setLateAlert({ show: true, minutesLate });
+          }
+          fetchRecords();
+        }}
+      />
+
+      <PinVerificationModal
+        open={showPinVerificationModal}
+        onClose={() => setShowPinVerificationModal(false)}
+        employeeId={employeeId || ""}
+        workMode={workMode}
+        onSuccess={(msg, isLate, minutesLate) => {
+          showSuccess(msg);
           if (isLate && minutesLate && minutesLate > 0) {
             setLateAlert({ show: true, minutesLate });
           }

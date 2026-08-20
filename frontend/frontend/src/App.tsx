@@ -25,7 +25,17 @@ const AdminProfile = lazy(() => import("./pages/admin/AdminProfile"));
 const AdminHR = lazy(() => import("./pages/admin/AdminHR"));
 const TeamDirectory = lazy(() => import("./pages/TeamDirectory"));
 
-const SIDEBAR_ROUTES = ["/dashboard", "/attendance-sheet"];
+const SIDEBAR_ROUTES = [
+  "/dashboard",
+  "/attendance-sheet",
+  "/profile",
+  "/team",
+  "/admin-employees",
+  "/admin-create-employee",
+  "/admin-analytics",
+  "/admin-profile",
+  "/admin-hr",
+];
 
 function withPageTransition(element: ReactNode) {
   return <AnimatedPage>{element}</AnimatedPage>;

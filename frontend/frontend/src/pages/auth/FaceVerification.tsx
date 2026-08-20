@@ -1,10 +1,22 @@
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useState } from "react";
 import Webcam from "react-webcam";
 import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  CheckCircle2,
+  ScanFace,
+  ArrowLeft,
+  ShieldCheck,
+  Sparkles,
+  AlertCircle,
+  Clock,
+  RotateCcw,
+} from "lucide-react";
 import API, { FACE_REQUEST_TIMEOUT_MS } from "../../services/api";
 import { notifyAuthChanged } from "../../hooks/useEmployeeSession";
 import MessageOverlay from "../../components/chat/MessageOverlay";
 import Button from "../../components/common/Button";
+import AnimatedBackground from "../../components/motion/AnimatedBackground";
 import {
   getCurrentLocation,
   pickLivenessPrompt,
@@ -15,25 +27,46 @@ type BorderStatus = "idle" | "scanning" | "success" | "error";
 export default function VerifyFace() {
   const navigate = useNavigate();
   const webcamRef = useRef<Webcam>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationRef = useRef<number>(0);
   const verifyingRef = useRef(false);
 
   const [cameraReady, setCameraReady] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("Position your face in the oval");
+  const [message, setMessage] = useState("Align your face in the oval frame");
   const [livenessPrompt] = useState(pickLivenessPrompt);
   const [livenessDone, setLivenessDone] = useState(false);
   const [livenessCount, setLivenessCount] = useState(3);
   const [borderStatus, setBorderStatus] = useState<BorderStatus>("idle");
-  const [retryCount, setRetryCount] = useState(0);
+  const [currentTime, setCurrentTime] = useState(() =>
+    new Date().toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true,
+    })
+  );
+
   const [overlay, setOverlay] = useState<{
     title: string;
     message?: string;
     tone?: "info" | "success" | "error";
     loading?: boolean;
   } | null>(null);
+
+  // Live clock ticker
+  useEffect(() => {
+    const clockTimer = setInterval(() => {
+      setCurrentTime(
+        new Date().toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: true,
+        })
+      );
+    }, 1000);
+    return () => clearInterval(clockTimer);
+  }, []);
 
   useEffect(() => {
     const id = localStorage.getItem("employee_id");
@@ -43,6 +76,7 @@ export default function VerifyFace() {
     }
   }, [navigate]);
 
+  // Liveness countdown
   useEffect(() => {
     if (!cameraReady || livenessDone) return;
     setMessage(livenessPrompt);
@@ -51,7 +85,7 @@ export default function VerifyFace() {
         if (count <= 1) {
           window.clearInterval(timer);
           setLivenessDone(true);
-          setMessage("Liveness check complete. You can verify now.");
+          setMessage("Liveness verified! Face confirmed active.");
           return 0;
         }
         return count - 1;
@@ -81,11 +115,11 @@ export default function VerifyFace() {
         }
         const avg = lum / (data.length / 4);
         if (avg < 28) {
-          resolve({ passed: false, reason: "Too dark - improve lighting" });
+          resolve({ passed: false, reason: "Lighting too dark — improve lighting" });
           return;
         }
         if (avg > 220) {
-          resolve({ passed: false, reason: "Too bright - reduce glare" });
+          resolve({ passed: false, reason: "Too bright — reduce glare" });
           return;
         }
 
@@ -95,122 +129,31 @@ export default function VerifyFace() {
             const idx = (y * W + x) * 4;
             blur += Math.abs(
               -4 * data[idx] +
-                data[((y - 1) * W + x) * 4] +
-                data[((y + 1) * W + x) * 4] +
-                data[(y * W + (x - 1)) * 4] +
-                data[(y * W + (x + 1)) * 4],
+              data[((y - 1) * W + x) * 4] +
+              data[((y + 1) * W + x) * 4] +
+              data[(y * W + (x - 1)) * 4] +
+              data[(y * W + (x + 1)) * 4],
             );
           }
         }
         if (blur / (W * H) < 4.5) {
-          resolve({ passed: false, reason: "Too blurry - hold still" });
+          resolve({ passed: false, reason: "Image too blurry — please hold still" });
           return;
         }
 
         resolve({ passed: true, reason: "" });
       };
       img.onerror = () =>
-        resolve({ passed: false, reason: "Could not read camera image" });
+        resolve({ passed: false, reason: "Could not process camera image" });
       img.src = imageSrc;
     });
-  };
-
-  const drawOverlay = useCallback((status: BorderStatus, scanOffset: number) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    const W = canvas.width;
-    const H = canvas.height;
-    ctx.clearRect(0, 0, W, H);
-
-    const ovalX = W / 2;
-    const ovalY = H * 0.45;
-    const ovalRX = W * 0.38;
-    const ovalRY = H * 0.42;
-
-    ctx.save();
-    ctx.fillStyle = "rgba(0,0,0,0.55)";
-    ctx.fillRect(0, 0, W, H);
-    ctx.globalCompositeOperation = "destination-out";
-    ctx.beginPath();
-    ctx.ellipse(ovalX, ovalY, ovalRX, ovalRY, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-
-    const borderColor =
-      status === "success"
-        ? "#22c55e"
-        : status === "error"
-          ? "#ef4444"
-          : status === "scanning"
-            ? "#facc15"
-            : "#ffffff";
-
-    ctx.save();
-    ctx.shadowBlur = 18;
-    ctx.strokeStyle = borderColor;
-    ctx.lineWidth = 3.5;
-    ctx.beginPath();
-    ctx.ellipse(ovalX, ovalY, ovalRX, ovalRY, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
-
-    if (status === "scanning") {
-      const lineY = ovalY - ovalRY + scanOffset * ovalRY * 2;
-      const halfW = Math.sqrt(
-        Math.max(0, 1 - Math.pow((lineY - ovalY) / ovalRY, 2)) *
-          ovalRX *
-          ovalRX,
-      );
-      ctx.save();
-      const grad = ctx.createLinearGradient(
-        ovalX - halfW,
-        lineY,
-        ovalX + halfW,
-        lineY,
-      );
-      grad.addColorStop(0, "rgba(250,204,21,0)");
-      grad.addColorStop(0.5, "rgba(250,204,21,0.9)");
-      grad.addColorStop(1, "rgba(250,204,21,0)");
-      ctx.strokeStyle = grad;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(ovalX - halfW, lineY);
-      ctx.lineTo(ovalX + halfW, lineY);
-      ctx.stroke();
-      ctx.restore();
-    }
-  }, []);
-
-  useEffect(() => {
-    let scanOffset = 0;
-    let direction = 1;
-    const loop = () => {
-      if (borderStatus === "scanning") {
-        scanOffset += 0.008 * direction;
-        if (scanOffset >= 1) direction = -1;
-        if (scanOffset <= 0) direction = 1;
-      }
-      drawOverlay(borderStatus, scanOffset);
-      animationRef.current = requestAnimationFrame(loop);
-    };
-    animationRef.current = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(animationRef.current);
-  }, [borderStatus, drawOverlay]);
-
-  const resetCamera = () => {
-    setCapturedImage(null);
-    setBorderStatus("idle");
-    setMessage(livenessDone ? "Position your face in the oval" : livenessPrompt);
-    setOverlay(null);
   };
 
   const handleFaceVerification = async () => {
     if (verifyingRef.current) return;
     if (!livenessDone) {
       setBorderStatus("error");
-      setMessage("Complete the liveness prompt first");
+      setMessage("Please complete the liveness prompt first");
       return;
     }
 
@@ -222,9 +165,9 @@ export default function VerifyFace() {
     }
 
     verifyingRef.current = true;
+    setLoading(true);
     setBorderStatus("scanning");
-    setMessage("Checking image quality...");
-    setCapturedImage(null);
+    setMessage("Checking biometric frame quality...");
 
     let imageSrc: string | null = null;
 
@@ -234,8 +177,9 @@ export default function VerifyFace() {
       if (!snap) {
         if (attempt === 3) {
           setBorderStatus("error");
-          setMessage("Failed to capture image");
+          setMessage("Failed to capture image snapshot");
           verifyingRef.current = false;
+          setLoading(false);
           return;
         }
         await new Promise((r) => setTimeout(r, 700));
@@ -248,30 +192,30 @@ export default function VerifyFace() {
         setMessage(reason);
         if (attempt < 3) {
           await new Promise((r) => setTimeout(r, 800));
-          setBorderStatus("scanning");
-          setMessage("Position your face in the oval");
           continue;
         }
         verifyingRef.current = false;
+        setLoading(false);
         return;
       }
 
       imageSrc = snap;
+      setCapturedImage(snap);
       break;
     }
 
     if (!imageSrc) {
+      setBorderStatus("error");
+      setMessage("Could not capture suitable face image");
       verifyingRef.current = false;
+      setLoading(false);
       return;
     }
 
-    setCapturedImage(imageSrc);
-    setLoading(true);
-    setBorderStatus("scanning");
-    setMessage("Verifying face...");
+    setMessage("Verifying biometric signature...");
     setOverlay({
-      title: "Verifying face",
-      message: "Please hold still while we compare your face.",
+      title: "Verifying Face Identity",
+      message: "Comparing live biometric embeddings against registered profile...",
       tone: "info",
       loading: true,
     });
@@ -279,7 +223,7 @@ export default function VerifyFace() {
     try {
       const location = await getCurrentLocation();
       const response = await API.post(
-        "/attendance/verify-face/",
+        "/employees/verify-face/",
         {
           employee_id,
           image: imageSrc,
@@ -290,13 +234,16 @@ export default function VerifyFace() {
 
       if (response.data.success) {
         setBorderStatus("success");
-        setMessage(response.data.message || "Face verified");
+        setMessage("Biometric face match confirmed!");
 
-        if (response.data.employee_id) {
-          localStorage.setItem("employee_id", response.data.employee_id);
+        if (response.data.token) {
+          localStorage.setItem("token", response.data.token);
         }
-        if (response.data.employee_name) {
-          localStorage.setItem("employee_name", response.data.employee_name);
+        if (response.data.role) {
+          localStorage.setItem("role", response.data.role);
+        }
+        if (response.data.name) {
+          localStorage.setItem("employee_name", response.data.name);
         }
         if (response.data.profile_img) {
           localStorage.setItem("profile_img", response.data.profile_img);
@@ -307,15 +254,15 @@ export default function VerifyFace() {
         notifyAuthChanged();
 
         setOverlay({
-          title: "Face verified",
-          message: "Welcome back. Opening your dashboard.",
+          title: "Face Verified!",
+          message: "Authentication successful. Entering your dashboard...",
           tone: "success",
           loading: true,
         });
-        setTimeout(() => navigate("/dashboard", { replace: true }), 1600);
+        setTimeout(() => navigate("/dashboard", { replace: true }), 1500);
       } else {
         setBorderStatus("error");
-        setMessage(response.data.error || "Face not recognised. Please try again.");
+        setMessage(response.data.error || "Face not recognized. Please try again.");
         setOverlay(null);
       }
     } catch (err: unknown) {
@@ -329,26 +276,22 @@ export default function VerifyFace() {
     }
   };
 
-  const ringColor =
-    borderStatus === "success"
-      ? "ring-green-500 shadow-green-500/40"
-      : borderStatus === "error"
-        ? "ring-red-500 shadow-red-500/40"
-        : borderStatus === "scanning"
-          ? "ring-yellow-400 shadow-yellow-400/30"
-          : "ring-white/30";
-
-  const messageColor =
-    borderStatus === "success"
-      ? "text-green-400"
-      : borderStatus === "error"
-        ? "text-red-400"
-        : borderStatus === "scanning"
-          ? "text-yellow-300"
-          : "text-white";
+  const resetCamera = () => {
+    setCapturedImage(null);
+    setBorderStatus("idle");
+    setMessage("Align your face in the oval frame");
+    setOverlay(null);
+  };
 
   return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-5">
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-[#020617] via-[#091124] to-[#0f172a] p-4 sm:p-6">
+      {/* 3D Particle Ambient Background */}
+      <AnimatedBackground particleColor={0x38bdf8} secondaryColor={0x818cf8} />
+
+      {/* Ambient glow */}
+      <div className="pointer-events-none absolute -top-40 -left-40 h-96 w-96 rounded-full bg-cyan-500/15 blur-[120px]" />
+      <div className="pointer-events-none absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-indigo-600/15 blur-[120px]" />
+
       {overlay && (
         <MessageOverlay
           title={overlay.title}
@@ -358,116 +301,213 @@ export default function VerifyFace() {
         />
       )}
 
-      <h1 className="text-3xl text-white mb-1 font-semibold">
-        Face Verification
-      </h1>
-      <p className="text-gray-400 mb-6 text-sm">
-        {livenessDone
-          ? "Keep your full face visible with a little space around it"
-          : `${livenessPrompt} (${livenessCount})`}
-      </p>
-
-      <div
-        className={`relative w-full h-110 max-w-xl aspect-video rounded-4xl overflow-hidden ring-4 shadow-lg transition-all ${ringColor}`}
+      {/* Main Glassmorphic Card */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.92, y: 15 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.25, 1, 0.5, 1] }}
+        className="relative z-10 w-full max-w-md overflow-hidden rounded-3xl border border-white/15 bg-slate-950/85 p-5 sm:p-7 shadow-[0_0_60px_rgba(0,0,0,0.6)] backdrop-blur-2xl text-center"
       >
-        {!capturedImage ? (
-          <Webcam
-            ref={webcamRef}
-            audio={false}
-            mirrored
-            screenshotFormat="image/jpeg"
-            screenshotQuality={0.95}
-            onUserMedia={() => setCameraReady(true)}
-            onUserMediaError={() => {
-              setBorderStatus("error");
-              setMessage("Camera access denied - please allow camera and refresh");
-            }}
-            videoConstraints={{
-              facingMode: "user",
-              width: { ideal: 800 },
-              height: { ideal: 720 },
-            }}
-            style={{
-              position: "absolute", 
-              top: "0",
-              left: "0",
-              objectFit: "cover",
-            }}
+        {/* Header */}
+        <div className="mb-5 flex flex-col items-center">
+          <div className="mb-2.5 inline-flex items-center gap-1.5 rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-xs font-semibold text-cyan-300">
+            <Sparkles size={13} className="text-cyan-400" />
+            <span>AI Biometric Check-In</span>
+          </div>
+
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2">
+            Face Verification
+          </h1>
+
+          <div className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-slate-400 font-mono">
+            <Clock size={13} className="text-cyan-400" />
+            <span>Current Time: {currentTime}</span>
+          </div>
+        </div>
+
+        {/* Camera Viewport with Futuristic AI Scanner Overlay */}
+        <div
+          className={`relative mx-auto aspect-video w-full overflow-hidden rounded-2xl border-2 shadow-2xl transition-all duration-300 ${borderStatus === "success"
+              ? "border-emerald-500 shadow-[0_0_30px_rgba(16,185,129,0.3)]"
+              : borderStatus === "error"
+                ? "border-red-500 shadow-[0_0_30px_rgba(239,68,68,0.3)]"
+                : livenessDone
+                  ? "border-cyan-400 shadow-[0_0_30px_rgba(6,182,212,0.25)]"
+                  : "border-cyan-500/50 shadow-[0_0_25px_rgba(6,182,212,0.2)]"
+            }`}
+        >
+          {!capturedImage ? (
+            <Webcam
+              ref={webcamRef}
+              audio={false}
+              mirrored
+              screenshotFormat="image/jpeg"
+              screenshotQuality={0.95}
+              onUserMedia={() => setCameraReady(true)}
+              onUserMediaError={() => {
+                setBorderStatus("error");
+                setMessage("Camera access denied - please enable camera permissions");
+              }}
+              videoConstraints={{
+                facingMode: "user",
+              }}
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+          ) : (
+            <img
+              src={capturedImage}
+              alt="Captured face preview"
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+          )}
+
+          {/* Holographic Target Brackets */}
+          <div className="pointer-events-none absolute inset-3 z-10">
+            <div className="absolute top-0 left-0 h-5 w-5 border-t-2 border-l-2 border-cyan-400 rounded-tl-md shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+            <div className="absolute top-0 right-0 h-5 w-5 border-t-2 border-r-2 border-cyan-400 rounded-tr-md shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+            <div className="absolute bottom-0 left-0 h-5 w-5 border-b-2 border-l-2 border-cyan-400 rounded-bl-md shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+            <div className="absolute bottom-0 right-0 h-5 w-5 border-b-2 border-r-2 border-cyan-400 rounded-br-md shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+          </div>
+
+          {/* Oval Face Guide Reticle */}
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+            <div
+              className={`h-[78%] w-[56%] rounded-[50%] border-2 transition-all duration-300 ${borderStatus === "success"
+                  ? "border-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.6)]"
+                  : borderStatus === "error"
+                    ? "border-red-400 shadow-[0_0_20px_rgba(239,68,68,0.6)]"
+                    : livenessDone
+                      ? "border-cyan-300 shadow-[0_0_20px_rgba(6,182,212,0.4)]"
+                      : "border-dashed border-cyan-300/70 shadow-[0_0_20px_rgba(6,182,212,0.3)] animate-pulse"
+                }`}
+            />
+          </div>
+
+          {/* Animated Gliding Laser Scan Bar */}
+          {(!capturedImage || borderStatus === "scanning") && (
+            <motion.div
+              className="pointer-events-none absolute left-0 right-0 z-20 h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_15px_rgba(34,211,238,1)]"
+              animate={{ top: ["8%", "92%", "8%"] }}
+              transition={{ repeat: Infinity, duration: 2.2, ease: "easeInOut" }}
+            />
+          )}
+
+          {/* Active AI Status Pill inside Camera */}
+          <div className="absolute top-2.5 right-2.5 z-20">
+            <div
+              className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold backdrop-blur-md border ${borderStatus === "success"
+                  ? "border-emerald-500/50 bg-emerald-950/80 text-emerald-300"
+                  : borderStatus === "error"
+                    ? "border-red-500/50 bg-red-950/80 text-red-300"
+                    : livenessDone
+                      ? "border-cyan-500/50 bg-slate-950/80 text-cyan-300"
+                      : "border-cyan-500/50 bg-slate-950/80 text-cyan-300"
+                }`}
+            >
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${borderStatus === "success"
+                    ? "bg-emerald-400 animate-pulse"
+                    : borderStatus === "error"
+                      ? "bg-red-400"
+                      : livenessDone
+                        ? "bg-emerald-400 animate-pulse"
+                        : "bg-cyan-400 animate-ping"
+                  }`}
+              />
+              {borderStatus === "success"
+                ? "MATCHED"
+                : borderStatus === "error"
+                  ? "RETRY"
+                  : livenessDone
+                    ? "READY"
+                    : `LIVENESS: ${livenessCount}s`}
+            </div>
+          </div>
+        </div>
+
+        {/* Status Prompt Banner */}
+        <AnimatePresence mode="wait">
+          {message && (
+            <motion.div
+              key={message}
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -5 }}
+              className={`mt-4 flex items-center justify-center gap-2 rounded-2xl border p-3 text-xs font-semibold ${borderStatus === "success"
+                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                  : borderStatus === "error"
+                    ? "border-red-500/30 bg-red-500/10 text-red-300"
+                    : livenessDone
+                      ? "border-cyan-500/30 bg-cyan-500/10 text-cyan-200"
+                      : "border-cyan-500/30 bg-cyan-500/10 text-cyan-200"
+                }`}
+            >
+              {borderStatus === "success" ? (
+                <CheckCircle2 size={16} className="shrink-0 text-emerald-400" />
+              ) : borderStatus === "error" ? (
+                <AlertCircle size={16} className="shrink-0 text-red-400" />
+              ) : (
+                <ShieldCheck size={16} className="shrink-0 text-cyan-400 animate-pulse" />
+              )}
+              <span>{message}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Action Button */}
+        {borderStatus === "success" ? (
+          <Button
+            disabled
+            text="Opening Dashboard..."
+            className="mt-5 w-full rounded-2xl py-3.5 text-sm font-bold text-white bg-emerald-600 shadow-lg shadow-emerald-500/25"
           />
         ) : (
-          <img
-            src={capturedImage}
-            alt="Captured face"
-            style={{
-              position: "absolute",
-              width: "100%",
-              height: "100%",
-              top: "0",
-              left: "0",
-              objectFit: "cover",
-            }}
+          <Button
+            onClick={handleFaceVerification}
+            disabled={!cameraReady || !livenessDone || loading || borderStatus === "scanning"}
+            loading={loading || borderStatus === "scanning"}
+            text={
+              loading || borderStatus === "scanning" ? (
+                "Verifying Face Signature..."
+              ) : !livenessDone ? (
+                `Scanning Liveness (${livenessCount}s)`
+              ) : (
+                <span className="flex items-center justify-center gap-2">
+                  <ScanFace size={16} /> Verify &amp; Check In
+                </span>
+              )
+            }
+            className={`mt-5 w-full rounded-2xl py-3.5 text-sm font-bold text-white shadow-lg transition-all duration-300 cursor-pointer ${livenessDone && !loading
+                ? "bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 shadow-cyan-500/25 hover:from-cyan-500 hover:to-indigo-500"
+                : "bg-slate-800 text-slate-400 opacity-60 cursor-not-allowed"
+              }`}
           />
         )}
 
-        <canvas
-          ref={canvasRef}
-          width={600}
-          height={400}
-          className="absolute inset-0 w-full h-120"
-        />
-      </div>
+        {/* Secondary Links */}
+        <div className="mt-3.5 flex items-center justify-center gap-4 text-xs">
+          {capturedImage && borderStatus !== "success" && (
+            <button
+              type="button"
+              onClick={resetCamera}
+              className="inline-flex items-center gap-1 text-slate-400 hover:text-white transition cursor-pointer"
+            >
+              <RotateCcw size={12} /> Retake snapshot
+            </button>
+          )}
 
-      <p className={`mt-4 text-center text-lg font-medium ${messageColor}`}>
-        {message}
-      </p>
-
-      {borderStatus === "success" ? (
-        <Button
-          disabled
-          text="Opening Dashboard..."
-          className="mt-6 bg-green-600 px-8 py-3 text-white opacity-90"
-        />
-      ) : (
-        <Button
-          onClick={() => {
-            setRetryCount((c) => c + 1);
-            handleFaceVerification();
-          }}
-          disabled={
-            !cameraReady || !livenessDone || loading || borderStatus === "scanning"
-          }
-          loading={loading || borderStatus === "scanning"}
-          text={
-            loading || borderStatus === "scanning"
-              ? "Checking..."
-              : !livenessDone
-                ? "Complete Liveness..."
-                : retryCount > 0
-                  ? "Try Again"
-                  : "Verify Face"
-          }
-          className="mt-6 bg-blue-600 px-8 py-3 text-white hover:bg-blue-700"
-        />
-      )}
-
-      {capturedImage && borderStatus !== "success" && (
-        <button
-          onClick={resetCamera}
-          className="mt-3 text-gray-400 hover:text-white text-sm transition"
-        >
-          Retake photo
-        </button>
-      )}
-
-      <button
-        onClick={() => {
-          localStorage.clear();
-          navigate("/", { replace: true });
-        }}
-        className="mt-4 text-gray-400 hover:text-white text-sm transition"
-      >
-        Back to login
-      </button>
+          <button
+            type="button"
+            onClick={() => {
+              localStorage.clear();
+              navigate("/", { replace: true });
+            }}
+            className="inline-flex items-center gap-1 text-slate-400 hover:text-white transition cursor-pointer"
+          >
+            <ArrowLeft size={12} /> Back to login
+          </button>
+        </div>
+      </motion.div>
     </div>
   );
 }

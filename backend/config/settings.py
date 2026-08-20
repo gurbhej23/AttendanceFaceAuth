@@ -180,7 +180,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "employees.authentication.MongoJWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": [
         "employees.permissions.EmployeeAccessPermission",

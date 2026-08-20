@@ -21,7 +21,9 @@ os.environ.setdefault(
 )
 
 MEDIA_DIR = settings.MEDIA_ROOT / "faces"
-MAX_FACE_IMAGE_SIDE = int(os.getenv("MAX_FACE_IMAGE_SIDE", "960"))
+MAX_FACE_IMAGE_SIDE = int(os.getenv("MAX_FACE_IMAGE_SIDE", "960")) 
+MIN_FACE_CONFIDENCE = float(os.getenv("MIN_FACE_CONFIDENCE", "0.92")) 
+MIN_FACE_BOX_SIDE = int(os.getenv("MIN_FACE_BOX_SIDE", "60"))
 Path(os.environ["DEEPFACE_HOME"]).mkdir(parents=True, exist_ok=True)
 MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -84,110 +86,148 @@ if hasattr(sys.stdout, "reconfigure"):
         pass
 
 
+# ...existing code...
+
 def get_detector_attempts():
     configured = os.getenv("FACE_DETECTOR_BACKENDS", "").strip()
+    allowed = {"retinaface", "mtcnn"}
+
     if configured:
-        backends = [item.strip() for item in configured.split(",") if item.strip() and item.strip() != "skip"]
-        return [
-            {
-                "detector_backend": backend,
-                "enforce_detection": True,
-            }
-            for backend in backends
+        backends = [
+            value.strip()
+            for value in configured.split(",")
+            if value.strip() in allowed
         ]
+    else:
+        backends = ["retinaface", "mtcnn"]
 
-    # Prioritize deep-learning neural detectors (retinaface, mtcnn) first to prevent false detections on non-face objects.
     return [
-        {"detector_backend": "retinaface", "enforce_detection": True},
-        {"detector_backend": "mtcnn", "enforce_detection": True},
-        {"detector_backend": "opencv", "enforce_detection": True},
+        {
+            "detector_backend": backend,
+            "enforce_detection": True,
+        }
+        for backend in backends
     ]
+ 
 
+# ...existing code...
 
 def extract_embedding_with_fallbacks(
     image_bgr: np.ndarray,
     require_single_face: bool = False,
 ):
-    """
-    Extract an embedding from an image using a cascade of face detectors.
-
-    If require_single_face is True and multiple faces are detected, the function
-    returns (None, "Multiple faces detected").
-    """
+    """Return (embedding, error). Never accepts an unvalidated detection."""
     deepface = get_deepface()
     ensure_facenet_loaded()
     image_bgr = resize_for_face(image_bgr)
 
-    attempts = get_detector_attempts()
-
-    if require_single_face:
-        attempts = [
-            attempt 
-            for attempt in attempts
-            if attempt["detector_backend"] not in ("skip", "opencv")
-        ]
     last_error = None
-    for attempt in attempts:
+
+    for attempt in get_detector_attempts():
+        detector = attempt["detector_backend"]
+
         try:
-            detector = attempt["detector_backend"]
             print(
-                "   Trying detector:",
-                detector,
-                "| enforce_detection:",
-                attempt["enforce_detection"],
+                f"Trying detector: {detector} | "
+                f"enforce_detection={attempt['enforce_detection']}"
             )
+
             result = deepface.represent(
                 img_path=image_bgr,
                 model_name="Facenet",
                 detector_backend=detector,
-                enforce_detection=attempt["enforce_detection"],
+                enforce_detection=True,
                 align=True,
             )
-            if result:
-                valid_candidates = []
-                for item in result:
-                    emb = item.get("embedding")
-                    if not emb:
-                        continue
 
-                    area_info = item.get("facial_area", {})
-                    w = area_info.get("w", 0)
-                    h = area_info.get("h", 0)
-                    area = w * h
+            if isinstance(result, dict):
+                result = [result]
 
-                    if detector == "opencv" and (w < 60 or h < 60):
-                        print(f"   Discarding tiny OpenCV detection ({w}x{h} px)")
-                        continue
+            valid_candidates = []
 
-                    valid_candidates.append((area, emb))
+            for item in result or []:
+                confidence = item.get("face_confidence")
+                facial_area = item.get("facial_area") or {}
+                embedding = item.get("embedding")
 
-                if require_single_face:
-                    if len(valid_candidates) == 0:
-                        print("   Detected faces: 0 -> REJECTED")
-                        return (
-                            None,
-                            "No face detected. Please position your face clearly in the camera.",
-                        )
-                    if len(valid_candidates) > 1:
-                        print(f"   Detected faces: {len(valid_candidates)} -> REJECTED")
-                        return (
-                            None,
-                            "Multiple faces detected. Only the employee marking attendance should be visible.",
-                        )
+                try:
+                    confidence_value = float(confidence)
+                except (TypeError, ValueError):
+                    confidence_value = -1.0
 
-                if valid_candidates:
-                    primary_embedding = valid_candidates[0][1]
+                try:
+                    width = int(facial_area.get("w", 0))
+                    height = int(facial_area.get("h", 0))
+                except (TypeError, ValueError):
+                    width = height = 0
+
+                print(
+                    f"Candidate: detector={detector}, "
+                    f"confidence={confidence!r}, "
+                    f"box={width}x{height}"
+                )
+
+                if confidence_value < MIN_FACE_CONFIDENCE:
                     print(
-                        f"   Detector worked: {detector} (Detected faces: {len(valid_candidates)})"
+                        f"Rejected: confidence {confidence!r} < "
+                        f"{MIN_FACE_CONFIDENCE}"
                     )
-                    return primary_embedding, None
+                    continue
+
+                if (
+                    width < MIN_FACE_BOX_SIDE
+                    or height < MIN_FACE_BOX_SIDE
+                ):
+                    print(
+                        f"Rejected: face box {width}x{height}; "
+                        f"minimum side={MIN_FACE_BOX_SIDE}"
+                    )
+                    continue
+
+                if not embedding:
+                    print("Rejected: embedding is empty")
+                    continue
+
+                valid_candidates.append(
+                    {
+                        "embedding": embedding,
+                        "area": width * height,
+                        "confidence": confidence_value,
+                    }
+                )
+
+            if not valid_candidates:
+                last_error = ValueError(
+                    f"{detector}: no valid face detected"
+                )
+                print(f"{last_error}")
+                continue
+
+            if require_single_face and len(valid_candidates) != 1:
+                last_error = ValueError(
+                    f"{detector}: multiple valid faces detected"
+                )
+                print(f"{last_error}")
+                continue
+
+            # If single-face mode is disabled, use the largest valid face.
+            selected = max(
+                valid_candidates,
+                key=lambda candidate: candidate["area"],
+            )
+
+            print(
+                f"Accepted face: detector={detector}, "
+                f"confidence={selected['confidence']:.4f}"
+            )
+            return selected["embedding"], None
 
         except Exception as exc:
             last_error = exc
-            print(f"   Detector failed: {attempt['detector_backend']} -> {exc}")
+            print(f"Detector failed: {detector} -> {exc}")
+            traceback.print_exc()
 
     return None, last_error
-
 
 def extract_and_save_embedding(
     base64_image: str, 

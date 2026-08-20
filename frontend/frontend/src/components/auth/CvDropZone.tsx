@@ -80,13 +80,12 @@ export default function CvDropZone({
         onDragLeave={() => setDragOver(false)}
         onDrop={onDrop}
         onClick={() => inputRef.current?.click()}
-        className={`cv-drop-zone relative mt-2 cursor-pointer rounded-2xl border-2 border-dashed p-6 text-center transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] ${
-          dragOver
-            ? "border-cyan-400/70 bg-cyan-500/10 shadow-[0_0_24px_rgba(34,211,238,0.12)]"
+        className={`cv-drop-zone relative mt-1 cursor-pointer rounded-xl border-2 border-dashed py-2.5 px-4 text-center transition-all duration-200 ${dragOver
+            ? "border-cyan-400/70 bg-cyan-500/10 shadow-[0_0_20px_rgba(34,211,238,0.12)]"
             : fileName
-              ? "border-blue-500/40 bg-blue-500/5"
-              : "border-slate-600 bg-slate-950/50 hover:border-slate-500 hover:bg-slate-900/60"
-        }`}
+              ? "border-emerald-500/40 bg-emerald-500/5"
+              : "border-slate-700 bg-slate-900/60 hover:border-cyan-500/50 hover:bg-slate-900/80"
+          }`}
       >
         <input
           ref={inputRef}
@@ -100,33 +99,35 @@ export default function CvDropZone({
           }}
         />
 
-        <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl border border-white/10 bg-slate-900/80 text-blue-300">
-          {fileName ? <FileText size={22} /> : <Upload size={22} />}
+        <div className="flex items-center justify-center gap-3">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-slate-800 text-cyan-300">
+            {fileName ? <FileText size={16} /> : <Upload size={16} />}
+          </div>
+
+          {fileName ? (
+            <div className="text-left min-w-0 flex-1">
+              <p className="truncate text-xs font-bold text-emerald-300">{fileName}</p>
+              <p className="text-[10px] text-slate-400">PDF attached · click to replace</p>
+            </div>
+          ) : (
+            <div className="text-left">
+              <p className="text-xs font-semibold text-white">
+                Upload Resume (PDF, max 5MB)
+              </p>
+              <p className="text-[10px] text-slate-400">Drag &amp; drop or click to browse</p>
+            </div>
+          )}
         </div>
 
-        {fileName ? (
-          <div className="space-y-1">
-            <p className="truncate text-sm font-semibold text-white">{fileName}</p>
-            <p className="text-xs text-slate-400">PDF attached · click or drop to replace</p>
-          </div>
-        ) : (
-          <div className="space-y-1">
-            <p className="text-sm font-medium text-white">
-              Drag & drop your resume here
-            </p>
-            <p className="text-xs text-slate-400">or click to browse · PDF only, max 5MB</p>
-          </div>
-        )}
-
         {uploading && (
-          <div className="mt-4">
-            <div className="h-1.5 overflow-hidden rounded-full bg-slate-800">
+          <div className="mt-2">
+            <div className="h-1 overflow-hidden rounded-full bg-slate-800">
               <div
-                className="h-full rounded-full bg-linear-to-r from-blue-500 to-cyan-400 transition-[width] duration-200 ease-out"
+                className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-[width] duration-200 ease-out"
                 style={{ width: `${progress}%` }}
               />
             </div>
-            <p className="mt-2 text-xs text-slate-400">Uploading… {progress}%</p>
+            <p className="mt-1 text-[10px] text-slate-400">Uploading… {progress}%</p>
           </div>
         )}
 
@@ -137,10 +138,10 @@ export default function CvDropZone({
               e.stopPropagation();
               onClear();
             }}
-            className="absolute right-3 top-3 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-800 hover:text-white"
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 transition hover:bg-slate-800 hover:text-white"
             aria-label="Remove CV"
           >
-            <X size={16} />
+            <X size={14} />
           </button>
         )}
       </div>

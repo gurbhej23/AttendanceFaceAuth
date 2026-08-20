@@ -94,12 +94,13 @@ html.light .app-intro .text-white {
 }
 
 *::-webkit-scrollbar-track {
-  background: var(--scrollbar-track);
+  background: transparent;
 }
 
 *::-webkit-scrollbar-thumb {
   background-color: var(--scrollbar-thumb);
-  border: 2px solid var(--scrollbar-track);
+  border: 2px solid transparent;
+  background-clip: padding-box;
   border-radius: 999px;
   opacity: 0.85;
   transition: background-color 0.2s cubic-bezier(0.25, 1, 0.5, 1),
@@ -112,7 +113,7 @@ html.light .app-intro .text-white {
 }
 
 *::-webkit-scrollbar-corner {
-  background: var(--scrollbar-track);
+  background: transparent;
 }
 
 .dash-muted-text {

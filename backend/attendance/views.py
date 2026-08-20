@@ -185,10 +185,8 @@ def location_payload(record):
 
 def get_authenticated_employee(request, req_employee_id: str = ""):
     """
-    Validates that the target employee matches the authenticated JWT user.
-    If authenticated via JWT, returns (authenticated_employee, None).
-    If frontend sends an employee_id that doesn't match the JWT user, returns (None, Response(403)).
-    Fallback to requested employee_id if unauthenticated (e.g. initial face login gate).
+    Validates that the target employee matches the authenticated JWT user if present,
+    or resolves the employee from the request for biometric face verification.
     """
     auth_employee = None
     if hasattr(request, "user") and getattr(request.user, "employee_id", None):
@@ -203,6 +201,10 @@ def get_authenticated_employee(request, req_employee_id: str = ""):
             pass
 
     req_employee_id = (req_employee_id or "").strip()
+    if not req_employee_id and request.data:
+        req_employee_id = str(request.data.get("employee_id") or request.data.get("employeeId") or "").strip()
+    if not req_employee_id and request.query_params:
+        req_employee_id = str(request.query_params.get("employee_id") or request.query_params.get("employeeId") or "").strip()
 
     if auth_employee:
         if req_employee_id and auth_employee.employee_id != req_employee_id and getattr(auth_employee, "role", "") not in ("admin", "hr"):
@@ -1617,11 +1619,76 @@ def mark_leave_notifications_read(request):
 def mark_present(request):
     try:
         employee_id = request.data.get("employee_id", "").strip()
-        employee = Employee.objects(employee_id=employee_id, is_active=True).first()
-        if not employee:
-            return Response(
-                {"success": False, "error": "Employee not found"}, status=404
+        image = request.data.get("image", "").strip()
+
+        employee, err_resp = get_authenticated_employee(request, employee_id)
+        if err_resp:
+            return err_resp
+
+        pin = str(request.data.get("pin", "")).strip()
+        check_in_image_path = None
+
+        if pin:
+            pin_hash = getattr(employee, "attendance_pin_hash", "") or ""
+            if not pin_hash:
+                return Response(
+                    {
+                        "success": False,
+                        "error": "No attendance PIN on file. Please use Face Verification or set up a PIN in Profile.",
+                    },
+                    status=400,
+                )
+
+            locked, lock_msg = is_pin_locked(employee)
+            if locked:
+                return Response({"success": False, "error": lock_msg}, status=429)
+
+            if not verify_attendance_pin(pin, pin_hash):
+                record_pin_failure(employee)
+                return Response(
+                    {"success": False, "error": "Invalid PIN. Please try again."},
+                    status=401,
+                )
+
+            clear_pin_failures(employee)
+        else:
+            if not employee.face_embedding:
+                return Response(
+                    {
+                        "success": False,
+                        "error": "No face profile on file. Re-enroll your face from Profile first.",
+                    },
+                    status=400,
+                )
+
+            if not image:
+                return Response(
+                    {
+                        "success": False,
+                        "error": "Face image or PIN is required for attendance verification.",
+                    },
+                    status=400,
+                )
+
+            uploaded_embedding, error, check_in_image_path = extract_and_save_embedding(
+                image, employee.employee_id, require_single_face=True
             )
+            if error:
+                print(f"Mark present face extraction rejected for {employee.employee_id}: {error}")
+                return Response({"success": False, "error": error}, status=400)
+
+            is_match = verify_face_match(
+                uploaded_embedding, employee.face_embedding, FACE_MATCH_THRESHOLD
+            )
+            if not is_match:
+                print(f"Face match: NO | Mark present face match failed for employee {employee.employee_id} -> REJECTED")
+                return Response(
+                    {
+                        "success": False,
+                        "error": "❌ Face does not match the registered employee's face profile. Access denied.",
+                    },
+                    status=401,
+                )
 
         now = current_ist()
         today = now.strftime("%Y-%m-%d")
@@ -1631,7 +1698,7 @@ def mark_present(request):
                 {"success": False, "error": shift_start_message(employee)}, status=403
             )
 
-        existing = AttendanceRecord.objects(employee_id=employee_id, date=today).first()
+        existing = AttendanceRecord.objects(employee_id=employee.employee_id, date=today).first()
         if existing and existing.status in ("present", "late") and existing.check_in_time:
             return Response({"success": True, "message": "⚠️ Already marked for today"})
         if existing and existing.status not in ("absent",):
@@ -1659,12 +1726,14 @@ def mark_present(request):
             existing.check_in_longitude = location["longitude"]
             existing.location_status = location["status"]
             existing.location_distance_meters = location["distance"]
+            existing.check_in_image = check_in_image_path or existing.check_in_image
+            existing.is_verified = True
             existing.reason = ""
             existing.save()
             record = existing
         else:
             record = AttendanceRecord(
-                employee_id=employee_id,
+                employee_id=employee.employee_id,
                 employee_name=employee.name,
                 date=today,
                 check_in_time=now,
@@ -1675,6 +1744,8 @@ def mark_present(request):
                 check_in_longitude=location["longitude"],
                 location_status=location["status"],
                 location_distance_meters=location["distance"],
+                check_in_image=check_in_image_path,
+                is_verified=True,
             )
             record.save()
 

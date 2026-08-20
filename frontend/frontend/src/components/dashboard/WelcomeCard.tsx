@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import ProfileAvatarImg from "../common/ProfileAvatarImg";
 import { imageReveal } from "../../motion/presets";
+import AnalogClock from "./AnalogClock";
 
 interface WelcomeCardProps {
   employeeName: string | null;
@@ -36,7 +37,7 @@ function WelcomeCard({
       <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-blue-500/10 blur-3xl sm:h-40 sm:w-40" />
       <div className="pointer-events-none absolute -bottom-10 left-1/3 h-24 w-24 rounded-full bg-cyan-500/10 blur-3xl sm:h-32 sm:w-32" />
 
-      <div className="relative px-4 py-3.5 sm:px-6 sm:py-5 flex items-center justify-between">
+      <div className="relative px-4 py-3.5 sm:px-6 sm:py-5 flex items-center justify-between gap-3 sm:gap-6">
         <div className="flex items-center gap-3 sm:items-start sm:gap-4 flex-1 min-w-0">
           <button
             type="button"
@@ -77,6 +78,11 @@ function WelcomeCard({
               </p>
             )}
           </div>
+        </div>
+
+        {/* ── RIGHT SIDE: Premium Animated Analog Clock ── */}
+        <div className="shrink-0 flex items-center justify-center pl-1 sm:pl-2">
+          <AnalogClock />
         </div>
       </div>
     </div>

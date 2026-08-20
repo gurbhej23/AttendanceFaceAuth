@@ -1,25 +1,25 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
 import API from "../services/api";
 import Input from "../components/common/Input";
 import AdminSidebar from "../components/AdminSidebar";
 import MobileMenuButton from "../components/common/MobileMenuButton";
-import ProfileAvatarImg from "../components/common/ProfileAvatarImg";
 import EmptyState from "../components/common/EmptyState";
 import AnimatedBackground from "../components/motion/AnimatedBackground";
 import { getMediaUrl } from "../utils/chatHelpers";
 import { dispatchNotificationAction } from "../utils/notificationActions";
 import { clearAuthSession } from "../utils/auth";
+import TeamMemberFlipCard from "../motion/TeamMemberFlipCard";
 import {
   Calendar,
   ChartNoAxesCombined,
   IdCardLanyard,
   LayoutDashboard,
-  MessageCircle,
   Search,
   User,
   Users,
+  Sparkles,
+  Building2,
 } from "lucide-react";
 
 interface Member {
@@ -152,7 +152,7 @@ export default function TeamDirectory() {
   }, [isEmployee, location.pathname, navigate]);
 
   return (
-    <div className="sheet-bg-page relative min-h-screen bg-slate-950 px-3 py-5 text-slate-900 dark:text-white lg:px-5">
+    <div className="sheet-bg-page relative min-h-screen bg-slate-50 text-slate-900 dark:bg-[#080d1a] dark:text-white px-3 py-5 sm:px-6 transition-colors duration-300">
       <AnimatedBackground />
 
       <AdminSidebar
@@ -169,83 +169,99 @@ export default function TeamDirectory() {
       />
       <MobileMenuButton onClick={() => setShowMenu(true)} />
 
-      <div className="relative z-10 mx-auto max-w-4xl lg:ml-22">
-        <h1 className="sheet-heading-title mb-1 text-3xl font-extrabold text-slate-900 dark:text-white">Team directory</h1>
-        <p className="sheet-subheading mb-4 text-sm text-slate-600 dark:text-slate-400">
-          Tap an employee to open a direct message
-        </p>
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row">
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name or ID..."
-            className="sheet-input-box flex-1 rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-slate-900 dark:text-white"
-          />
-          <select
-            value={dept}
-            onChange={(e) => setDept(e.target.value)}
-            className="sheet-input-box rounded-2xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2.5 text-slate-900 dark:text-white"
-          >
-            <option value="all">All departments</option>
-            {departments.map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
-          </select>
+      <div className="relative z-10 mx-auto max-w-6xl pt-12 sm:pt-4 lg:ml-22 lg:pt-0">
+        {/* Page Header */}
+        <header className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/80 dark:border-white/10 pb-5">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-cyan-500/10 border border-cyan-500/30 text-cyan-600 dark:text-cyan-400">
+                <Sparkles size={12} className="text-cyan-500" /> Organization Hub
+              </span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+              Team Directory
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-0.5">
+              Connect and collaborate directly with colleagues across departments.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="px-3.5 py-1.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 shadow-xs">
+              {members.length} {members.length === 1 ? "Member" : "Total Members"}
+            </span>
+          </div>
+        </header>
+
+        {/* Search & Filter Toolbar */}
+        <div className="mb-8 flex flex-col gap-3 sm:flex-row items-center justify-between">
+          <div className="relative w-full sm:flex-1">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search team member by name or ID..."
+              className="w-full rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white/90 dark:bg-slate-900/80 pl-10 pr-4 py-2.5 text-sm text-slate-900 dark:text-white shadow-xs backdrop-blur-md outline-none focus:border-cyan-500"
+            />
+          </div>
+
+          <div className="w-full sm:w-auto">
+            <select
+              value={dept}
+              onChange={(e) => setDept(e.target.value)}
+              className="w-full sm:w-56 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white/90 dark:bg-slate-900/80 px-4 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-200 shadow-xs backdrop-blur-md outline-none cursor-pointer focus:border-cyan-500"
+            >
+              <option value="all">All Departments</option>
+              {departments.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
+        {/* Department Sections */}
         {grouped.map(([department, rows]) => (
-          <div key={department} className="mb-6">
-            <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              {department}
-            </h2>
-            <div className="space-y-2.5">
+          <div key={department} className="mb-8">
+            <div className="mb-4 flex items-center justify-between border-b border-slate-200/60 dark:border-slate-800/60 pb-2">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-cyan-500" />
+                <h2 className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                  {department}
+                </h2>
+              </div>
+              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                {rows.length} {rows.length === 1 ? "person" : "people"}
+              </span>
+            </div>
+
+            {/* Grid of Executive Team Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {rows.map((m) => (
-                <motion.button
+                <TeamMemberFlipCard
                   key={m.employee_id}
-                  type="button"
-                  onClick={() => openChat(m)}
-                  disabled={m.employee_id === employeeId}
-                  whileHover={{ scale: 1.02, rotateX: 2, rotateY: -2 }}
-                  className="team-card flex w-full items-center gap-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/70 p-3.5 text-left backdrop-blur-xl shadow-md transition hover:border-blue-400/50 disabled:cursor-default disabled:opacity-60 cursor-pointer"
-                >
-                  <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full">
-                    {m.profile_img ? (
-                      <ProfileAvatarImg src={getMediaUrl(m.profile_img)} alt={m.name} className="h-11 w-11" />
-                    ) : (
-                      <div className="grid h-full w-full place-items-center bg-blue-600 text-sm font-bold text-white">
-                        {m.name.charAt(0)}
-                      </div>
-                    )}
-                    <span
-                      className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-slate-900 ${m.is_online ? "bg-emerald-500" : "bg-slate-500"}`}
-                    />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold">{m.name}</p>
-                    <p className="truncate text-xs text-[var(--th-text-muted)]">
-                      {m.designation} · {m.employee_id}
-                    </p>
-                  </div>
-                  {m.employee_id !== employeeId ? (
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-400">
-                      <MessageCircle size={14} />
-                      Message
-                    </span>
-                  ) : (
-                    <span className="text-xs text-[var(--th-text-muted)]">You</span>
-                  )}
-                </motion.button>
+                  name={m.name}
+                  designation={m.designation}
+                  department={m.department}
+                  employeeId={m.employee_id}
+                  profileImg={m.profile_img ? getMediaUrl(m.profile_img) : undefined}
+                  isOnline={m.is_online}
+                  isSelf={m.employee_id === employeeId}
+                  onMessage={() => openChat(m)}
+                />
               ))}
             </div>
           </div>
         ))}
+
         {members.length === 0 && (
-          <EmptyState
-            icon={<Search className="h-7 w-7 text-slate-600" />}
-            title="No team members found"
-          />
+          <div className="my-12 rounded-3xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/50 p-8 text-center backdrop-blur-xl">
+            <EmptyState
+              icon={<Search className="h-8 w-8 text-slate-400" />}
+              title="No team members found"
+            />
+          </div>
         )}
       </div>
     </div>

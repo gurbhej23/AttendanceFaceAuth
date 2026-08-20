@@ -353,6 +353,7 @@ export default function MessagingDrawer() {
           );
         } else if (data.type === "message" || data.type === "read") {
           refreshUnreadRef.current();
+          void loadContactsRef.current();
         } else if (data.type === "group_added") {
           const group = data.group as ChatGroup | undefined;
           const notice = String(data.message || "You were added to a group");

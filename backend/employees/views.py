@@ -1117,12 +1117,23 @@ def update_profile(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+    if profile_img := (request.data.get("profile_img") or request.data.get("image")):
+        if str(profile_img).strip():
+            try:
+                employee.profile_img = save_base64_profile_image(str(profile_img).strip())
+            except Exception as exc:
+                return Response(
+                    {"success": False, "error": f"Could not save profile image: {exc}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
     employee.save()
     return Response(
         {
             "success": True,
             "message": "Profile updated successfully",
             "employee": employee_payload(employee),
+            "profile_img": employee.profile_img,
         }
     )
 
@@ -1130,13 +1141,13 @@ def update_profile(request):
 @api_view(["POST"])
 def update_profile_photo(request):
     employee_id = request.data.get("employee_id", "").strip()
-    image = request.data.get("image", "").strip()
+    image = (request.data.get("image") or request.data.get("profile_img") or "").strip()
     if not employee_id or not image:
         return Response(
             {"success": False, "error": "employee_id and image are required"},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    employee = Employee.objects(employee_id=employee_id, is_active=True).first()
+    employee = find_employee(employee_id)
     if not employee:
         return Response(
             {"success": False, "error": "Employee not found"},
@@ -1155,6 +1166,7 @@ def update_profile_photo(request):
             "success": True,
             "message": "Profile photo updated",
             "employee": employee_payload(employee),
+            "profile_img": employee.profile_img,
         }
     )
 
@@ -1308,13 +1320,45 @@ def chat_contacts(request):
         )
 
     if employee.role in ("admin", "hr"):
-        contacts = Employee.objects(
-            is_active=True, employee_id__ne=employee_id
-        ).order_by("role", "name")
-    else:
-        contacts = Employee.objects(is_active=True, role__in=["admin", "hr"]).order_by(
-            "role", "name"
+        contacts = list(
+            Employee.objects(
+                is_active=True, employee_id__ne=employee_id
+            ).order_by("role", "name")
         )
+    else:
+        # Default contacts: Admin and HR staff
+        admin_hr_contacts = list(
+            Employee.objects(
+                is_active=True, role__in=["admin", "hr"], employee_id__ne=employee_id
+            ).order_by("role", "name")
+        )
+
+        # Interacted contacts: any employee with whom there is direct chat message history
+        sent_recipient_ids = ChatMessage.objects(sender_id=employee_id).distinct("recipient_id")
+        received_sender_ids = ChatMessage.objects(recipient_id=employee_id).distinct("sender_id")
+        interacted_ids = (set(sent_recipient_ids) | set(received_sender_ids)) - {employee_id}
+
+        interacted_contacts = (
+            list(
+                Employee.objects(
+                    is_active=True, employee_id__in=list(interacted_ids)
+                ).order_by("name")
+            )
+            if interacted_ids
+            else []
+        )
+
+        # Merge and deduplicate by employee_id
+        seen_ids = set()
+        contacts = []
+        for c in admin_hr_contacts:
+            if c.employee_id not in seen_ids:
+                seen_ids.add(c.employee_id)
+                contacts.append(c)
+        for c in interacted_contacts:
+            if c.employee_id not in seen_ids:
+                seen_ids.add(c.employee_id)
+                contacts.append(c)
 
     return Response(
         {"success": True, "contacts": [employee_payload(c) for c in contacts]}
