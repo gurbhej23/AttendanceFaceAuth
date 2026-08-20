@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import API from "../../services/api";
 import AdminSidebar from "../../components/AdminSidebar";
 import MobileMenuButton from "../../components/common/MobileMenuButton";
 import EmptyState from "../../components/common/EmptyState";
 import AnimatedBackground from "../../components/motion/AnimatedBackground";
 import Button from "../../components/common/Button";
-import Input from "../../components/common/Input";
 import { getMediaUrl } from "../../utils/chatHelpers";
 import { clearAuthSession, isAdminOrHR } from "../../utils/auth";
 import {
@@ -19,7 +18,6 @@ import {
   TrendingUp,
   AlertTriangle,
   CheckCircle2,
-  XCircle,
   Download,
   RefreshCw,
   LayoutDashboard,
@@ -27,13 +25,8 @@ import {
   IdCardLanyard,
   User,
   Sparkles,
-  Award,
   Zap,
-  Flame,
   ArrowUpRight,
-  ArrowDownRight,
-  SunMedium,
-  Coffee,
 } from "lucide-react";
 
 interface AnalyticsData {
@@ -376,31 +369,28 @@ export default function AdminAnalytics() {
         <div className="flex items-center gap-2 border-b border-slate-200 dark:border-white/10 pb-3 mb-6 overflow-x-auto">
           <button
             onClick={() => setActiveSegment("overview")}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-bold text-xs sm:text-sm transition cursor-pointer whitespace-nowrap ${
-              activeSegment === "overview"
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-bold text-xs sm:text-sm transition cursor-pointer whitespace-nowrap ${activeSegment === "overview"
                 ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20"
                 : "bg-white dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-transparent"
-            }`}
+              }`}
           >
             <ChartNoAxesCombined size={16} /> Monthly Trends &amp; Status Breakdown
           </button>
           <button
             onClick={() => setActiveSegment("departments")}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-bold text-xs sm:text-sm transition cursor-pointer whitespace-nowrap ${
-              activeSegment === "departments"
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-bold text-xs sm:text-sm transition cursor-pointer whitespace-nowrap ${activeSegment === "departments"
                 ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20"
                 : "bg-white dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-transparent"
-            }`}
+              }`}
           >
             <Building2 size={16} /> Departmental Benchmarking ({data?.departments?.length ?? 0})
           </button>
           <button
             onClick={() => setActiveSegment("punctuality")}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-bold text-xs sm:text-sm transition cursor-pointer whitespace-nowrap ${
-              activeSegment === "punctuality"
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-bold text-xs sm:text-sm transition cursor-pointer whitespace-nowrap ${activeSegment === "punctuality"
                 ? "bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-md shadow-amber-500/20"
                 : "bg-white dark:bg-white/5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-transparent"
-            }`}
+              }`}
           >
             <AlertTriangle size={16} /> Punctuality &amp; Late Risk Analysis
           </button>

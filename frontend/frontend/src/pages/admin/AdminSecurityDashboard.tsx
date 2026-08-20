@@ -114,7 +114,6 @@ export default function AdminSecurityDashboard() {
     occupancy_rate_percent: 0,
   });
   const [insidePersonnel, setInsidePersonnel] = useState<Occupant[]>([]);
-  const [checkedOutList, setCheckedOutList] = useState<Occupant[]>([]);
   const [departments, setDepartments] = useState<DepartmentCount[]>([]);
   const [recentEvents, setRecentEvents] = useState<LiveEvent[]>([]);
   const [searchOccupant, setSearchOccupant] = useState("");
@@ -154,7 +153,6 @@ export default function AdminSecurityDashboard() {
       if (res.data.success) {
         setSummary(res.data.summary);
         setInsidePersonnel(res.data.inside_building || []);
-        setCheckedOutList(res.data.checked_out || []);
         setDepartments(res.data.departments || []);
         setRecentEvents(res.data.recent_events || []);
       }
