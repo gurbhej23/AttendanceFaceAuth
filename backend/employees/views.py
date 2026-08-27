@@ -98,18 +98,76 @@ def send_email_smtp(
         return False, str(e)
 
 
+def send_email_resend(
+    to: str,
+    subject: str,
+    text: str,
+    html: str = "",
+) -> tuple[bool, str]:
+    """HTTP-based email sender via Resend REST API (works on all cloud platforms including Render)."""
+    resend_api_key = str(
+        os.getenv("RESEND_API_KEY", "")
+        or getattr(settings, "RESEND_API_KEY", "")
+        or ""
+    ).strip()
+    if not resend_api_key:
+        return False, "RESEND_API_KEY not set"
+
+    try:
+        import json
+        import urllib.request
+
+        from_email = str(os.getenv("RESEND_FROM_EMAIL", "onboarding@resend.dev")).strip()
+        from_name = str(getattr(settings, "SENDGRID_FROM_NAME", "Attendance System")).strip()
+        sender = f"{from_name} <{from_email}>" if from_name else from_email
+
+        payload = {
+            "from": sender,
+            "to": [to],
+            "subject": subject,
+            "text": text,
+        }
+        if html:
+            payload["html"] = html
+
+        req = urllib.request.Request(
+            "https://api.resend.com/emails",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Authorization": f"Bearer {resend_api_key}",
+                "Content-Type": "application/json",
+                "User-Agent": "AttendanceSystem/1.0",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            if resp.status in (200, 201):
+                logger.info("Resend email sent successfully to %s", to)
+                return True, ""
+            return False, f"Resend API returned status {resp.status}"
+    except Exception as e:
+        logger.warning("Resend email send failed: %s", e)
+        return False, str(e)
+
+
 def send_email(
     to: str,
     subject: str,
     text: str,
     html: str = "",
 ) -> tuple[bool, str]:
+    # 1. Try Resend REST API (HTTPS port 443) if RESEND_API_KEY is configured
+    if os.getenv("RESEND_API_KEY") or getattr(settings, "RESEND_API_KEY", ""):
+        ok, resend_err = send_email_resend(to, subject, text, html)
+        if ok:
+            return True, ""
+
+    # 2. Try SendGrid REST API if credentials are configured
     api_key = str(getattr(settings, "SENDGRID_API_KEY", "") or "").strip()
     from_email = str(getattr(settings, "SENDGRID_FROM_EMAIL", "") or "").strip()
     from_name = str(getattr(settings, "SENDGRID_FROM_NAME", "Attendance System") or "").strip()
 
     sendgrid_err = ""
-    # 1. Try SendGrid first if credentials are configured
     if api_key and from_email:
         try:
             sg = sendgrid.SendGridAPIClient(api_key=api_key)
@@ -127,21 +185,22 @@ def send_email(
                 logger.info("SendGrid email sent to=%s status=%s", to, response.status_code)
                 return True, ""
             sendgrid_err = f"SendGrid returned status {response.status_code}"
-            logger.warning("SendGrid send error: %s. Falling back to SMTP...", sendgrid_err)
+            logger.warning("SendGrid send error: %s. Trying fallbacks...", sendgrid_err)
         except Exception as e:
             sendgrid_err = str(e)
-            logger.warning("SendGrid send exception (%s). Falling back to SMTP...", e)
+            logger.warning("SendGrid send exception (%s). Trying fallbacks...", e)
     else:
         sendgrid_err = "SendGrid not configured"
 
-    # 2. Fallback to standard Django SMTP
+    # 3. Fallback to standard Django SMTP
     ok, smtp_err = send_email_smtp(to, subject, text, html)
     if ok:
         return True, ""
 
-    combined_err = f"Failed to send email. SendGrid: {sendgrid_err}. SMTP: {smtp_err}"
+    combined_err = f"SendGrid: {sendgrid_err}. SMTP: {smtp_err}"
     logger.error("All email delivery methods failed: %s", combined_err)
     return False, combined_err
+
 
 
 
