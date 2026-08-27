@@ -191,12 +191,25 @@ REST_FRAMEWORK = {
     ],
 }
  
-SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY", "") 
-SENDGRID_FROM_EMAIL = os.getenv("SENDGRID_FROM_EMAIL", "")
-SENDGRID_FROM_NAME = os.getenv("SENDGRID_FROM_NAME", "Attendance System")
+SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY", "").strip()
+SENDGRID_FROM_EMAIL = os.getenv("SENDGRID_FROM_EMAIL", "").strip()
+SENDGRID_FROM_NAME = os.getenv("SENDGRID_FROM_NAME", "Attendance System").strip()
 
-# Keep DEFAULT_FROM_EMAIL for any Django internals that need it
-DEFAULT_FROM_EMAIL = SENDGRID_FROM_EMAIL
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "gurbhejs728@gmail.com")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "dvpgrlfdyybuqopu")
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "true").lower() in ("1", "true", "yes")
+EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "false").lower() in ("1", "true", "yes")
+EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "15"))
+
+DEFAULT_FROM_EMAIL = (
+    os.getenv("DEFAULT_FROM_EMAIL", "").strip()
+    or SENDGRID_FROM_EMAIL
+    or EMAIL_HOST_USER
+)
+
 
 USE_I18N = True
 USE_TZ = True

@@ -11,6 +11,7 @@ from datetime import datetime
 import pytz
 import sendgrid
 from sendgrid.helpers.mail import Mail, To
+from django.core.mail import EmailMultiAlternatives
 
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -62,7 +63,39 @@ def employee_attendance_marked_today(employee_id: str) -> bool:
     )
 
 
-# ─── SendGrid email helper ─────────────────────────────────────────────────────
+# ─── Email Dispatcher (SendGrid + SMTP Fallback) ────────────────────────────────
+
+
+def send_email_smtp(
+    to: str,
+    subject: str,
+    text: str,
+    html: str = "",
+) -> tuple[bool, str]:
+    """Fallback email sender using Django standard SMTP (e.g. Gmail)."""
+    try:
+        from_email = (
+            getattr(settings, "DEFAULT_FROM_EMAIL", "")
+            or getattr(settings, "EMAIL_HOST_USER", "")
+            or "gurbhejs728@gmail.com"
+        )
+        from_name = getattr(settings, "SENDGRID_FROM_NAME", "Attendance System")
+        sender = f"{from_name} <{from_email}>" if from_name and "@" not in from_name else from_email
+
+        msg = EmailMultiAlternatives(
+            subject=subject,
+            body=text,
+            from_email=sender,
+            to=[to],
+        )
+        if html:
+            msg.attach_alternative(html, "text/html")
+        msg.send(fail_silently=False)
+        logger.info("SMTP email sent successfully to %s", to)
+        return True, ""
+    except Exception as e:
+        logger.exception("SMTP email send failed: %s", e)
+        return False, str(e)
 
 
 def send_email(
@@ -71,42 +104,45 @@ def send_email(
     text: str,
     html: str = "",
 ) -> tuple[bool, str]:
-    api_key = getattr(settings, "SENDGRID_API_KEY", "")
-    from_email = getattr(settings, "SENDGRID_FROM_EMAIL", "")
-    from_name = getattr(settings, "SENDGRID_FROM_NAME", "Attendance System")
+    api_key = str(getattr(settings, "SENDGRID_API_KEY", "") or "").strip()
+    from_email = str(getattr(settings, "SENDGRID_FROM_EMAIL", "") or "").strip()
+    from_name = str(getattr(settings, "SENDGRID_FROM_NAME", "Attendance System") or "").strip()
 
-    if not api_key:
-        msg = "SENDGRID_API_KEY not set in settings/env"
-        logger.warning("Email send skipped: %s", msg)
-        return False, msg
+    sendgrid_err = ""
+    # 1. Try SendGrid first if credentials are configured
+    if api_key and from_email:
+        try:
+            sg = sendgrid.SendGridAPIClient(api_key=api_key)
+            mail = Mail(
+                from_email=(from_email, from_name),
+                to_emails=To(to),
+                subject=subject,
+                plain_text_content=text,
+                html_content=(
+                    html if html else f"<pre style='font-family:sans-serif'>{text}</pre>"
+                ),
+            )
+            response = sg.send(mail)
+            if response.status_code in (200, 201, 202):
+                logger.info("SendGrid email sent to=%s status=%s", to, response.status_code)
+                return True, ""
+            sendgrid_err = f"SendGrid returned status {response.status_code}"
+            logger.warning("SendGrid send error: %s. Falling back to SMTP...", sendgrid_err)
+        except Exception as e:
+            sendgrid_err = str(e)
+            logger.warning("SendGrid send exception (%s). Falling back to SMTP...", e)
+    else:
+        sendgrid_err = "SendGrid not configured"
 
-    if not from_email:
-        msg = "SENDGRID_FROM_EMAIL not set in settings/env"
-        logger.warning("Email send skipped: %s", msg)
-        return False, msg
+    # 2. Fallback to standard Django SMTP
+    ok, smtp_err = send_email_smtp(to, subject, text, html)
+    if ok:
+        return True, ""
 
-    try:
-        sg = sendgrid.SendGridAPIClient(api_key=api_key)
+    combined_err = f"Failed to send email. SendGrid: {sendgrid_err}. SMTP: {smtp_err}"
+    logger.error("All email delivery methods failed: %s", combined_err)
+    return False, combined_err
 
-        mail = Mail(
-            from_email=(from_email, from_name),
-            to_emails=To(to),
-            subject=subject,
-            plain_text_content=text,
-            html_content=(
-                html if html else f"<pre style='font-family:sans-serif'>{text}</pre>"
-            ),
-        )
-
-        response = sg.send(mail)
-        success = response.status_code in (200, 201, 202)
-
-        logger.info("Email send status to=%s success=%s status=%s", to, success, response.status_code)
-        return success, "" if success else f"SendGrid returned {response.status_code}"
-
-    except Exception as e:
-        logger.exception("Email send failed: %s", e)
-        return False, str(e)
 
 
 # ─── OTP email templates ───────────────────────────────────────────────────────
