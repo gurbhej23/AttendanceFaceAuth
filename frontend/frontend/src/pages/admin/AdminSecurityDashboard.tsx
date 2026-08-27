@@ -830,17 +830,17 @@ export default function AdminSecurityDashboard() {
         {activeTab === "rollcall" && (
           <div className="space-y-6">
             {/* Emergency Status Banner */}
-            <div className="rounded-3xl border-2 border-rose-500 bg-gradient-to-r from-rose-950/90 via-red-900/80 to-slate-950/90 p-5 sm:p-6 text-white shadow-2xl backdrop-blur-xl">
+            <div className="rounded-3xl border-2 border-rose-500 bg-gradient-to-r from-rose-600 via-red-600 to-rose-700 dark:from-rose-950/90 dark:via-red-900/80 dark:to-slate-950/90 p-5 sm:p-6 text-white shadow-2xl backdrop-blur-xl">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3.5">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-500/30 text-rose-300 animate-pulse border border-rose-400">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 dark:bg-rose-500/30 text-white dark:text-rose-300 animate-pulse border border-white/30 dark:border-rose-400">
                     <Flame size={24} />
                   </div>
                   <div>
-                    <h2 className="text-xl font-black tracking-tight">
+                    <h2 className="text-xl font-black tracking-tight text-white">
                       Emergency Evacuation Manifest
                     </h2>
-                    <p className="text-xs text-rose-200 mt-0.5">
+                    <p className="text-xs text-rose-100 dark:text-rose-200 mt-0.5 font-medium">
                       Account for all personnel currently recorded inside the facility during drills or emergencies.
                     </p>
                   </div>
@@ -849,7 +849,7 @@ export default function AdminSecurityDashboard() {
                 <div className="flex items-center gap-2">
                   <Button
                     onClick={handlePrintEvacuation}
-                    className="flex items-center gap-1.5 rounded-2xl bg-white text-slate-900 px-4 py-2.5 text-xs font-bold shadow-lg hover:bg-slate-100 cursor-pointer"
+                    className="flex items-center gap-1.5 rounded-2xl bg-white text-slate-900 px-4 py-2.5 text-xs font-bold shadow-lg hover:bg-slate-100 cursor-pointer border border-white/20"
                   >
                     <Printer size={14} /> Print Roster
                   </Button>
@@ -857,21 +857,21 @@ export default function AdminSecurityDashboard() {
               </div>
 
               {/* Progress Bar */}
-              <div className="mt-5 pt-4 border-t border-rose-500/30">
-                <div className="flex items-center justify-between text-xs font-bold mb-1.5">
-                  <span>
+              <div className="mt-5 pt-4 border-t border-white/20 dark:border-rose-500/30">
+                <div className="flex items-center justify-between text-xs font-bold mb-1.5 text-white">
+                  <span className="text-white">
                     Evacuation Progress: {accountedCount} of {insidePersonnel.length} Accounted For
                   </span>
-                  <span>
+                  <span className="text-white font-mono">
                     {insidePersonnel.length > 0
                       ? Math.round((accountedCount / insidePersonnel.length) * 100)
                       : 100}
                     % Safe
                   </span>
                 </div>
-                <div className="h-3 w-full overflow-hidden rounded-full bg-slate-900/80 border border-white/20">
+                <div className="h-3.5 w-full overflow-hidden rounded-full bg-black/30 dark:bg-slate-900/80 border border-white/30">
                   <div
-                    className="h-full bg-gradient-to-r from-emerald-500 to-cyan-400 transition-all duration-500"
+                    className="h-full bg-gradient-to-r from-emerald-400 to-cyan-300 dark:from-emerald-500 dark:to-cyan-400 transition-all duration-500 shadow-sm"
                     style={{
                       width: `${insidePersonnel.length > 0
                           ? (accountedCount / insidePersonnel.length) * 100

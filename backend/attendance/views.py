@@ -328,7 +328,10 @@ def send_verify_otp(request):
                 status=400,
             )
 
-        employee = Employee.objects(employee_id=employee_id, is_active=True).first()
+        employee = (
+            Employee.objects(employee_id=employee_id, is_active=True).first()
+            or Employee.objects(employee_id__iexact=employee_id, is_active=True).first()
+        )
         if not employee:
             return Response(
                 {"success": False, "error": "Employee not found"},
@@ -401,7 +404,10 @@ def verify_otp(request):
                 status=400,
             )
 
-        employee = Employee.objects(employee_id=employee_id, is_active=True).first()
+        employee = (
+            Employee.objects(employee_id=employee_id, is_active=True).first()
+            or Employee.objects(employee_id__iexact=employee_id, is_active=True).first()
+        )
         if not employee:
             return Response(
                 {"success": False, "error": "Employee not found"},
@@ -452,7 +458,10 @@ def verify_pin(request):
                 status=400,
             )
 
-        employee = Employee.objects(employee_id=employee_id, is_active=True).first()
+        employee = (
+            Employee.objects(employee_id=employee_id, is_active=True).first()
+            or Employee.objects(employee_id__iexact=employee_id, is_active=True).first()
+        )
         if not employee:
             return Response(
                 {"success": False, "error": "Employee not found"},

@@ -122,13 +122,17 @@ DATABASES = {
 }
 
 CORS_ALLOWED_ORIGINS = [
-    "https://attendanceauth.vercel.app",  # <--- Added your actual live Vercel domain!
+    "https://attendanceauth.vercel.app",
     "https://attendance-face-auth.vercel.app",
     "https://attendance-face-auth-7wxl1qus7-gurbhej-singhs-projects.vercel.app",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+]
+
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https:\/\/.*\.vercel\.app$",
 ]
 
 _extra_cors = os.getenv("FRONTEND_ORIGINS", "").strip()

@@ -594,7 +594,14 @@ def create_system_group_message(group_id: str, text: str) -> GroupMessage:
 
 
 def find_employee(employee_id: str):
-    return Employee.objects(employee_id=employee_id).first()
+    if not employee_id:
+        return None
+    clean_id = str(employee_id).strip()
+    return (
+        Employee.objects(employee_id=clean_id).first()
+        or Employee.objects(employee_id__iexact=clean_id).first()
+    )
+
 
 
 # ─── Register Employee ─────────────────────────────────────────────────────────

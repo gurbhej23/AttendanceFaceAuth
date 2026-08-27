@@ -50,6 +50,7 @@ import {
   ChartNoAxesCombined,
   Calendar,
   ShieldAlert,
+  LayoutDashboard,
 } from "lucide-react";
 import {
   DEPARTMENTS,
@@ -348,6 +349,12 @@ export default function AdminProfile() {
         active: location.pathname === "/admin-profile",
       },
       {
+        icon: <LayoutDashboard size={18} />,
+        label: "Dashboard",
+        onClick: () => navigate("/attendance-sheet"),
+        active: location.pathname === "/attendance-sheet",
+      },
+      {
         icon: <Calendar size={18} />,
         label: "HR Center",
         onClick: () => navigate("/admin-hr"),
@@ -370,12 +377,6 @@ export default function AdminProfile() {
         label: "Security & Occupancy",
         onClick: () => navigate("/admin-security"),
         active: location.pathname === "/admin-security",
-      },
-      {
-        icon: <Download size={18} />,
-        label: "Attendance",
-        onClick: () => navigate("/attendance-sheet"),
-        active: location.pathname === "/attendance-sheet",
       },
     ],
     [location.pathname, navigate],
