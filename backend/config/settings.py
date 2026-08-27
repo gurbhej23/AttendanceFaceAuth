@@ -253,17 +253,23 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = int(
     os.getenv("DATA_UPLOAD_MAX_MEMORY_SIZE", str(15 * 1024 * 1024))
 )
 
-# Cloudinary configuration (Only active in production / Render)
-if _IS_RENDER:
-    INSTALLED_APPS.extend([
-        "cloudinary_storage",
-        "cloudinary",
-    ])
+# Cloudinary configuration (Only active in production / Render or when credentials exist)
+CLOUDINARY_CLOUD_NAME = os.getenv("CLOUDINARY_CLOUD_NAME", "q5ktiebt").strip()
+CLOUDINARY_API_KEY = os.getenv("CLOUDINARY_API_KEY", "811931412837694").strip()
+CLOUDINARY_API_SECRET = os.getenv("CLOUDINARY_API_SECRET", "IHWGgnX2lcxiu59jBW02XtHYPEQ").strip()
+
+if _IS_RENDER or CLOUDINARY_CLOUD_NAME:
+    if "cloudinary_storage" not in INSTALLED_APPS:
+        INSTALLED_APPS.extend([
+            "cloudinary_storage",
+            "cloudinary",
+        ])
     CLOUDINARY_STORAGE = {
-        "CLOUD_NAME": os.getenv("CLOUDINARY_CLOUD_NAME", ""),
-        "API_KEY": os.getenv("CLOUDINARY_API_KEY", ""),
-        "API_SECRET": os.getenv("CLOUDINARY_API_SECRET", ""),
+        "CLOUD_NAME": CLOUDINARY_CLOUD_NAME,
+        "API_KEY": CLOUDINARY_API_KEY,
+        "API_SECRET": CLOUDINARY_API_SECRET,
     }
     DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
+
 
 

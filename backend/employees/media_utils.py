@@ -28,12 +28,20 @@ def media_url(path: str) -> str:
     normalized = normalize_media_path(path)
     if not normalized:
         return ""
-    if normalized.startswith(("http://", "https://")):
+    if normalized.startswith(("http://", "https://", "data:")):
         return normalized
     try:
-        return default_storage.url(normalized)
+        url = default_storage.url(normalized)
+        if url.startswith(("http://", "https://", "data:")):
+            return url
+        media_prefix = str(getattr(settings, "MEDIA_URL", "/media/") or "/media/").rstrip("/")
+        clean_url = str(url).lstrip("/")
+        return f"{media_prefix}/{clean_url}"
     except Exception:
-        return f"{settings.MEDIA_URL}{normalized}"
+        media_prefix = str(getattr(settings, "MEDIA_URL", "/media/") or "/media/").rstrip("/")
+        clean_path = str(normalized).lstrip("/")
+        return f"{media_prefix}/{clean_path}"
+
 
 
 def resolve_employee_profile_url(employee) -> str:

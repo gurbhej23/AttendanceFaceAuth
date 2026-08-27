@@ -1234,12 +1234,13 @@ def update_profile(request):
                 )
 
     employee.save()
+    resolved_img = media_url(employee.profile_img)
     return Response(
         {
             "success": True,
             "message": "Profile updated successfully",
             "employee": employee_payload(employee),
-            "profile_img": employee.profile_img,
+            "profile_img": resolved_img,
         }
     )
 
@@ -1267,12 +1268,13 @@ def update_profile_photo(request):
             {"success": False, "error": f"Could not save photo: {exc}"},
             status=status.HTTP_400_BAD_REQUEST,
         )
+    resolved_img = media_url(employee.profile_img)
     return Response(
         {
             "success": True,
             "message": "Profile photo updated",
             "employee": employee_payload(employee),
-            "profile_img": employee.profile_img,
+            "profile_img": resolved_img,
         }
     )
 

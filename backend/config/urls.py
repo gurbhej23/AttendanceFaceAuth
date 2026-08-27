@@ -28,5 +28,11 @@ urlpatterns = [
     path("api/attendance/", include("attendance.urls")),
 ]
 
+from django.urls import re_path
+from django.views.static import serve
+
 if getattr(settings, "SERVE_MEDIA", False) or settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += [
+        re_path(r"^media/(?P<path>.*)$", serve, {"document_root": settings.MEDIA_ROOT}),
+    ]
+

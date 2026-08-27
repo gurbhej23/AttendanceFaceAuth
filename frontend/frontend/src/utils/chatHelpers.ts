@@ -81,7 +81,11 @@ export const getApiRoot = () => resolveBackendOrigin();
 export const normalizeMediaPath = (path?: string | null): string => {
   if (!path) return "";
   let normalized = path.replace(/\\/g, "/");
-  if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
+  if (
+    normalized.startsWith("http://") ||
+    normalized.startsWith("https://") ||
+    normalized.startsWith("data:")
+  ) {
     return normalized;
   }
   const marker = "/media/";
@@ -97,9 +101,21 @@ export const normalizeMediaPath = (path?: string | null): string => {
 };
 
 export const getMediaUrl = (path?: string | null) => {
+  if (!path) return "";
+  if (
+    path.startsWith("http://") ||
+    path.startsWith("https://") ||
+    path.startsWith("data:")
+  ) {
+    return path;
+  }
   const normalized = normalizeMediaPath(path);
   if (!normalized) return "";
-  if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
+  if (
+    normalized.startsWith("http://") ||
+    normalized.startsWith("https://") ||
+    normalized.startsWith("data:")
+  ) {
     return normalized;
   }
   // Dev: Vite proxies /media to Django on localhost.
